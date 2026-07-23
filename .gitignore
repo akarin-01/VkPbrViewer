@@ -1,0 +1,43 @@
+# ===== 构建目录 =====
+build/
+cmake-build-*/
+out/
+bin/
+lib/
+
+# ===== 编译产物 =====
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+*.pdb
+*.ilk
+*.exp
+*.lib
+
+# ===== Vulkan 着色器编译产物（可选，一般运行时生成） =====
+*.spv
+
+# ===== IDE 配置文件 =====
+# Visual Studio / VS Code / CLion
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.sln.docstates
+
+# ===== 操作系统临时文件 =====
+.DS_Store
+Thumbs.db
+*.tmp
+*.log
+
+# ===== CMake 缓存 =====
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+compile_commands.json
