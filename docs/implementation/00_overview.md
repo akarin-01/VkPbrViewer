@@ -1,6 +1,6 @@
 # 实现步骤
 
-- [ ] [01. CMake 项目骨架](01_cmake.md)
+- [x] [01. CMake 项目骨架](01_cmake.md)
 - [ ] [02. 窗口与 Vulkan 初始化](02_window_vulkan.md)
 - [ ] [03. 渲染框架](03_render_framework.md)
 - [ ] [04. 模型加载与基础渲染](04_model_and_camera.md)
