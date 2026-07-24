@@ -10,7 +10,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # 此处先检查目录是否存在，未初始化时给出明确提示。
 set(SUBMODULE_DIRS
     third_party/glfw
-    third_party/Vulkan-Headers
     third_party/VMA
 )
 foreach(dir ${SUBMODULE_DIRS})

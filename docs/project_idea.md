@@ -40,7 +40,7 @@ Vk Pbr Viewer 是一个使用 **C++** 开发，以 **Vulkan** 作为图形 API �
 
 - **CMake**  
   作为核心构建工具。为了在保证工程复现性的同时最大化 AI 辅助编程工具的上下文理解能力，采用 **“核心底层库 Submodule + 高频工具库 FetchContent”** 的混合依赖管理模式：
-  - **Git Submodule（存放于 `third_party/`）**：将 **Vulkan-Headers**、**GLFW** 及 **VulkanMemoryAllocator (VMA)** 作为 Git 子模块引入。这些库直接与操作系统和 Vulkan 驱动交互，接口稳定性要求极高。通过 Submodule 将源码锁定在特定 Commit，避免上游更新导致的构建断裂；同时这些源码物理存在于项目目录中，AI Agent 可直接索引其头文件与宏定义，在生成 Vulkan 对象创建或内存分配代码时能准确把握参数结构，显著降低 AI 幻觉。
+  - **Git Submodule（存放于 `third_party/`）**：将 **GLFW** 及 **VulkanMemoryAllocator (VMA)** 作为 Git 子模块引入。这些库直接与操作系统和 Vulkan 驱动交互，接口稳定性要求极高。通过 Submodule 将源码锁定在特定 Commit，避免上游更新导致的构建断裂；同时这些源码物理存在于项目目录中，AI Agent 可直接索引其头文件与宏定义，在生成 Vulkan 对象创建或内存分配代码时能准确把握参数结构，显著降低 AI 幻觉。
   - **FetchContent（CMake 配置时自动拉取）**：将 **glm**、**stb_image**、**tinyobjloader** 以及 **Dear ImGui** 通过 `FetchContent` 在构建配置阶段自动下载。这些库接口高度标准化且极少变动，采用自动下载可大幅减轻仓库体积，并简化团队协作时的环境配置成本。
   
   工程根目录的 `CMakeLists.txt` 中将包含子模块存在性检查逻辑，若开发者未执行 `git submodule update --init`，构建时会直接输出友好错误提示，该提示可直接反馈给 AI Agent，辅助其自动修复环境问题。
