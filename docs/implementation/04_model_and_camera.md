@@ -1,6 +1,6 @@
 # 04. 模型加载与基础渲染
 
-- [ ] CMake：通过 FetchContent 引入 glm
+- [ ] CMake：通过 FetchContent 引入 glm，配置 `target_compile_definitions` 添加 `GLM_FORCE_DEPTH_ZERO_TO_ONE`
 - [ ] CMake：通过 FetchContent 引入 tinyobjloader
 - [ ] 定义顶点结构体：Position（vec3）、Normal（vec3）、TexCoord（vec2）、Tangent（vec4）
 - [ ] 定义材质参数结构体：BaseColor（vec4）、Metallic（float）、Roughness（float）、AO（float）等

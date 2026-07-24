@@ -60,6 +60,9 @@ Vk Pbr Viewer 是一个使用 **C++** 开发，以 **Vulkan** 作为图形 API �
 - **内存管理（VulkanMemoryAllocator / VMA）**  
   用于高效管理 Vulkan 设备内存（Device Memory）和绑定（Binding），自动处理内存类型选择、分配与释放，避免手动管理带来的碎片化和繁琐的 API 调用。该库采用单头文件形式，通过 Submodule 引入。
 
+- **着色器编译（glslangValidator）**  
+  使用 Vulkan SDK 自带的 `glslangValidator` 工具，在 CMake 构建时将 GLSL 源码编译为 SPIR-V 二进制文件，运行时直接加载。
+
 ## 运行环境与约束
 
 - **工作目录约束（强制）**  
