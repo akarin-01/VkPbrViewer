@@ -1,5 +1,7 @@
 # 01. CMake 项目骨架
 
+> **阶段目标**：项目能编译、能运行，`main()` 中 assets 检查生效。
+
 - [x] 添加 GLFW Submodule：`git submodule add https://github.com/glfw/glfw.git third_party/glfw`
 - [x] 添加 VMA Submodule：`git submodule add https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git third_party/VMA`
 - [x] 执行 `git submodule update --init --recursive`
