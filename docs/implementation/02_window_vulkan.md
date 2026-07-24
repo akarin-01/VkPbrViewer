@@ -1,8 +1,8 @@
 # 02. 窗口与 Vulkan 初始化
 
-- [ ] CMake：添加 GLFW Submodule 到 `third_party/`，链接到目标
-- [ ] CMake：添加 Vulkan-Headers Submodule 到 `third_party/`，链接到目标；添加 Submodule 缺失检查
-- [ ] 基于 GLFW 创建窗口，标题 "VkPbrViewer"，设置合适默认尺寸
+- [x] CMake：添加 GLFW Submodule 到 `third_party/`，链接到目标
+- [x] CMake：`find_package(Vulkan REQUIRED)` 查找 Vulkan SDK，链接到目标
+- [x] 基于 GLFW 创建窗口，标题 "VkPbrViewer"，设置合适默认尺寸
 - [ ] 创建 Vulkan Instance，开启所需的扩展（Surface + 平台对应扩展）
 - [ ] Debug 构建下启用 Validation Layers + `VK_EXT_debug_utils`，注册回调输出到控制台
 - [ ] 挑选合适的物理设备（独立显卡优先），创建 Logical Device

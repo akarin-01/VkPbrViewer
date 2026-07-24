@@ -23,7 +23,26 @@ foreach(dir ${SUBMODULE_DIRS})
     endif()
 endforeach()
 
+# ===== GLFW =====
+set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+add_subdirectory(third_party/glfw)
+
+# ===== Vulkan =====
+find_package(Vulkan REQUIRED)
+
 # ===== 可执行文件 =====
-add_executable(VkPbrViewer 
+add_executable(VkPbrViewer
     src/main.cpp
 )
+
+# ===== 链接 =====
+target_link_libraries(VkPbrViewer PRIVATE
+    glfw
+    Vulkan::Vulkan
+)
+
+if(WIN32)
+    target_link_libraries(VkPbrViewer PRIVATE gdi32)
+endif()
