@@ -35,6 +35,9 @@ find_package(Vulkan REQUIRED)
 # ===== 可执行文件 =====
 add_executable(VkPbrViewer
     src/main.cpp
+    
+    # core
+    src/core/window.cpp
 )
 
 # ===== 链接 =====
