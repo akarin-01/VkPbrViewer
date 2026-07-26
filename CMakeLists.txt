@@ -11,6 +11,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(SUBMODULE_DIRS
     third_party/glfw
     third_party/VMA
+    third_party/Vulkan-Headers
 )
 foreach(dir ${SUBMODULE_DIRS})
     if(NOT EXISTS "${CMAKE_SOURCE_DIR}/${dir}/.git" AND
@@ -29,7 +30,10 @@ set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 add_subdirectory(third_party/glfw)
 
-# ===== Vulkan =====
+# ===== Vulkan-Headers（来自 submodule，提供编译期头文件）=====
+add_subdirectory(third_party/Vulkan-Headers EXCLUDE_FROM_ALL)
+
+# ===== Vulkan Loader（来自系统 Vulkan SDK，提供链接库）=====
 find_package(Vulkan REQUIRED)
 
 # ===== 可执行文件 =====
@@ -43,6 +47,7 @@ add_executable(VkPbrViewer
 # ===== 链接 =====
 target_link_libraries(VkPbrViewer PRIVATE
     glfw
+    Vulkan::Headers
     Vulkan::Vulkan
 )
 
