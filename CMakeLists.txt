@@ -39,10 +39,21 @@ find_package(Vulkan REQUIRED)
 # ===== 可执行文件 =====
 add_executable(VkPbrViewer
     src/main.cpp
-    
+
     # core
     src/core/window.cpp
+
+    # render
+    src/render/render_context.cpp
+    src/render/render_utils.cpp
 )
+
+target_include_directories(VkPbrViewer PRIVATE ${CMAKE_SOURCE_DIR}/src)
+
+# ===== 编译选项 =====
+if(WIN32)
+    target_compile_options(VkPbrViewer PRIVATE /utf-8)
+endif()
 
 # ===== 链接 =====
 target_link_libraries(VkPbrViewer PRIVATE

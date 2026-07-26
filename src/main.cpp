@@ -3,6 +3,7 @@
 #include <filesystem>
 
 #include "core/window.h"
+#include "render/render_context.h"
 
 using namespace Kita;
 
@@ -17,6 +18,7 @@ int main()
         }
 
         Pbrv::Window window(800, 600, "Vk Pbr Viewer");
+        Pbrv::RenderContext context(window);
 
         while (!window.ShouldClose())
         {

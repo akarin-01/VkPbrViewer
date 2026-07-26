@@ -1,6 +1,8 @@
 #pragma once
 
 #include <memory>
+#include <vector>
+#include <vulkan/vulkan.h>
 
 namespace Kita::Pbrv
 {
@@ -12,6 +14,10 @@ namespace Kita::Pbrv
 
         bool ShouldClose() const;
         void PollEvents() const;
+
+        std::vector<const char*> GetRequiredInstanceExtensions() const;
+        VkSurfaceKHR CreateSurface(VkInstance instance) const;
+        void GetFramebufferSize(int* width, int* height) const;
 
     private:
         class Impl;
