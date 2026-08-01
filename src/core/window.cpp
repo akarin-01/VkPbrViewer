@@ -10,7 +10,15 @@ namespace Kita::Pbrv
     class Window::Impl
     {
     public:
+        static void OnFramebufferResized(GLFWwindow* window, int width, int height)
+        {
+            auto impl = reinterpret_cast<Window::Impl*>(glfwGetWindowUserPointer(window));
+            impl->m_framebufferResized = true;
+        }
+
+    public:
         GLFWwindow* m_window{ nullptr };
+        bool m_framebufferResized{ false };
     };
 
     Window::Window(int width, int height, const char* title)
@@ -22,12 +30,13 @@ namespace Kita::Pbrv
         }
 
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
         m_pImpl->m_window = glfwCreateWindow(width, height, title, nullptr, nullptr);
         if (!m_pImpl->m_window)
         {
             throw std::runtime_error("Failed to create GLFW window");
         }
+        glfwSetWindowUserPointer(m_pImpl->m_window, m_pImpl.get());
+        glfwSetFramebufferSizeCallback(m_pImpl->m_window, Impl::OnFramebufferResized);
     }
 
     Window::~Window()
@@ -47,6 +56,11 @@ namespace Kita::Pbrv
     void Window::PollEvents() const
     {
         glfwPollEvents();
+    }
+
+    void Window::WaitEvents() const
+    {
+        glfwWaitEvents();
     }
 
     std::vector<const char*> Window::GetRequiredInstanceExtensions() const
@@ -72,5 +86,15 @@ namespace Kita::Pbrv
     void Window::GetFramebufferSize(int* width, int* height) const
     {
         glfwGetFramebufferSize(m_pImpl->m_window, width, height);
+    }
+
+    bool Window::FramebufferWasResized() const
+    {
+        return m_pImpl->m_framebufferResized;
+    }
+
+    void Window::ResetFramebufferResized()
+    {
+        m_pImpl->m_framebufferResized = false;
     }
 }

@@ -18,9 +18,9 @@ foreach(dir ${SUBMODULE_DIRS})
        NOT EXISTS "${CMAKE_SOURCE_DIR}/${dir}/CMakeLists.txt" AND
        NOT EXISTS "${CMAKE_SOURCE_DIR}/${dir}/include")
         message(FATAL_ERROR
-            "[CMake] 缺少依赖库: ${dir}\n"
-            "  请先执行: git submodule update --init --recursive\n"
-            "  若尚未添加 submodule，请参考 docs/implementation/01_cmake.md")
+            "[CMake] Missing dependency: ${dir}\n"
+            "  Run: git submodule update --init --recursive\n"
+            "  If the submodule hasn't been added yet, see docs/implementation/01_cmake.md")
     endif()
 endforeach()
 
@@ -36,6 +36,10 @@ add_subdirectory(third_party/Vulkan-Headers EXCLUDE_FROM_ALL)
 # ===== Vulkan Loader（来自系统 Vulkan SDK，提供链接库）=====
 find_package(Vulkan REQUIRED)
 
+# ===== Shader Compiler (glslc) =====
+find_program(GLSLC_EXECUTABLE glslc REQUIRED)
+message(STATUS "Shader compiler: glslc (${GLSLC_EXECUTABLE})")
+
 # ===== 可执行文件 =====
 add_executable(VkPbrViewer
     src/main.cpp
@@ -44,8 +48,12 @@ add_executable(VkPbrViewer
     src/core/window.cpp
 
     # render
+    src/render/frame_sync.cpp
     src/render/render_context.cpp
+    src/render/render_image.cpp
     src/render/render_utils.cpp
+    src/render/renderer.cpp
+    src/render/swap_chain.cpp
 )
 
 target_include_directories(VkPbrViewer PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -65,3 +73,34 @@ target_link_libraries(VkPbrViewer PRIVATE
 if(WIN32)
     target_link_libraries(VkPbrViewer PRIVATE gdi32)
 endif()
+
+# ===== Shader 编译（GLSL → SPIR-V）=====
+# *.spv 文件已在 .gitignore 中排除，编译产物直接输出到源码目录 assets/shaders/
+# renderer.cpp 从工作目录下的 assets/shaders/ 加载这些文件
+set(SHADER_SOURCES
+    assets/shaders/triangle.vert
+    assets/shaders/triangle.frag
+)
+set(SHADER_OUTPUTS
+    assets/shaders/vert.spv
+    assets/shaders/frag.spv
+)
+
+set(COMPILED_SHADERS)
+foreach(src out IN ZIP_LISTS SHADER_SOURCES SHADER_OUTPUTS)
+    set(SRC_ABS ${CMAKE_SOURCE_DIR}/${src})
+    set(OUT_ABS ${CMAKE_SOURCE_DIR}/${out})
+
+    add_custom_command(
+        OUTPUT ${OUT_ABS}
+        COMMAND ${GLSLC_EXECUTABLE} ${SRC_ABS} -o ${OUT_ABS}
+        DEPENDS ${SRC_ABS}
+        COMMENT "Compiling shader: ${src} -> ${out}"
+        VERBATIM
+    )
+    list(APPEND COMPILED_SHADERS ${OUT_ABS})
+endforeach()
+
+add_custom_target(shaders ALL DEPENDS ${COMPILED_SHADERS}
+    COMMENT "All shaders compiled")
+add_dependencies(VkPbrViewer shaders)

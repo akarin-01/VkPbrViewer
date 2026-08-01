@@ -2,6 +2,7 @@
 
 > **阶段目标**：`.obj` 模型正确显示在屏幕上，Orbit 相机可交互。
 
+- [ ] CMake：将 VMA Submodule 链接到目标 — 接管所有 Buffer/Image 的 GPU 内存分配，避免手动管理 VkDeviceMemory
 - [ ] CMake：通过 FetchContent 引入 glm，配置 `target_compile_definitions` 添加 `GLM_FORCE_DEPTH_ZERO_TO_ONE`
 - [ ] CMake：通过 FetchContent 引入 tinyobjloader
 - [ ] 定义顶点结构体：Position（vec3）、Normal（vec3）、TexCoord（vec2）、Tangent（vec4）

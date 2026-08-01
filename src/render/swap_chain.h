@@ -1,0 +1,42 @@
+#pragma once
+
+#include <vulkan/vulkan.h>
+#include <vector>
+
+namespace Kita::Pbrv
+{
+    class Window;
+    class RenderContext;
+
+    class SwapChain
+    {
+    public:
+        SwapChain(Window& window, const RenderContext& context);
+        ~SwapChain();
+
+        bool AcquireNextImage(uint64_t timeout, VkSemaphore semaphore, VkFence fence, uint32_t* pImageIndex);
+        bool QueuePresent(const VkPresentInfoKHR& presentInfo);
+
+        VkSwapchainKHR Handle() const { return m_swapChain; }
+        size_t ImageCount() const { return m_images.size(); }
+        VkImage Image(uint32_t index) const { return m_images[index]; }
+        VkImageView ImageView(uint32_t index) const { return m_imageViews[index]; }
+        VkFormat Format() const { return m_format; }
+        VkExtent2D Extent() const { return m_extent; }
+
+    private:
+        void CreateSwapChain();
+        void DestroySwapChain();
+        void RecreateSwapChain();
+
+    private:
+        Window& m_window;
+        const RenderContext& m_context;
+
+        VkSwapchainKHR m_swapChain{ VK_NULL_HANDLE };
+        std::vector<VkImage> m_images;
+        std::vector<VkImageView> m_imageViews;
+        VkFormat m_format{ VK_FORMAT_UNDEFINED };
+        VkExtent2D m_extent{ 0, 0 };
+    };
+}

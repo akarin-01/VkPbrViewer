@@ -14,10 +14,14 @@ namespace Kita::Pbrv
 
         bool ShouldClose() const;
         void PollEvents() const;
+        void WaitEvents() const;
 
         std::vector<const char*> GetRequiredInstanceExtensions() const;
         VkSurfaceKHR CreateSurface(VkInstance instance) const;
         void GetFramebufferSize(int* width, int* height) const;
+
+        bool FramebufferWasResized() const;
+        void ResetFramebufferResized();
 
     private:
         class Impl;
