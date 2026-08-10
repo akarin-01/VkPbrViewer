@@ -78,6 +78,8 @@ add_executable(VkPbrViewer
 
     # scene
     src/scene/camera.cpp
+    src/scene/light.cpp
+    src/scene/material.cpp
     src/scene/mesh.cpp
 )
 
@@ -117,6 +119,10 @@ set(SHADER_OUTPUTS
     assets/shaders/lit_frag.spv
 )
 
+set(SHADER_INCLUDES
+    assets/shaders/common/per_frame_data.glsl
+)
+
 set(COMPILED_SHADERS)
 foreach(src out IN ZIP_LISTS SHADER_SOURCES SHADER_OUTPUTS)
     set(SRC_ABS ${CMAKE_SOURCE_DIR}/${src})
@@ -124,8 +130,8 @@ foreach(src out IN ZIP_LISTS SHADER_SOURCES SHADER_OUTPUTS)
 
     add_custom_command(
         OUTPUT ${OUT_ABS}
-        COMMAND ${GLSLC_EXECUTABLE} ${SRC_ABS} -o ${OUT_ABS}
-        DEPENDS ${SRC_ABS}
+        COMMAND ${GLSLC_EXECUTABLE} ${SRC_ABS} -o ${OUT_ABS} -I ${CMAKE_SOURCE_DIR}/assets/shaders
+        DEPENDS ${SRC_ABS} ${SHADER_INCLUDES}
         COMMENT "Compiling shader: ${src} -> ${out}"
         VERBATIM
     )

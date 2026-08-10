@@ -41,6 +41,8 @@ namespace Kita::Pbrv
         VkDescriptorPool m_descriptorPool{ VK_NULL_HANDLE };
         VkDescriptorSetLayout m_frameLayout{ VK_NULL_HANDLE };
         std::vector<VkDescriptorSet> m_frameSets;
+        VkDescriptorSetLayout m_matLayout{ VK_NULL_HANDLE };
+        std::vector<VkDescriptorSet> m_matSets;
 
         VkPipeline m_pipeline{ VK_NULL_HANDLE };
         VkPipelineLayout m_pipelineLayout{ VK_NULL_HANDLE };

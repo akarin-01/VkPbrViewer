@@ -22,6 +22,13 @@ int main()
         Pbrv::Window window(800, 600, "Vk Pbr Viewer");
 
         Pbrv::Scene scene;
+        scene.GetLight()
+            .SetDirection(glm::vec3(1.0f, 1.0f, 0.0f));
+        scene.GetMaterial()
+            .SetAlbedo(glm::vec4(0.0f, 1.0f, 1.0f, 1.0f))
+            .SetMetallic(0.5f)
+            .SetRoughness(0.5f)
+            .SetAO(1.0f);
         scene.GetMesh().LoadFromObj("assets/models/Cerberus_LP.obj");
 
         Pbrv::Renderer renderer(window);

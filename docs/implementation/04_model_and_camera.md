@@ -9,8 +9,8 @@
 定义场景侧纯 CPU 数据结构（`src/scene/`），不依赖 Vulkan 头文件，是"事实源"：
 
 - [x] 顶点结构体：Position、Normal、TexCoord、Tangent
-- [ ] 材质参数结构体：BaseColor、Metallic、Roughness、AO 等
-- [ ] 灯光结构体：方向、颜色、强度（CPU 侧保持单一 `Light` 概念）
+- [x] 材质参数结构体：BaseColor、Metallic、Roughness、AO 等
+- [x] 灯光结构体：方向、颜色、强度（CPU 侧保持单一 `Light` 概念）
 - [x] 相机结构体：位置、朝向、透视参数（fov、aspect、zNear/zFar）
 - [x] 使用 tinyobjloader 加载 `.obj`，提取顶点和索引数据
 - [ ] 加载后计算法线和 Tangent（如果模型缺少）
@@ -37,13 +37,13 @@ CPU 场景 → GPU 资源映射的唯一入口，持有 `RenderResources` 引用
 - [x] `RenderMesh` 缩为句柄容器：`{ vertexBufferHandle, indexBufferHandle, indexCount }`，与 CPU `Mesh` 形成镜像
 - [x] `RenderScene::Update`：逐帧检查 dirty → 销毁旧资源 → 创建新 GPU 资源
 - [x] 顶点/索引 buffer 通过 `CreateBufferWithData` 上传
-- [ ] 打包器：相机 + 灯光数据结构 → GPU UBO 数据写入（唯一知道 CPU → GPU 布局映射的地方）
+- [x] 打包器：相机 + 灯光数据结构 → GPU UBO 数据写入（唯一知道 CPU → GPU 布局映射的地方）
 - [x] 产出 `RenderList`：有序 draw 命令（几何/材质/变换），存句柄不存 Vk 裸句柄
 
 ### 四、渲染与交互
 
 - [ ] 实现 Orbit 相机：左键旋转、滚轮缩放、中键平移
-- [ ] 写临时 Lambert 着色器，确保模型正确显示
+- [x] 写临时 Lambert 着色器，确保模型正确显示
 
 ---
 

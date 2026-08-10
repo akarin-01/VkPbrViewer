@@ -25,8 +25,10 @@ namespace Kita::Pbrv
         RenderList GetRenderList() const;
 
     private:
-        RenderCamera CreateRenderCamera();
-        void DestroyRenderCamera(RenderCamera& camera);
+        RenderPerFrame CreateRenderPerFrame();
+        void DestroyRenderPerFrame(RenderPerFrame& frame);
+        RenderMaterial CreateRenderMaterial();
+        void DestroyRenderMaterial(RenderMaterial& material);
         RenderMesh CreateRenderMesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
         void DestroyRenderMesh(RenderMesh& mesh);
 
@@ -34,7 +36,6 @@ namespace Kita::Pbrv
         RenderResources& m_resources;
         const SwapChain& m_swapChain;
 
-        RenderCamera m_camera;
-        RenderMesh m_mesh;
+        RenderList m_list;
     };
 }

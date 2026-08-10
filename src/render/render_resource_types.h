@@ -4,6 +4,9 @@
 #include <vector>
 #include <glm/glm.hpp>
 
+#define STD140_ASSERT(T, SIZE)\
+    static_assert(sizeof(T) == SIZE, #T " std140 mismatch (expected " #SIZE")")
+
 namespace Kita::Pbrv
 {
     struct RenderBuffer
@@ -30,9 +33,14 @@ namespace Kita::Pbrv
         uint32_t m_imageIndex{ 0 };
     };
 
-    struct RenderCamera
+    struct RenderPerFrame
     {
-        std::vector<RenderBufferHandle> m_viewProjUboHandles;
+        std::vector<RenderBufferHandle> m_uboHandles;
+    };
+
+    struct RenderMaterial
+    {
+        std::vector<RenderBufferHandle> m_uboHandles;
     };
 
     struct RenderMesh
@@ -44,13 +52,24 @@ namespace Kita::Pbrv
 
     struct RenderList
     {
-        RenderCamera m_camera;
+        RenderPerFrame m_frame;
+        RenderMaterial m_material;
         RenderMesh m_mesh;
     };
 
     struct FrameUbo
     {
-        alignas(16) glm::mat4 viewProj;
+        alignas(16) glm::mat4 m_viewProj;
+        alignas(16) glm::vec4 m_viewPos;            // xyz - pos, w - 1 always
+        alignas(16) glm::vec4 m_lightDir;           // xyz - dir, w - 0(directional light)
+        alignas(16) glm::vec4 m_lightColor;         // xyz - rgb, w - intensity
     };
-    static_assert(sizeof(FrameUbo) == 64, "std140 mismatch");
+    STD140_ASSERT(FrameUbo, 112);
+
+    struct MaterialUbo
+    {
+        alignas(16) glm::vec4 m_albedo;
+        alignas(16) glm::vec4 m_params;     // x - metallic, y - roughness, z - ao, w - padding
+    };
+    STD140_ASSERT(MaterialUbo, 32);
 }

@@ -14,14 +14,15 @@ namespace Kita::Pbrv
     RenderScene::RenderScene(RenderResources& resources, const SwapChain& swapChain)
         : m_resources(resources), m_swapChain(swapChain)
     {
-        m_camera = CreateRenderCamera();
+        m_list.m_frame = CreateRenderPerFrame();
+        m_list.m_material = CreateRenderMaterial();
     }
-
 
     RenderScene::~RenderScene()
     {
-        DestroyRenderMesh(m_mesh);
-        DestroyRenderCamera(m_camera);
+        DestroyRenderMesh(m_list.m_mesh);
+        DestroyRenderMaterial(m_list.m_material);
+        DestroyRenderPerFrame(m_list.m_frame);
     }
 
     void RenderScene::Update(const Scene& scene, const FrameInfo& frameInfo)
@@ -30,13 +31,28 @@ namespace Kita::Pbrv
         auto& frameIndex = frameInfo.m_frameIndex;
         auto& imageIndex = frameInfo.m_imageIndex;
 
-        // Camera
+        // Per frame
         {
             auto& sceneCamera = scene.GetCamera();
+            auto& sceneLight = scene.GetLight();
+
             FrameUbo ubo{};
-            ubo.viewProj = sceneCamera.GetProjectMatrix(m_swapChain.Aspect())
+            ubo.m_viewProj = sceneCamera.GetProjectMatrix(m_swapChain.Aspect())
                 * sceneCamera.GetViewMatrix();
-            m_resources.WriteBuffer(m_camera.m_viewProjUboHandles[frameIndex], &ubo, sizeof(ubo));
+            ubo.m_viewPos = glm::vec4(sceneCamera.GetPosition(), 1.0f);
+            ubo.m_lightDir = glm::vec4(sceneLight.GetDirection(), 0.0f);
+            ubo.m_lightColor = glm::vec4(sceneLight.GetColor(), sceneLight.GetIntensity());
+
+            m_resources.WriteBuffer(m_list.m_frame.m_uboHandles[frameIndex], &ubo, sizeof(ubo));
+        }
+
+        // Material
+        {
+            auto& sceneMat = scene.GetMaterial();
+            MaterialUbo ubo{};
+            ubo.m_albedo = sceneMat.GetAlbedo();
+            ubo.m_params = glm::vec4(sceneMat.GetMetallic(), sceneMat.GetRoughness(), sceneMat.GetAO(), 0.0f);
+            m_resources.WriteBuffer(m_list.m_material.m_uboHandles[frameIndex], &ubo, sizeof(ubo));
         }
 
         // Mesh
@@ -48,53 +64,75 @@ namespace Kita::Pbrv
                 sceneMesh.ClearDirty();
 
                 // Destroy old mesh
-                DestroyRenderMesh(m_mesh);
+                DestroyRenderMesh(m_list.m_mesh);
 
                 // Create new mesh
-                m_mesh = CreateRenderMesh(sceneMesh.GetVertices(), sceneMesh.GetIndices());
+                m_list.m_mesh = CreateRenderMesh(sceneMesh.GetVertices(), sceneMesh.GetIndices());
 
                 std::clog << "[Renderer] Upload mesh: " << sceneMesh.GetName() << ", "
-                    << m_mesh.m_indexCount << " indices\n";
+                    << m_list.m_mesh.m_indexCount << " indices\n";
             }
         }
-
-        // Todo: Upload other gpu resource (e.g. camera, lights, materials, etc.)
     }
 
     RenderList RenderScene::GetRenderList() const
     {
-        RenderList list{};
-        list.m_camera = m_camera;
-        list.m_mesh = m_mesh;
-        return list;
+        return m_list;
     }
-
-    RenderCamera RenderScene::CreateRenderCamera()
+    RenderPerFrame RenderScene::CreateRenderPerFrame()
     {
-        RenderCamera camera;
+        RenderPerFrame frame;
 
-        camera.m_viewProjUboHandles.resize(kMaxFramesInFlight);
+        frame.m_uboHandles.resize(kMaxFramesInFlight);
 
         VkBufferCreateInfo bufferInfo{};
         bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
         bufferInfo.size = sizeof(FrameUbo);
         bufferInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
         bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        for (auto& handle : camera.m_viewProjUboHandles)
+        for (auto& handle : frame.m_uboHandles)
         {
             handle = m_resources.CreateBuffer(bufferInfo, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, true);
         }
 
-        return camera;
+        return frame;
     }
 
-    void RenderScene::DestroyRenderCamera(RenderCamera& camera)
+    void RenderScene::DestroyRenderPerFrame(RenderPerFrame& frame)
     {
-        for (auto& handle : camera.m_viewProjUboHandles)
+        for (auto& handle : frame.m_uboHandles)
         {
             m_resources.DestroyBuffer(handle);
         }
-        camera = {};
+        frame = {};
+    }
+
+    RenderMaterial RenderScene::CreateRenderMaterial()
+    {
+        RenderMaterial material;
+
+        material.m_uboHandles.resize(kMaxFramesInFlight);
+
+        VkBufferCreateInfo bufferInfo{};
+        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        bufferInfo.size = sizeof(MaterialUbo);
+        bufferInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+        bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        for (auto& handle : material.m_uboHandles)
+        {
+            handle = m_resources.CreateBuffer(bufferInfo, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, true);
+        }
+
+        return material;
+    }
+
+    void RenderScene::DestroyRenderMaterial(RenderMaterial& material)
+    {
+        for (auto& handle : material.m_uboHandles)
+        {
+            m_resources.DestroyBuffer(handle);
+        }
+        material = {};
     }
 
     RenderMesh RenderScene::CreateRenderMesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices)

@@ -28,6 +28,7 @@ namespace Kita::Pbrv
         vkDestroyPipeline(m_context.Device(), m_pipeline, nullptr);
         vkDestroyPipelineLayout(m_context.Device(), m_pipelineLayout, nullptr);
         vkDestroyDescriptorSetLayout(m_context.Device(), m_frameLayout, nullptr);
+        vkDestroyDescriptorSetLayout(m_context.Device(), m_matLayout, nullptr);
         vkDestroyDescriptorPool(m_context.Device(), m_descriptorPool, nullptr);
     }
 
@@ -123,6 +124,9 @@ namespace Kita::Pbrv
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout,
             0, 1, &m_frameSets[frameIndex], 0, nullptr);
         {
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout,
+                1, 1, &m_matSets[frameIndex], 0, nullptr);
+
             RenderBuffer* vertexBuffer = m_resources.GetBuffer(list.m_mesh.m_vertexBufferHandle);
             assert(vertexBuffer && "Vertex buffer handle is invalid");
             VkBuffer buffers[]{ vertexBuffer->m_buffer };
@@ -151,13 +155,13 @@ namespace Kita::Pbrv
     {
         std::vector<VkDescriptorPoolSize> poolSizes(1);
         poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        poolSizes[0].descriptorCount = kMaxFramesInFlight;
+        poolSizes[0].descriptorCount = kMaxFramesInFlight * 2;
 
         VkDescriptorPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
         poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
         poolInfo.pPoolSizes = poolSizes.data();
-        poolInfo.maxSets = kMaxFramesInFlight;
+        poolInfo.maxSets = kMaxFramesInFlight * 2;
 
         if (vkCreateDescriptorPool(m_context.Device(), &poolInfo, nullptr, &m_descriptorPool) != VK_SUCCESS)
         {
@@ -169,62 +173,125 @@ namespace Kita::Pbrv
     {
         // Frame layout
         {
-            VkDescriptorSetLayoutBinding binding{};
-            binding.binding = 0;
-            binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            binding.descriptorCount = 1;
-            binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+            std::vector<VkDescriptorSetLayoutBinding> bindings(1);
+            bindings[0].binding = 0;
+            bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            bindings[0].descriptorCount = 1;
+            bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
             VkDescriptorSetLayoutCreateInfo createInfo{};
             createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-            createInfo.bindingCount = 1;
-            createInfo.pBindings = &binding;
+            createInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+            createInfo.pBindings = bindings.data();
 
             m_frameLayout = CreateDescriptorSetLayout(m_context.Device(), createInfo);
+        }
+
+        // Material layout
+        {
+            std::vector<VkDescriptorSetLayoutBinding> bindings(1);
+            bindings[0].binding = 0;
+            bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            bindings[0].descriptorCount = 1;
+            bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+            VkDescriptorSetLayoutCreateInfo createInfo{};
+            createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+            createInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+            createInfo.pBindings = bindings.data();
+
+            m_matLayout = CreateDescriptorSetLayout(m_context.Device(), createInfo);
         }
     }
 
     void RenderPass::AllocateDescriptorSets(const RenderList& list)
     {
-        // Allocate
-        m_frameSets.resize(kMaxFramesInFlight);
-        std::vector<VkDescriptorSetLayout> layouts(kMaxFramesInFlight, m_frameLayout);
-
-        VkDescriptorSetAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        allocInfo.descriptorPool = m_descriptorPool;
-        allocInfo.descriptorSetCount = static_cast<uint32_t>(layouts.size());
-        allocInfo.pSetLayouts = layouts.data();
-
-        if (vkAllocateDescriptorSets(m_context.Device(), &allocInfo, m_frameSets.data()) != VK_SUCCESS)
+        // Frame set
         {
-            throw std::runtime_error("Failed to allocate descriptor sets!");
+            // Allocate
+            m_frameSets.resize(kMaxFramesInFlight);
+            std::vector<VkDescriptorSetLayout> layouts(kMaxFramesInFlight, m_frameLayout);
+
+            VkDescriptorSetAllocateInfo allocInfo{};
+            allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+            allocInfo.descriptorPool = m_descriptorPool;
+            allocInfo.descriptorSetCount = static_cast<uint32_t>(layouts.size());
+            allocInfo.pSetLayouts = layouts.data();
+
+            if (vkAllocateDescriptorSets(m_context.Device(), &allocInfo, m_frameSets.data()) != VK_SUCCESS)
+            {
+                throw std::runtime_error("Failed to allocate descriptor sets!");
+            }
+
+            // Setup
+            for (size_t i = 0; i < m_frameSets.size(); ++i)
+            {
+                auto& set = m_frameSets[i];
+                RenderBuffer* buffer = m_resources.GetBuffer(list.m_frame.m_uboHandles[i]);
+                assert(buffer && "Frame buffer handle is invalid");
+
+                VkDescriptorBufferInfo bufferInfo{};
+                bufferInfo.buffer = buffer->m_buffer;
+                bufferInfo.offset = 0;
+                bufferInfo.range = sizeof(FrameUbo);
+
+                std::vector<VkWriteDescriptorSet> writes(1);
+                writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                writes[0].dstSet = set;
+                writes[0].dstBinding = 0;
+                writes[0].dstArrayElement = 0;
+                writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                writes[0].descriptorCount = 1;
+                writes[0].pBufferInfo = &bufferInfo;
+
+                vkUpdateDescriptorSets(m_context.Device(),
+                    static_cast<uint32_t>(writes.size()), writes.data()
+                    , 0, nullptr);
+            }
         }
 
-        // Setup
-        for (size_t i = 0; i < m_frameSets.size(); ++i)
+        // Material set
         {
-            auto& set = m_frameSets[i];
-            RenderBuffer* buffer = m_resources.GetBuffer(list.m_camera.m_viewProjUboHandles[i]);
-            assert(buffer && "ViewProj buffer handle is invalid");
+            // Allocate
+            m_matSets.resize(kMaxFramesInFlight);
+            std::vector<VkDescriptorSetLayout> layouts(kMaxFramesInFlight, m_matLayout);
 
-            VkDescriptorBufferInfo bufferInfo{};
-            bufferInfo.buffer = buffer->m_buffer;
-            bufferInfo.offset = 0;
-            bufferInfo.range = sizeof(FrameUbo);
+            VkDescriptorSetAllocateInfo allocInfo{};
+            allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+            allocInfo.descriptorPool = m_descriptorPool;
+            allocInfo.descriptorSetCount = static_cast<uint32_t>(layouts.size());
+            allocInfo.pSetLayouts = layouts.data();
 
-            std::vector<VkWriteDescriptorSet> writes(1);
-            writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            writes[0].dstSet = set;
-            writes[0].dstBinding = 0;
-            writes[0].dstArrayElement = 0;
-            writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            writes[0].descriptorCount = 1;
-            writes[0].pBufferInfo = &bufferInfo;
+            if (vkAllocateDescriptorSets(m_context.Device(), &allocInfo, m_matSets.data()) != VK_SUCCESS)
+            {
+                throw std::runtime_error("Failed to allocate descriptor sets!");
+            }
 
-            vkUpdateDescriptorSets(m_context.Device(),
-                static_cast<uint32_t>(writes.size()), writes.data()
-                , 0, nullptr);
+            // Setup
+            for (size_t i = 0; i < m_matSets.size(); ++i)
+            {
+                auto& set = m_matSets[i];
+                RenderBuffer* buffer = m_resources.GetBuffer(list.m_material.m_uboHandles[i]);
+                assert(buffer && "Material buffer handle is invalid");
+
+                VkDescriptorBufferInfo bufferInfo{};
+                bufferInfo.buffer = buffer->m_buffer;
+                bufferInfo.offset = 0;
+                bufferInfo.range = sizeof(MaterialUbo);
+
+                std::vector<VkWriteDescriptorSet> writes(1);
+                writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                writes[0].dstSet = set;
+                writes[0].dstBinding = 0;
+                writes[0].dstArrayElement = 0;
+                writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                writes[0].descriptorCount = 1;
+                writes[0].pBufferInfo = &bufferInfo;
+
+                vkUpdateDescriptorSets(m_context.Device(),
+                    static_cast<uint32_t>(writes.size()), writes.data()
+                    , 0, nullptr);
+            }
         }
     }
 
@@ -341,7 +408,8 @@ namespace Kita::Pbrv
         // Pipeline layout
         std::vector<VkDescriptorSetLayout> setLayouts
         {
-            m_frameLayout
+            m_frameLayout,
+            m_matLayout
         };
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
