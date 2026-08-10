@@ -8,21 +8,21 @@ namespace Kita::Pbrv
 {
     struct QueueFamilyIndices
     {
-        std::optional<uint32_t> graphicsFamily;
-        std::optional<uint32_t> presentFamily;
+        std::optional<uint32_t> m_graphicsFamily;
+        std::optional<uint32_t> m_presentFamily;
 
         bool isComplete()
         {
-            return graphicsFamily.has_value()
-                && presentFamily.has_value();
+            return m_graphicsFamily.has_value()
+                && m_presentFamily.has_value();
         }
     };
 
     struct SwapChainSupportDetails
     {
-        VkSurfaceCapabilitiesKHR capabilities;
-        std::vector<VkSurfaceFormatKHR> formats;
-        std::vector<VkPresentModeKHR> presentModes;
+        VkSurfaceCapabilitiesKHR m_capabilities;
+        std::vector<VkSurfaceFormatKHR> m_formats;
+        std::vector<VkPresentModeKHR> m_presentModes;
     };
 
     QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface);
@@ -44,4 +44,11 @@ namespace Kita::Pbrv
         VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
         uint32_t baseMipLevel = 0, uint32_t levelCount = 1,
         uint32_t baseArrayLayer = 0, uint32_t layerCount = 1);
+
+    VkCommandBuffer BeginSingleTimeCommands(VkDevice device, VkCommandPool commandPool);
+    void EndSingleTimeCommands(VkDevice device, VkCommandPool commandPool, VkQueue submitQueue, VkCommandBuffer commandBuffer);
+
+    void CopyBuffer(VkCommandBuffer commandBuffer, VkBuffer src, VkBuffer dst, VkDeviceSize size);
+
+    VkDescriptorSetLayout CreateDescriptorSetLayout(VkDevice device, const VkDescriptorSetLayoutCreateInfo& createInfo);
 }

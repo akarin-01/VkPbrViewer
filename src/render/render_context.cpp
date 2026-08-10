@@ -95,8 +95,8 @@ namespace Kita::Pbrv
         if (extensionsSupported)
         {
             SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(device, surface);
-            swapChainAdequate = !swapChainSupport.formats.empty()
-                && !swapChainSupport.presentModes.empty();
+            swapChainAdequate = !swapChainSupport.m_formats.empty()
+                && !swapChainSupport.m_presentModes.empty();
         }
 
         VkPhysicalDeviceVulkan13Features queryVulkan13Features{};
@@ -205,7 +205,7 @@ namespace Kita::Pbrv
     {
         QueueFamilyIndices indices = FindQueueFamilies(m_physicalDevice, m_surface);
 
-        std::set<uint32_t> uniqueQueueFamilies = { indices.graphicsFamily.value(), indices.presentFamily.value() };
+        std::set<uint32_t> uniqueQueueFamilies = { indices.m_graphicsFamily.value(), indices.m_presentFamily.value() };
         std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
 
         float queuePriority = 1.0f;
@@ -243,8 +243,8 @@ namespace Kita::Pbrv
             throw std::runtime_error("Failed to create logical device!");
         }
 
-        vkGetDeviceQueue(m_device, indices.graphicsFamily.value(), 0, &m_graphicsQueue);
-        vkGetDeviceQueue(m_device, indices.presentFamily.value(), 0, &m_presentQueue);
+        vkGetDeviceQueue(m_device, indices.m_graphicsFamily.value(), 0, &m_graphicsQueue);
+        vkGetDeviceQueue(m_device, indices.m_presentFamily.value(), 0, &m_presentQueue);
     }
 
     void RenderContext::CreateCommandPool()
@@ -254,7 +254,7 @@ namespace Kita::Pbrv
         VkCommandPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-        poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
+        poolInfo.queueFamilyIndex = queueFamilyIndices.m_graphicsFamily.value();
 
         if (vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_commandPool) != VK_SUCCESS)
         {

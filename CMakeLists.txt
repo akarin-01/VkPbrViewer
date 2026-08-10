@@ -5,6 +5,25 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# ===== FetchContent =====
+include(FetchContent)
+
+# glm — 数学库，header-only，零依赖
+FetchContent_Declare(
+    glm
+    GIT_REPOSITORY https://github.com/g-truc/glm.git
+    GIT_TAG        1.0.3
+)
+FetchContent_MakeAvailable(glm)
+
+# tinyobjloader — 轻量 OBJ 解析库
+FetchContent_Declare(
+    tinyobjloader
+    GIT_REPOSITORY https://github.com/tinyobjloader/tinyobjloader.git
+    GIT_TAG        v2.0.0rc13
+)
+FetchContent_MakeAvailable(tinyobjloader)
+
 # ===== Submodule 存在性检查 =====
 # 这些库将在后续阶段通过 add_subdirectory 或 target_link_libraries 集成，
 # 此处先检查目录是否存在，未初始化时给出明确提示。
@@ -50,13 +69,23 @@ add_executable(VkPbrViewer
     # render
     src/render/frame_sync.cpp
     src/render/render_context.cpp
-    src/render/render_image.cpp
+    src/render/render_pass.cpp
+    src/render/render_resources.cpp
+    src/render/render_scene.cpp
     src/render/render_utils.cpp
     src/render/renderer.cpp
     src/render/swap_chain.cpp
+
+    # scene
+    src/scene/camera.cpp
+    src/scene/mesh.cpp
 )
 
 target_include_directories(VkPbrViewer PRIVATE ${CMAKE_SOURCE_DIR}/src)
+
+# ===== 编译定义 =====
+# GLM_FORCE_DEPTH_ZERO_TO_ONE: glm::perspective 输出 Vulkan NDC 深度 [0,1]
+target_compile_definitions(VkPbrViewer PRIVATE GLM_FORCE_DEPTH_ZERO_TO_ONE)
 
 # ===== 编译选项 =====
 if(WIN32)
@@ -68,6 +97,8 @@ target_link_libraries(VkPbrViewer PRIVATE
     glfw
     Vulkan::Headers
     Vulkan::Vulkan
+    glm::glm
+    tinyobjloader
 )
 
 if(WIN32)
@@ -78,12 +109,12 @@ endif()
 # *.spv 文件已在 .gitignore 中排除，编译产物直接输出到源码目录 assets/shaders/
 # renderer.cpp 从工作目录下的 assets/shaders/ 加载这些文件
 set(SHADER_SOURCES
-    assets/shaders/triangle.vert
-    assets/shaders/triangle.frag
+    assets/shaders/lit.vert
+    assets/shaders/lit.frag
 )
 set(SHADER_OUTPUTS
-    assets/shaders/vert.spv
-    assets/shaders/frag.spv
+    assets/shaders/lit_vert.spv
+    assets/shaders/lit_frag.spv
 )
 
 set(COMPILED_SHADERS)

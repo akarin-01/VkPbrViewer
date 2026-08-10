@@ -4,6 +4,8 @@
 
 #include "core/window.h"
 #include "render/renderer.h"
+#include "scene/scene.h"
+#include "scene/mesh.h"
 
 using namespace Kita;
 
@@ -18,13 +20,17 @@ int main()
         }
 
         Pbrv::Window window(800, 600, "Vk Pbr Viewer");
+
+        Pbrv::Scene scene;
+        scene.GetMesh().LoadFromObj("assets/models/Cerberus_LP.obj");
+
         Pbrv::Renderer renderer(window);
 
         while (!window.ShouldClose())
         {
             window.PollEvents();
 
-            renderer.DrawFrame();
+            renderer.DrawFrame(scene);
         }
 
         return EXIT_SUCCESS;

@@ -109,15 +109,15 @@ namespace Kita::Pbrv
     {
         SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(m_context.PhysicalDevice(), m_context.Surface());
 
-        VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(swapChainSupport.formats);
-        VkPresentModeKHR presentMode = ChooseSwapPresentMode(swapChainSupport.presentModes);
-        VkExtent2D extent = ChooseSwapExtent(m_window, swapChainSupport.capabilities);
+        VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(swapChainSupport.m_formats);
+        VkPresentModeKHR presentMode = ChooseSwapPresentMode(swapChainSupport.m_presentModes);
+        VkExtent2D extent = ChooseSwapExtent(m_window, swapChainSupport.m_capabilities);
 
-        uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
-        if (swapChainSupport.capabilities.maxImageCount > 0
-            && imageCount > swapChainSupport.capabilities.maxImageCount)
+        uint32_t imageCount = swapChainSupport.m_capabilities.minImageCount + 1;
+        if (swapChainSupport.m_capabilities.maxImageCount > 0
+            && imageCount > swapChainSupport.m_capabilities.maxImageCount)
         {
-            imageCount = swapChainSupport.capabilities.maxImageCount;
+            imageCount = swapChainSupport.m_capabilities.maxImageCount;
         }
 
         VkSwapchainCreateInfoKHR createInfo{};
@@ -131,9 +131,9 @@ namespace Kita::Pbrv
         createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
         QueueFamilyIndices indices = FindQueueFamilies(m_context.PhysicalDevice(), m_context.Surface());
-        uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(), indices.presentFamily.value() };
+        uint32_t queueFamilyIndices[] = { indices.m_graphicsFamily.value(), indices.m_presentFamily.value() };
 
-        if (indices.graphicsFamily != indices.presentFamily) {
+        if (indices.m_graphicsFamily != indices.m_presentFamily) {
             createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
             createInfo.queueFamilyIndexCount = 2;
             createInfo.pQueueFamilyIndices = queueFamilyIndices;
@@ -144,7 +144,7 @@ namespace Kita::Pbrv
             createInfo.pQueueFamilyIndices = nullptr; // Optional
         }
 
-        createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
+        createInfo.preTransform = swapChainSupport.m_capabilities.currentTransform;
         createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
         createInfo.presentMode = presentMode;
         createInfo.clipped = VK_TRUE;

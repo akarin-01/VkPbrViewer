@@ -1,5 +1,7 @@
 #pragma once
 
+#include "render/render_resource_types.h"
+
 #include <vulkan/vulkan.h>
 #include <memory>
 #include <vector>
@@ -8,14 +10,6 @@ namespace Kita::Pbrv
 {
     class RenderContext;
     class SwapChain;
-
-    struct FrameInfo
-    {
-        bool swapChainRecreated{ false };
-        VkCommandBuffer commandBuffer{ VK_NULL_HANDLE };
-        uint32_t frameIndex{ 0 };
-        uint32_t imageIndex{ 0 };
-    };
 
     class FrameSync
     {

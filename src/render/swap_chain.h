@@ -23,6 +23,7 @@ namespace Kita::Pbrv
         VkImageView ImageView(uint32_t index) const { return m_imageViews[index]; }
         VkFormat Format() const { return m_format; }
         VkExtent2D Extent() const { return m_extent; }
+        float Aspect() const { return static_cast<float>(m_extent.width) / static_cast<float>(m_extent.height); }
 
     private:
         void CreateSwapChain();

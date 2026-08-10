@@ -33,7 +33,7 @@ namespace Kita::Pbrv
         if (swapChainRecreated)
         {
             RecreateRenderSyncObjects();
-            frameInfo.swapChainRecreated = true;
+            frameInfo.m_swapChainRecreated = true;
             return frameInfo;
         }
 
@@ -47,10 +47,10 @@ namespace Kita::Pbrv
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         vkBeginCommandBuffer(commandBuffer, &beginInfo);
 
-        frameInfo.swapChainRecreated = false;
-        frameInfo.commandBuffer = commandBuffer;
-        frameInfo.frameIndex = m_frameIndex;
-        frameInfo.imageIndex = m_imageIndex;
+        frameInfo.m_swapChainRecreated = false;
+        frameInfo.m_commandBuffer = commandBuffer;
+        frameInfo.m_frameIndex = m_frameIndex;
+        frameInfo.m_imageIndex = m_imageIndex;
         return frameInfo;
     }
 

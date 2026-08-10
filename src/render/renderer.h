@@ -1,8 +1,8 @@
 #pragma once
 
+#include "render/render_resource_types.h"
+
 #include <memory>
-#include <string>
-#include <vector>
 #include <vulkan/vulkan.h>
 
 namespace Kita::Pbrv
@@ -11,8 +11,10 @@ namespace Kita::Pbrv
     class RenderContext;
     class SwapChain;
     class FrameSync;
-
-    class RenderImage;
+    class RenderScene;
+    class RenderResources;
+    class RenderPass;
+    class Scene;
 
     class Renderer
     {
@@ -20,25 +22,15 @@ namespace Kita::Pbrv
         Renderer(Window& window);
         ~Renderer();
 
-        void DrawFrame();
-
-    private:
-        void CreatePipeline();
-        void CreateDepthImage();
-        void DestroyDepthImage();
-        void RecreateDepthImage();
-        VkShaderModule CreateShaderModule(const std::string& filePath) const;
-        std::vector<char> ReadFile(const std::string& path) const;
+        void DrawFrame(const Scene& scene);
 
     private:
         std::unique_ptr<RenderContext> m_context;
         std::unique_ptr<SwapChain> m_swapChain;
         std::unique_ptr<FrameSync> m_frameSync;
+        std::unique_ptr<RenderResources> m_resources;
+        std::unique_ptr<RenderScene> m_renderScene;
 
-        VkPipeline m_pipeline{ VK_NULL_HANDLE };
-        VkPipelineLayout m_pipelineLayout{ VK_NULL_HANDLE };
-
-        std::unique_ptr<RenderImage> m_depthImage;
-        VkImageView m_depthImageView{ VK_NULL_HANDLE };
+        std::unique_ptr<RenderPass> m_pass;
     };
 }
