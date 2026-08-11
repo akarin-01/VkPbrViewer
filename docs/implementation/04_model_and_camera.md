@@ -2,7 +2,7 @@
 
 > **阶段目标**：`.obj` 模型正确显示在屏幕上，Orbit 相机可交互。本阶段同时落地 GPU 资源组织架构（见下"架构设计"），后续阶段（材质、灯光、多 Pass）都在此骨架上扩展。
 
-- [x] CMake：引入 glm（`GLM_FORCE_DEPTH_ZERO_TO_ONE`）与 tinyobjloader
+- [x] CMake：引入 glm（`GLM_FORCE_DEPTH_ZERO_TO_ONE`）、tinyobjloader、stb_image
 
 ### 一、CPU 端参数设计
 
@@ -11,6 +11,7 @@
 - [x] 顶点结构体：Position、Normal、TexCoord、Tangent
 - [x] 材质参数结构体：BaseColor、Metallic、Roughness、AO 等
 - [x] 灯光结构体：方向、颜色、强度（CPU 侧保持单一 `Light` 概念）
+- [x] 纹理结构体：文件路径 / 像素数据 / 宽高 / 格式类型，支持 LoadFromFile 与 SetData（程序化）
 - [x] 相机结构体：位置、朝向、透视参数（fov、aspect、zNear/zFar）
 - [x] 使用 tinyobjloader 加载 `.obj`，提取顶点和索引数据
 - [ ] 加载后计算法线和 Tangent（如果模型缺少）

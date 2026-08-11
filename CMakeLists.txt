@@ -24,6 +24,19 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(tinyobjloader)
 
+# stb — 单头文件图像库，无版本号，用 commit hash 锁定
+FetchContent_Declare(
+    stb
+    GIT_REPOSITORY https://github.com/nothings/stb.git
+    GIT_TAG        2c980bb59875b0d32144a71867fbdebb2f77cd20
+)
+FetchContent_GetProperties(stb)
+if(NOT stb_POPULATED)
+    FetchContent_Populate(stb)
+endif()
+add_library(stb INTERFACE)
+target_include_directories(stb INTERFACE ${stb_SOURCE_DIR})
+
 # ===== Submodule 存在性检查 =====
 # 这些库将在后续阶段通过 add_subdirectory 或 target_link_libraries 集成，
 # 此处先检查目录是否存在，未初始化时给出明确提示。
@@ -81,6 +94,7 @@ add_executable(VkPbrViewer
     src/scene/light.cpp
     src/scene/material.cpp
     src/scene/mesh.cpp
+    src/scene/texture.cpp
 )
 
 target_include_directories(VkPbrViewer PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -101,6 +115,7 @@ target_link_libraries(VkPbrViewer PRIVATE
     Vulkan::Vulkan
     glm::glm
     tinyobjloader
+    stb
 )
 
 if(WIN32)

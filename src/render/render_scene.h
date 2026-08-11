@@ -3,6 +3,8 @@
 #include "render/render_resource_types.h"
 #include "render/render_constants.h"
 
+#include "scene/texture.h"
+
 #include <vulkan/vulkan.h>
 #include <optional>
 #include <vector>
@@ -31,6 +33,8 @@ namespace Kita::Pbrv
         void DestroyRenderMaterial(RenderMaterial& material);
         RenderMesh CreateRenderMesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
         void DestroyRenderMesh(RenderMesh& mesh);
+        RenderTexture CreateRenderTexture(const std::vector<uint8_t>& pixels, uint32_t width, uint32_t height, Texture::Type type);
+        void DestroyRenderTexture(RenderTexture& texture);
 
     private:
         RenderResources& m_resources;

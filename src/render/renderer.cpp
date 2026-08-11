@@ -16,9 +16,9 @@ namespace Kita::Pbrv
     Renderer::Renderer(Window& window)
     {
         m_context = std::make_unique<RenderContext>(window);
-        m_swapChain = std::make_unique<SwapChain>(window, *m_context);
-        m_frameSync = std::make_unique<FrameSync>(*m_context, *m_swapChain);
         m_resources = std::make_unique<RenderResources>(*m_context);
+        m_swapChain = std::make_unique<SwapChain>(window, *m_context, *m_resources);
+        m_frameSync = std::make_unique<FrameSync>(*m_context, *m_swapChain);
         m_renderScene = std::make_unique<RenderScene>(*m_resources, *m_swapChain);
 
         m_pass = std::make_unique<RenderPass>(*m_context, *m_resources, *m_swapChain);
@@ -34,9 +34,9 @@ namespace Kita::Pbrv
         m_pass.reset();
 
         m_renderScene.reset();
-        m_resources.reset();
         m_frameSync.reset();
         m_swapChain.reset();
+        m_resources.reset();
         m_context.reset();
     }
 

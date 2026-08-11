@@ -33,8 +33,6 @@ namespace Kita::Pbrv
         uint32_t typeFilter,
         VkMemoryPropertyFlags properties);
 
-    VkImageView CreateImageView(VkDevice device, const VkImageViewCreateInfo& createInfo);
-
     void TransitionImageLayout(
         VkCommandBuffer commandBuffer,
         VkImage image,
@@ -45,10 +43,21 @@ namespace Kita::Pbrv
         uint32_t baseMipLevel = 0, uint32_t levelCount = 1,
         uint32_t baseArrayLayer = 0, uint32_t layerCount = 1);
 
+    void GenerateImageMipmaps(
+        VkPhysicalDevice physicalDevice,
+        VkCommandBuffer commandBuffer,
+        VkImage image,
+        uint32_t width,
+        uint32_t height,
+        uint32_t mipLevels,
+        VkFormat format,
+        VkImageAspectFlags aspectMask);
+
     VkCommandBuffer BeginSingleTimeCommands(VkDevice device, VkCommandPool commandPool);
     void EndSingleTimeCommands(VkDevice device, VkCommandPool commandPool, VkQueue submitQueue, VkCommandBuffer commandBuffer);
 
     void CopyBuffer(VkCommandBuffer commandBuffer, VkBuffer src, VkBuffer dst, VkDeviceSize size);
+    void CopyBufferToImage(VkCommandBuffer commandBuffer, VkBuffer src, VkImage dst, const VkBufferImageCopy& region);
 
     VkDescriptorSetLayout CreateDescriptorSetLayout(VkDevice device, const VkDescriptorSetLayoutCreateInfo& createInfo);
 }

@@ -27,6 +27,7 @@ namespace Kita::Pbrv
         void CreateDescriptorPool();
         void CreateDescriptorSetLayouts();
         void AllocateDescriptorSets(const RenderList& list);
+        void UpdateMaterialDescriptorSet(VkDescriptorSet matSet, const RenderList& list);
         void CreatePipeline();
         void CreateDepthImage();
         void DestroyDepthImage();
@@ -48,6 +49,6 @@ namespace Kita::Pbrv
         VkPipelineLayout m_pipelineLayout{ VK_NULL_HANDLE };
 
         RenderImageHandle m_depthImageHandle;
-        VkImageView m_depthImageView{ VK_NULL_HANDLE };
+        RenderImageViewHandle m_depthImageViewHandle;
     };
 }

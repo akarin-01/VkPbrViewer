@@ -8,6 +8,7 @@ layout(location = 2) in vec2 inTexCoord;
 
 layout(location = 0) out vec3 fragPos;
 layout(location = 1) out vec3 fragNormal;
+layout(location = 2) out vec2 fragTexCoord;
 
 void main()
 {
@@ -17,4 +18,5 @@ void main()
     gl_Position = frame.viewProj * vec4(fragPos, 1.0f);
 
     fragNormal = mat3(transpose(inverse(model))) * inNormal;
+    fragTexCoord = inTexCoord;
 }

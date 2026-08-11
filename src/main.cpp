@@ -5,6 +5,8 @@
 #include "core/window.h"
 #include "render/renderer.h"
 #include "scene/scene.h"
+#include "scene/material.h"
+#include "scene/texture.h"
 #include "scene/mesh.h"
 
 using namespace Kita;
@@ -24,11 +26,13 @@ int main()
         Pbrv::Scene scene;
         scene.GetLight()
             .SetDirection(glm::vec3(1.0f, 1.0f, 0.0f));
-        scene.GetMaterial()
-            .SetAlbedo(glm::vec4(0.0f, 1.0f, 1.0f, 1.0f))
-            .SetMetallic(0.5f)
-            .SetRoughness(0.5f)
-            .SetAO(1.0f);
+        Pbrv::Material& mat = scene.GetMaterial()
+            .SetMetallic(0.0f);
+        mat.GetAlbedoTex().LoadFromFile("assets/textures/Cerberus_A.tga", Pbrv::Texture::Type::Albedo);
+        mat.GetNormalTex().LoadFromFile("assets/textures/Cerberus_N.tga", Pbrv::Texture::Type::Normal);
+        mat.GetMetallicTex().LoadFromFile("assets/textures/Cerberus_M.tga", Pbrv::Texture::Type::Linear);
+        mat.GetRoughnessTex().LoadFromFile("assets/textures/Cerberus_R.tga", Pbrv::Texture::Type::Linear);
+        mat.GetAOTex().LoadFromFile("assets/textures/Cerberus_AO.tga", Pbrv::Texture::Type::Linear);
         scene.GetMesh().LoadFromObj("assets/models/Cerberus_LP.obj");
 
         Pbrv::Renderer renderer(window);

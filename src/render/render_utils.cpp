@@ -82,18 +82,6 @@ namespace Kita::Pbrv
         throw std::runtime_error("failed to find suitable memory type!");
     }
 
-    VkImageView CreateImageView(VkDevice device, const VkImageViewCreateInfo& createInfo)
-    {
-        VkImageView imageView;
-
-        if (vkCreateImageView(device, &createInfo, nullptr, &imageView) != VK_SUCCESS)
-        {
-            throw std::runtime_error("Failed to create image views!");
-        }
-
-        return imageView;
-    }
-
     void TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask, VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask, VkImageAspectFlags aspectMask, uint32_t baseMipLevel, uint32_t levelCount, uint32_t baseArrayLayer, uint32_t layerCount)
     {
         VkImageMemoryBarrier2 barrier{};
@@ -118,6 +106,74 @@ namespace Kita::Pbrv
         dependencyInfo.pImageMemoryBarriers = &barrier;
 
         vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
+    }
+
+    void GenerateImageMipmaps(VkPhysicalDevice physicalDevice, VkCommandBuffer commandBuffer, VkImage image, uint32_t width, uint32_t height, uint32_t mipLevels, VkFormat format, VkImageAspectFlags aspectMask)
+    {
+        VkFormatProperties formatProperties;
+        vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &formatProperties);
+
+        if (!(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT))
+        {
+            throw std::runtime_error("Texture image format does not support linear blitting!");
+        }
+
+        int32_t mipWidth = width, mipHeight = height;
+
+        for (uint32_t i = 1; i < mipLevels; ++i)
+        {
+            TransitionImageLayout(commandBuffer, image,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_READ_BIT,
+                aspectMask,
+                i - 1, 1, 0, 1);
+
+            VkImageBlit blit{};
+            blit.srcOffsets[0] = { 0, 0, 0 };
+            blit.srcOffsets[1] = { mipWidth, mipHeight, 1 };
+            blit.srcSubresource.aspectMask = aspectMask;
+            blit.srcSubresource.mipLevel = i - 1;
+            blit.srcSubresource.baseArrayLayer = 0;
+            blit.srcSubresource.layerCount = 1;
+            blit.dstOffsets[0] = { 0, 0, 0 };
+            blit.dstOffsets[1] = {
+                (mipWidth > 1 ? mipWidth / 2 : 1),
+                (mipHeight > 1 ? mipHeight / 2 : 1),
+                1
+            };
+            blit.dstSubresource.aspectMask = aspectMask;
+            blit.dstSubresource.mipLevel = i;
+            blit.dstSubresource.baseArrayLayer = 0;
+            blit.dstSubresource.layerCount = 1;
+
+            vkCmdBlitImage(commandBuffer,
+                image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                1, &blit,
+                VK_FILTER_LINEAR);
+
+            TransitionImageLayout(commandBuffer, image,
+                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_READ_BIT,
+                VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT,
+                aspectMask, i - 1, 1, 0, 1);
+
+            if (mipWidth > 1)
+            {
+                mipWidth /= 2;
+            }
+            if (mipHeight > 1)
+            {
+                mipHeight /= 2;
+            }
+        }
+
+        TransitionImageLayout(commandBuffer, image,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_READ_BIT,
+            VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT,
+            aspectMask, mipLevels - 1, 1, 0, 1);
     }
 
     VkCommandBuffer BeginSingleTimeCommands(VkDevice device, VkCommandPool commandPool)
@@ -168,6 +224,12 @@ namespace Kita::Pbrv
         copyRegion.size = size;
 
         vkCmdCopyBuffer(commandBuffer, src, dst, 1, &copyRegion);
+    }
+
+    void CopyBufferToImage(VkCommandBuffer commandBuffer, VkBuffer src, VkImage dst, const VkBufferImageCopy& region)
+    {
+        vkCmdCopyBufferToImage(commandBuffer, src, dst,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
     }
 
     VkDescriptorSetLayout CreateDescriptorSetLayout(VkDevice device, const VkDescriptorSetLayoutCreateInfo& createInfo)

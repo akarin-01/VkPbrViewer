@@ -24,8 +24,17 @@ namespace Kita::Pbrv
         void WriteBuffer(const RenderBufferHandle& handle, const void* data, size_t size, size_t offset = 0);
 
         RenderImageHandle CreateImage(VkImageCreateInfo imageInfo, VkMemoryPropertyFlags properties);
+        RenderImageHandle CreateImageWithData(VkImageCreateInfo imageInfo, VkMemoryPropertyFlags properties, const void* data, size_t size, VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT);
         RenderImage* GetImage(const RenderImageHandle& handle) const;
         void DestroyImage(const RenderImageHandle& handle);
+
+        RenderImageViewHandle CreateImageView(const VkImageViewCreateInfo& createInfo);
+        RenderImageView* GetImageView(const RenderImageViewHandle& handle) const;
+        void DestroyImageView(const RenderImageViewHandle& handle);
+
+        RenderSamplerHandle CreateSampler(const VkSamplerCreateInfo& createInfo);
+        RenderSampler* GetSampler(const RenderSamplerHandle& handle) const;
+        void DestroySampler(const RenderSamplerHandle& handle);
 
     private:
         std::unique_ptr<RenderBuffer> CreateBufferHelper(const VkBufferCreateInfo& bufferInfo, VkMemoryPropertyFlags properties, bool mapped = false) const;
@@ -35,6 +44,12 @@ namespace Kita::Pbrv
         std::unique_ptr<RenderImage> CreateImageHelper(VkImageCreateInfo imageInfo, VkMemoryPropertyFlags properties) const;
         void DestroyImageHelper(const RenderImage& image) const;
 
+        std::unique_ptr<RenderImageView> CreateImageViewHelper(const VkImageViewCreateInfo& createInfo) const;
+        void DestroyImageViewHelper(const RenderImageView& imageView) const;
+
+        std::unique_ptr<RenderSampler> CreateSamplerHelper(const VkSamplerCreateInfo& createInfo) const;
+        void DestroySamplerHelper(const RenderSampler& sampler) const;
+
     private:
         const RenderContext& m_context;
 
@@ -42,5 +57,9 @@ namespace Kita::Pbrv
         std::unordered_map<RenderBufferHandle, std::unique_ptr<RenderBuffer>> m_buffers;
         RenderImageHandle m_nextImageHandle{ 1 };
         std::unordered_map<RenderImageHandle, std::unique_ptr<RenderImage>> m_images;
+        RenderImageViewHandle m_nextImageViewHandle{ 1 };
+        std::unordered_map<RenderImageViewHandle, std::unique_ptr<RenderImageView>> m_imageViews;
+        RenderSamplerHandle m_nextSamplerHandle{ 1 };
+        std::unordered_map<RenderSamplerHandle, std::unique_ptr<RenderSampler>> m_samplers;
     };
 }

@@ -2,15 +2,17 @@
 
 #include "core/window.h"
 #include "render/render_context.h"
+#include "render/render_resources.h"
 #include "render/render_utils.h"
 
 #include <algorithm>
 #include <limits>
 #include <stdexcept>
+#include <cassert>
 
 namespace Kita::Pbrv
 {
-    VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)
+    static VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)
     {
         for (const auto& availableFormat : availableFormats)
         {
@@ -24,7 +26,7 @@ namespace Kita::Pbrv
         return availableFormats[0];
     }
 
-    VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes)
+    static VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes)
     {
         for (const auto& availablePresentMode : availablePresentModes)
         {
@@ -36,7 +38,7 @@ namespace Kita::Pbrv
         return VK_PRESENT_MODE_FIFO_KHR;
     }
 
-    VkExtent2D ChooseSwapExtent(const Window& window, const VkSurfaceCapabilitiesKHR& capabilities)
+    static VkExtent2D ChooseSwapExtent(const Window& window, const VkSurfaceCapabilitiesKHR& capabilities)
     {
         if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
         {
@@ -61,8 +63,8 @@ namespace Kita::Pbrv
         return actualExtent;
     }
 
-    SwapChain::SwapChain(Window& window, const RenderContext& context)
-        : m_window(window), m_context(context)
+    SwapChain::SwapChain(Window& window, const RenderContext& context, RenderResources& resources)
+        : m_window(window), m_context(context), m_resources(resources)
     {
         CreateSwapChain();
     }
@@ -103,6 +105,14 @@ namespace Kita::Pbrv
         }
 
         return false;
+    }
+
+    VkImageView SwapChain::ImageView(uint32_t index) const
+    {
+        RenderImageView* imageView = m_resources.GetImageView(m_imageViewHandles[index]);
+        assert(imageView && "Swap chain image view handle is invalid");
+
+        return imageView->m_imageView;
     }
 
     void SwapChain::CreateSwapChain()
@@ -162,8 +172,8 @@ namespace Kita::Pbrv
         m_images.resize(imageCount);
         vkGetSwapchainImagesKHR(m_context.Device(), m_swapChain, &imageCount, m_images.data());
 
-        m_imageViews.resize(m_images.size());
-        for (size_t i = 0; i < m_imageViews.size(); ++i)
+        m_imageViewHandles.resize(m_images.size());
+        for (size_t i = 0; i < m_imageViewHandles.size(); ++i)
         {
             VkImageViewCreateInfo createInfo{};
             createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -176,15 +186,15 @@ namespace Kita::Pbrv
             createInfo.subresourceRange.baseArrayLayer = 0;
             createInfo.subresourceRange.layerCount = 1;
 
-            m_imageViews[i] = CreateImageView(m_context.Device(), createInfo);
+            m_imageViewHandles[i] = m_resources.CreateImageView(createInfo);
         }
     }
 
     void SwapChain::DestroySwapChain()
     {
-        for (const auto& imageView : m_imageViews)
+        for (const auto& handle : m_imageViewHandles)
         {
-            vkDestroyImageView(m_context.Device(), imageView, nullptr);
+            m_resources.DestroyImageView(handle);
         }
 
         vkDestroySwapchainKHR(m_context.Device(), m_swapChain, nullptr);

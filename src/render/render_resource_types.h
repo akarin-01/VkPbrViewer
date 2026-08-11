@@ -22,8 +22,20 @@ namespace Kita::Pbrv
         VkDeviceMemory m_memory{ VK_NULL_HANDLE };
     };
 
+    struct RenderImageView
+    {
+        VkImageView m_imageView{ VK_NULL_HANDLE };
+    };
+
+    struct RenderSampler
+    {
+        VkSampler m_sampler{ VK_NULL_HANDLE };
+    };
+
     using RenderBufferHandle = uint64_t;
     using RenderImageHandle = uint64_t;
+    using RenderImageViewHandle = uint64_t;
+    using RenderSamplerHandle = uint64_t;
 
     struct FrameInfo
     {
@@ -38,9 +50,30 @@ namespace Kita::Pbrv
         std::vector<RenderBufferHandle> m_uboHandles;
     };
 
+    struct RenderTexture
+    {
+        RenderImageHandle m_imageHandle{ 0 };
+        RenderImageViewHandle m_imageViewHandle{ 0 };
+    };
+
     struct RenderMaterial
     {
         std::vector<RenderBufferHandle> m_uboHandles;
+
+        RenderTexture m_albedo;
+        RenderSamplerHandle m_albedoSamplerHandle{ 0 };
+
+        RenderTexture m_normal;
+        RenderSamplerHandle m_normalSamplerHandle{ 0 };
+
+        RenderTexture m_metallic;
+        RenderSamplerHandle m_metallicSamplerHandle{ 0 };
+
+        RenderTexture m_roughness;
+        RenderSamplerHandle m_roughnessSamplerHandle{ 0 };
+
+        RenderTexture m_ao;
+        RenderSamplerHandle m_aoSamplerHandle{ 0 };
     };
 
     struct RenderMesh
