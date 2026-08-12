@@ -90,4 +90,9 @@ namespace Kita::Pbrv
             << m_width << " * " << m_height << " "
             << TypeToString(m_type) << " type\n";
     }
+
+    void Texture::Reset()
+    {
+        SetData("empty", {}, 1, 1, Type::None);
+    }
 }

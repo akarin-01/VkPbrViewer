@@ -34,6 +34,11 @@ namespace Kita::Pbrv
         return m_indices.size();
     }
 
+    bool Mesh::IsEmpty() const
+    {
+        return m_vertices.empty() || m_indices.empty();
+    }
+
     void Mesh::LoadFromObj(const std::string& path)
     {
         // Load mesh data

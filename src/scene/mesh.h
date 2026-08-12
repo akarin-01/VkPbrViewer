@@ -23,6 +23,8 @@ namespace Kita::Pbrv
         bool IsDirty() const { return m_isDirty; }
         void ClearDirty() const { m_isDirty = false; }
 
+        bool IsEmpty() const;
+
         void LoadFromObj(const std::string& path);
         void SetData(const std::string& name, std::vector<Vertex>&& vertices, std::vector<uint32_t>&& indices);
 

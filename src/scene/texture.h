@@ -31,11 +31,14 @@ namespace Kita::Pbrv
         bool IsDirty() const { return m_isDirty; }
         void ClearDirty() const { m_isDirty = false; }
 
+        bool IsEmpty() const { return m_pixels.empty(); }
+
         void LoadFromFile(const std::string& path, Type type);
         void SetData(const std::string& name, std::vector<uint8_t>&& pixels, uint32_t width, uint32_t height, Type type);
+        void Reset();
 
     private:
-        std::string m_name{ "default" };
+        std::string m_name{ "empty" };
         std::vector<uint8_t> m_pixels;
         uint32_t m_width{ 1 };
         uint32_t m_height{ 1 };

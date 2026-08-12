@@ -1,7 +1,10 @@
 #pragma once
 
+#include "render/render_constants.h"
+
 #include <vulkan/vulkan.h>
 #include <vector>
+#include <array>
 #include <glm/glm.hpp>
 
 #define STD140_ASSERT(T, SIZE)\
@@ -74,26 +77,26 @@ namespace Kita::Pbrv
     {
         RenderImageHandle m_imageHandle{ 0 };
         RenderImageViewHandle m_imageViewHandle{ 0 };
+        RenderSamplerHandle m_samplerHandle{ 0 };
+
+        bool operator==(const RenderTexture& other) const
+        {
+            return (m_imageHandle == other.m_imageHandle)
+                && (m_imageViewHandle == other.m_imageViewHandle)
+                && (m_samplerHandle == other.m_samplerHandle);
+        }
+
+        bool operator!=(const RenderTexture& other) const
+        {
+            return !(*this == other);
+        }
     };
 
     struct RenderMaterial
     {
         MaterialPC m_pushConstant{ {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f} };
 
-        RenderTexture m_albedo;
-        RenderSamplerHandle m_albedoSamplerHandle{ 0 };
-
-        RenderTexture m_normal;
-        RenderSamplerHandle m_normalSamplerHandle{ 0 };
-
-        RenderTexture m_metallic;
-        RenderSamplerHandle m_metallicSamplerHandle{ 0 };
-
-        RenderTexture m_roughness;
-        RenderSamplerHandle m_roughnessSamplerHandle{ 0 };
-
-        RenderTexture m_ao;
-        RenderSamplerHandle m_aoSamplerHandle{ 0 };
+        std::array<RenderTexture, kMaterialTextureCount> m_textures{};
     };
 
     struct RenderMesh
@@ -105,8 +108,8 @@ namespace Kita::Pbrv
 
     struct RenderList
     {
-        RenderPerFrame m_frame;
-        RenderMaterial m_material;
-        RenderMesh m_mesh;
+        RenderPerFrame m_frame{};
+        RenderMaterial m_material{};
+        RenderMesh m_mesh{};
     };
 }

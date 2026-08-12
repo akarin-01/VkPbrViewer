@@ -1,18 +1,15 @@
 #version 450
 
 #include "common/per_frame_data.glsl"
+#include "common/material_texture_slots.glsl"
 
-layout(std140, set = 1, binding = 0) uniform MaterialUbo
+layout(push_constant, std430) uniform MaterialPC
 {
     vec4 albedo;
     vec4 params;            // x - metallic, y - roughness, z - ao, w - padding
 } material;
 
-layout(set = 1, binding = 1) uniform sampler2D albedoTex;
-layout(set = 1, binding = 2) uniform sampler2D normalTex;
-layout(set = 1, binding = 3) uniform sampler2D metallicTex;
-layout(set = 1, binding = 4) uniform sampler2D roughnessTex;
-layout(set = 1, binding = 5) uniform sampler2D aoTex;
+layout(set = 1, binding = 0) uniform sampler2D textures[TEXTURE_COUNT];
 
 layout(location = 0) in vec3 fragPos;
 layout(location = 1) in vec3 fragNormal;
@@ -29,10 +26,10 @@ void main()
 
     vec3 lightColor = frame.lightColor.xyz;
     float intensity = frame.lightColor.w;
-    vec4 albedo = material.albedo * texture(albedoTex, fragTexCoord);
-    float metallic = material.params.x * texture(metallicTex, fragTexCoord).r;
-    float roughness = material.params.y * texture(roughnessTex, fragTexCoord).r;
-    float ao = material.params.z * texture(aoTex, fragTexCoord).r;
+    vec4 albedo = material.albedo * texture(textures[ALBEDO], fragTexCoord);
+    float metallic = material.params.x * texture(textures[METALLIC], fragTexCoord).r;
+    float roughness = material.params.y * texture(textures[ROUGHNESS], fragTexCoord).r;
+    float ao = material.params.z * texture(textures[AO], fragTexCoord).r;
 
     // Lambert diffuse (metallic=1 → no diffuse)
     float diff = max(dot(nDir, lDir), 0.0);

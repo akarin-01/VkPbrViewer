@@ -8,8 +8,10 @@
 #include "scene/vertex.h"
 
 #include <stdexcept>
+#include <array>
 #include <cassert>
 #include <fstream>
+#include <iostream>
 
 namespace Kita::Pbrv
 {
@@ -70,7 +72,7 @@ namespace Kita::Pbrv
         std::vector<VkClearValue> clearValues(2, VkClearValue{});
         clearValues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
         clearValues[1].depthStencil = { 1.0f, 0 };
-        VkExtent2D extent = m_swapChain.Extent();;
+        VkExtent2D extent = m_swapChain.Extent();
 
         VkRenderingAttachmentInfo colorAttachment{};
         colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
@@ -126,7 +128,7 @@ namespace Kita::Pbrv
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout,
             0, 1, &m_frameSets[frameIndex], 0, nullptr);
         {
-            UpdateMaterialDescriptorSet(m_matSets[frameIndex], list);
+            UpdateMaterialDescriptorSet(frameIndex, list);
             vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout,
                 1, 1, &m_matSets[frameIndex], 0, nullptr);
 
@@ -165,7 +167,7 @@ namespace Kita::Pbrv
         poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         poolSizes[0].descriptorCount = kMaxFramesInFlight * 1;
         poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        poolSizes[1].descriptorCount = kMaxFramesInFlight * 5;
+        poolSizes[1].descriptorCount = kMaxFramesInFlight * kMaterialTextureCount;
 
         VkDescriptorPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -199,31 +201,11 @@ namespace Kita::Pbrv
 
         // Material layout
         {
-            std::vector<VkDescriptorSetLayoutBinding> bindings(5);
+            std::vector<VkDescriptorSetLayoutBinding> bindings(1);
             bindings[0].binding = 0;
             bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            bindings[0].descriptorCount = 1;
+            bindings[0].descriptorCount = 5;
             bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-            bindings[1].binding = 1;
-            bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            bindings[1].descriptorCount = 1;
-            bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-            bindings[2].binding = 2;
-            bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            bindings[2].descriptorCount = 1;
-            bindings[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-            bindings[3].binding = 3;
-            bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            bindings[3].descriptorCount = 1;
-            bindings[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-            bindings[4].binding = 4;
-            bindings[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            bindings[4].descriptorCount = 1;
-            bindings[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
             VkDescriptorSetLayoutCreateInfo createInfo{};
             createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -303,112 +285,50 @@ namespace Kita::Pbrv
         }
     }
 
-    void RenderPass::UpdateMaterialDescriptorSet(VkDescriptorSet matSet, const RenderList& list)
+    void RenderPass::UpdateMaterialDescriptorSet(uint32_t frameIndex, const RenderList& list)
     {
-        VkDescriptorImageInfo albedoImageInfo{};
+        auto& bound = m_boundTextures[frameIndex];
+        if (bound == list.m_material.m_textures)
         {
-            RenderImageView* imageView = m_resources.GetImageView(list.m_material.m_albedo.m_imageViewHandle);
-            assert(imageView && "Albedo image view handle is invalid");
-            RenderSampler* sampler = m_resources.GetSampler(list.m_material.m_albedoSamplerHandle);
-            assert(sampler && "Albedo sampler handle is invalid");
-            albedoImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            albedoImageInfo.imageView = imageView->m_imageView;
-            albedoImageInfo.sampler = sampler->m_sampler;
+            return;
         }
 
-        VkDescriptorImageInfo normalImageInfo{};
+        auto& matSet = m_matSets[frameIndex];
+        std::array<VkDescriptorImageInfo, kMaterialTextureCount> imageInfos{};
+        for (size_t i = 0; i < imageInfos.size(); ++i)
         {
-            RenderImageView* imageView = m_resources.GetImageView(list.m_material.m_normal.m_imageViewHandle);
-            assert(imageView && "Normal image view handle is invalid");
-            RenderSampler* sampler = m_resources.GetSampler(list.m_material.m_normalSamplerHandle);
-            assert(sampler && "Normal sampler handle is invalid");
-            normalImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            normalImageInfo.imageView = imageView->m_imageView;
-            normalImageInfo.sampler = sampler->m_sampler;
+            auto slot = MaterialTextureSlot(i);
+            auto& texture = list.m_material.m_textures[i];
+
+            std::clog << "[RenderPass] Update texture " << ToString(slot) << ", "
+                << "image view (" << texture.m_imageViewHandle << "), "
+                << "sampler (" << texture.m_samplerHandle << ")\n";
+
+            RenderImageView* imageView = m_resources.GetImageView(texture.m_imageViewHandle);
+            assert(imageView && "Image view handle is invalid");
+            RenderSampler* sampler = m_resources.GetSampler(texture.m_samplerHandle);
+            assert(sampler && "Sampler handle is invalid");
+
+            auto& imageInfo = imageInfos[i];
+            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            imageInfo.imageView = imageView->m_imageView;
+            imageInfo.sampler = sampler->m_sampler;
         }
 
-        VkDescriptorImageInfo metallicImageInfo{};
-        {
-            RenderImageView* imageView = m_resources.GetImageView(list.m_material.m_metallic.m_imageViewHandle);
-            assert(imageView && "Metallic image view handle is invalid");
-            RenderSampler* sampler = m_resources.GetSampler(list.m_material.m_metallicSamplerHandle);
-            assert(sampler && "Metallic sampler handle is invalid");
-            metallicImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            metallicImageInfo.imageView = imageView->m_imageView;
-            metallicImageInfo.sampler = sampler->m_sampler;
-        }
-
-        VkDescriptorImageInfo roughnessImageInfo{};
-        {
-            RenderImageView* imageView = m_resources.GetImageView(list.m_material.m_roughness.m_imageViewHandle);
-            assert(imageView && "Roughness image view handle is invalid");
-            RenderSampler* sampler = m_resources.GetSampler(list.m_material.m_roughnessSamplerHandle);
-            assert(sampler && "Roughness sampler handle is invalid");
-            roughnessImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            roughnessImageInfo.imageView = imageView->m_imageView;
-            roughnessImageInfo.sampler = sampler->m_sampler;
-        }
-
-        VkDescriptorImageInfo aoImageInfo{};
-        {
-            RenderImageView* imageView = m_resources.GetImageView(list.m_material.m_ao.m_imageViewHandle);
-            assert(imageView && "AO image view handle is invalid");
-            RenderSampler* sampler = m_resources.GetSampler(list.m_material.m_aoSamplerHandle);
-            assert(sampler && "AO sampler handle is invalid");
-            aoImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            aoImageInfo.imageView = imageView->m_imageView;
-            aoImageInfo.sampler = sampler->m_sampler;
-        }
-
-        std::vector<VkWriteDescriptorSet> writes(5);
-        // Binding 1: albedo
+        std::array<VkWriteDescriptorSet, 1> writes{};
         writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         writes[0].dstSet = matSet;
         writes[0].dstBinding = 0;
         writes[0].dstArrayElement = 0;
         writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        writes[0].descriptorCount = 1;
-        writes[0].pImageInfo = &albedoImageInfo;
-
-        // Binding 2: normal
-        writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writes[1].dstSet = matSet;
-        writes[1].dstBinding = 1;
-        writes[1].dstArrayElement = 0;
-        writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        writes[1].descriptorCount = 1;
-        writes[1].pImageInfo = &normalImageInfo;
-
-        // Binding 3: metallic
-        writes[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writes[2].dstSet = matSet;
-        writes[2].dstBinding = 2;
-        writes[2].dstArrayElement = 0;
-        writes[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        writes[2].descriptorCount = 1;
-        writes[2].pImageInfo = &metallicImageInfo;
-
-        // Binding 4: roughness
-        writes[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writes[3].dstSet = matSet;
-        writes[3].dstBinding = 3;
-        writes[3].dstArrayElement = 0;
-        writes[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        writes[3].descriptorCount = 1;
-        writes[3].pImageInfo = &roughnessImageInfo;
-
-        // Binding 5: ao
-        writes[4].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writes[4].dstSet = matSet;
-        writes[4].dstBinding = 4;
-        writes[4].dstArrayElement = 0;
-        writes[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        writes[4].descriptorCount = 1;
-        writes[4].pImageInfo = &aoImageInfo;
+        writes[0].descriptorCount = static_cast<uint32_t>(imageInfos.size());
+        writes[0].pImageInfo = imageInfos.data();
 
         vkUpdateDescriptorSets(m_context.Device(),
             static_cast<uint32_t>(writes.size()), writes.data()
             , 0, nullptr);
+
+        bound = list.m_material.m_textures;
     }
 
     void RenderPass::CreatePipeline()

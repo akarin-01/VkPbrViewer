@@ -6,7 +6,7 @@
 #include "scene/texture.h"
 
 #include <vulkan/vulkan.h>
-#include <optional>
+#include <array>
 #include <vector>
 
 namespace Kita::Pbrv
@@ -27,19 +27,27 @@ namespace Kita::Pbrv
         RenderList GetRenderList() const;
 
     private:
+        void CreateSamplers();
+        void DestroySamplers();
+        void CreateFallbackTextures();
+        void DestroyFallbackTextures();
+
         RenderPerFrame CreateRenderPerFrame();
         void DestroyRenderPerFrame(RenderPerFrame& frame);
         RenderMaterial CreateRenderMaterial();
         void DestroyRenderMaterial(RenderMaterial& material);
         RenderMesh CreateRenderMesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
         void DestroyRenderMesh(RenderMesh& mesh);
-        RenderTexture CreateRenderTexture(const std::vector<uint8_t>& pixels, uint32_t width, uint32_t height, Texture::Type type);
+        RenderTexture CreateRenderTexture(const Texture& sceneTex, RenderSamplerHandle samplerHandle);
         void DestroyRenderTexture(RenderTexture& texture);
 
     private:
         RenderResources& m_resources;
         const SwapChain& m_swapChain;
 
-        RenderList m_list;
+        RenderList m_list{};
+
+        RenderSamplerHandle m_linearRepeatSamplerHandle{ 0 };
+        std::array<RenderTexture, kMaterialTextureCount> m_fallbackTextures{ 0 };
     };
 }

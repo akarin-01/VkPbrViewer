@@ -28,7 +28,9 @@ int main()
             .SetDirection(glm::vec3(1.0f, 1.0f, 0.0f));
         Pbrv::Material& mat = scene.GetMaterial()
             .SetMetallic(0.0f);
+        // mat.GetAlbedoTex().LoadFromFile("assets/textures/Cerberus_A.tga", Pbrv::Texture::Type::Albedo);
         mat.GetNormalTex().LoadFromFile("assets/textures/Cerberus_N.tga", Pbrv::Texture::Type::Normal);
+        // mat.GetMetallicTex().LoadFromFile("assets/textures/Cerberus_M.tga", Pbrv::Texture::Type::Linear);
         mat.GetRoughnessTex().LoadFromFile("assets/textures/Cerberus_R.tga", Pbrv::Texture::Type::Linear);
         mat.GetAOTex().LoadFromFile("assets/textures/Cerberus_AO.tga", Pbrv::Texture::Type::Linear);
         scene.GetMesh().LoadFromObj("assets/models/Cerberus_LP.obj");
@@ -48,6 +50,10 @@ int main()
             else if (frame == 241)
             {
                 mat.GetMetallicTex().LoadFromFile("assets/textures/Cerberus_M.tga", Pbrv::Texture::Type::Linear);
+            }
+            else if (frame == 480)
+            {
+                mat.GetAlbedoTex().Reset();
             }
 
             renderer.DrawFrame(scene);

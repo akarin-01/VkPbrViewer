@@ -116,7 +116,7 @@ namespace Kita::Pbrv
 
     private:
         DestroyFn m_destroyer;
-        std::array<std::vector<std::unique_ptr<TResource>>, kMaxFramesInFlight> m_queues;
+        std::array<std::vector<std::unique_ptr<TResource>>, kMaxFramesInFlight> m_queues{};
     };
 
     /// @brief Manages low-level rendering resources, independent of business logic types

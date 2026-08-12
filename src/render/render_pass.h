@@ -6,6 +6,7 @@
 #include <vulkan/vulkan.h>
 #include <string>
 #include <vector>
+#include <array>
 
 namespace Kita::Pbrv
 {
@@ -27,7 +28,7 @@ namespace Kita::Pbrv
         void CreateDescriptorPool();
         void CreateDescriptorSetLayouts();
         void AllocateDescriptorSets(const RenderList& list);
-        void UpdateMaterialDescriptorSet(VkDescriptorSet matSet, const RenderList& list);
+        void UpdateMaterialDescriptorSet(uint32_t frameIndex, const RenderList& list);
         void CreatePipeline();
         void CreateDepthImage();
         void DestroyDepthImage();
@@ -50,5 +51,7 @@ namespace Kita::Pbrv
 
         RenderImageHandle m_depthImageHandle;
         RenderImageViewHandle m_depthImageViewHandle;
+
+        std::array<std::array<RenderTexture, kMaterialTextureCount>, kMaxFramesInFlight> m_boundTextures{};
     };
 }

@@ -9,6 +9,7 @@
 #include <iostream>
 #include <glm/glm.hpp>
 #include <cassert>
+#include <stdexcept>
 
 namespace Kita::Pbrv
 {
@@ -18,34 +19,53 @@ namespace Kita::Pbrv
         {
         case Texture::Type::Albedo:
             return VK_FORMAT_R8G8B8A8_SRGB;
-            break;
         case Texture::Type::Normal:
             return VK_FORMAT_R8G8B8A8_UNORM;
-            break;
         case Texture::Type::Linear:
             return VK_FORMAT_R8_UNORM;
-            break;
         case Texture::Type::Hdr:
             return VK_FORMAT_R16G16B16A16_SFLOAT;
-            break;
         default:
-            return VK_FORMAT_UNDEFINED;
-            break;
+            throw std::runtime_error("Invalid texture type!");
+        }
+    }
+
+    static const Texture& GetTexture(const Material& mat, uint32_t slot)
+    {
+        switch (slot)
+        {
+        case Albedo:
+            return mat.GetAlbedoTex();
+        case Normal:
+            return mat.GetNormalTex();
+        case Metallic:
+            return mat.GetMetallicTex();
+        case Roughness:
+            return mat.GetRoughnessTex();
+        case AO:
+            return mat.GetAOTex();
+        default:
+            throw std::runtime_error("Invalid texture slot!");
         }
     }
 
     RenderScene::RenderScene(RenderResources& resources, const SwapChain& swapChain)
         : m_resources(resources), m_swapChain(swapChain)
     {
+        CreateSamplers();
+        CreateFallbackTextures();
         m_list.m_frame = CreateRenderPerFrame();
+        // RenderMesh would be created when update
         m_list.m_material = CreateRenderMaterial();
     }
 
     RenderScene::~RenderScene()
     {
-        DestroyRenderMesh(m_list.m_mesh);
         DestroyRenderMaterial(m_list.m_material);
+        DestroyRenderMesh(m_list.m_mesh);
         DestroyRenderPerFrame(m_list.m_frame);
+        DestroyFallbackTextures();
+        DestroySamplers();
     }
 
     void RenderScene::Update(const Scene& scene, const FrameInfo& frameInfo)
@@ -80,27 +100,38 @@ namespace Kita::Pbrv
                 0.0f);
             m_list.m_material.m_pushConstant = pushConstant;
 
-#define UPDATE_TEXTURE(Name, member)                                                     \
-            {                                                                                \
-                auto& tex = sceneMat.Get##Name##Tex();                                       \
-                if (tex.IsDirty())                                                           \
-                {                                                                            \
-                    tex.ClearDirty();                                                        \
-                    DestroyRenderTexture(m_list.m_material.m_##member);                      \
-                    m_list.m_material.m_##member = CreateRenderTexture(                      \
-                        tex.GetPixels(), tex.GetWidth(), tex.GetHeight(), tex.GetType());    \
-                    std::clog << "[Renderer] Upload " #Name " texture: "                     \
-                              << tex.GetName() << ", " << tex.GetPixelCount() << " bytes\n"; \
-                }                                                                            \
+            for (uint32_t i = 0; i < kMaterialTextureCount; ++i)
+            {
+                auto slot = MaterialTextureSlot(i);
+                auto& sceneTex = GetTexture(sceneMat, i);
+                auto& renderTex = m_list.m_material.m_textures[i];
+                if (sceneTex.IsDirty())
+                {
+                    sceneTex.ClearDirty();
+
+                    bool isOldFallback = renderTex == m_fallbackTextures[i];
+                    if (!isOldFallback)
+                    {
+                        DestroyRenderTexture(renderTex);
+                    }
+
+                    RenderTexture newTex{};
+                    if (sceneTex.IsEmpty())
+                    {
+                        // New texture is empty, use fallback
+                        newTex = m_fallbackTextures[i];
+                    }
+                    else
+                    {
+                        // New texture is not empty, create new texture
+                        newTex = CreateRenderTexture(sceneTex, m_linearRepeatSamplerHandle);
+
+                        std::clog << "[Renderer] Upload " << ToString(slot) << " texture: "
+                            << sceneTex.GetName() << ", " << sceneTex.GetPixelCount() << " bytes\n";
+                    }
+                    renderTex = newTex;
+                }
             }
-
-            UPDATE_TEXTURE(Albedo, albedo);
-            UPDATE_TEXTURE(Normal, normal);
-            UPDATE_TEXTURE(Metallic, metallic);
-            UPDATE_TEXTURE(Roughness, roughness);
-            UPDATE_TEXTURE(AO, ao);
-
-#undef UPDATE_TEXTURE
         }
 
         // Mesh
@@ -127,6 +158,79 @@ namespace Kita::Pbrv
     {
         return m_list;
     }
+
+    void RenderScene::CreateSamplers()
+    {
+        // Linear repeat
+        {
+            VkSamplerCreateInfo createInfo{};
+            createInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+            createInfo.magFilter = VK_FILTER_LINEAR;
+            createInfo.minFilter = VK_FILTER_LINEAR;
+            createInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            createInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            createInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            // Todo: Enable Anisotropy
+            createInfo.anisotropyEnable = VK_FALSE;
+            createInfo.unnormalizedCoordinates = VK_FALSE;
+            createInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+            createInfo.compareEnable = VK_FALSE;
+            createInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+            createInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+            createInfo.mipLodBias = 0.0f;
+            createInfo.minLod = 0.0f;
+            createInfo.maxLod = VK_LOD_CLAMP_NONE;
+
+            m_linearRepeatSamplerHandle = m_resources.CreateSampler(createInfo);
+        }
+    }
+
+    void RenderScene::DestroySamplers()
+    {
+        // Linear repeat
+        {
+            m_resources.DestroySampler(m_linearRepeatSamplerHandle);
+        }
+    }
+
+    void RenderScene::CreateFallbackTextures()
+    {
+        uint8_t white[] = { 255, 255, 255, 255 };
+        uint8_t flat[] = { 128, 128, 255, 255 };
+        uint32_t width = 1;
+        uint32_t height = 1;
+
+        // Albedo
+        {
+            Texture tex{};
+            tex.SetData("fallback", std::vector<uint8_t>(white, white + 4), width, height, Texture::Type::Albedo);
+            m_fallbackTextures[Albedo] = CreateRenderTexture(tex, m_linearRepeatSamplerHandle);
+        }
+        // Normal
+        {
+            Texture tex{};
+            tex.SetData("fallback", std::vector<uint8_t>(flat, flat + 4), width, height, Texture::Type::Normal);
+            m_fallbackTextures[Normal] = CreateRenderTexture(tex, m_linearRepeatSamplerHandle);
+        }
+        // Linear
+        {
+            Texture tex{};
+            tex.SetData("fallback", std::vector<uint8_t>(white, white + 1), width, height, Texture::Type::Linear);
+            RenderTexture linearFallback = CreateRenderTexture(tex, m_linearRepeatSamplerHandle);
+            m_fallbackTextures[Metallic] = linearFallback;
+            m_fallbackTextures[Roughness] = linearFallback;
+            m_fallbackTextures[AO] = linearFallback;
+        }
+    }
+
+    void RenderScene::DestroyFallbackTextures()
+    {
+        for (auto& texture : m_fallbackTextures)
+        {
+            DestroyRenderTexture(texture);
+        }
+    }
+
     RenderPerFrame RenderScene::CreateRenderPerFrame()
     {
         RenderPerFrame frame;
@@ -157,58 +261,24 @@ namespace Kita::Pbrv
 
     RenderMaterial RenderScene::CreateRenderMaterial()
     {
-        RenderMaterial material;
+        RenderMaterial material{};
 
-        // Textures fallback
-        {
-            uint8_t white[] = { 255, 255, 255, 255 };
-            uint8_t flat[] = { 128, 128, 255, 255 };
-            uint32_t width = 1;
-            uint32_t height = 1;
-
-            material.m_albedo = CreateRenderTexture(std::vector<uint8_t>(white, white + 4), width, height, Texture::Type::Albedo);
-            material.m_normal = CreateRenderTexture(std::vector<uint8_t>(flat, flat + 4), width, height, Texture::Type::Normal);
-            material.m_metallic = CreateRenderTexture(std::vector<uint8_t>(white, white + 1), width, height, Texture::Type::Linear);
-            material.m_roughness = CreateRenderTexture(std::vector<uint8_t>(white, white + 1), width, height, Texture::Type::Linear);
-            material.m_ao = CreateRenderTexture(std::vector<uint8_t>(white, white + 1), width, height, Texture::Type::Linear);
-        }
-
-        // Samplers
-        {
-            VkSamplerCreateInfo createInfo{};
-            createInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-            createInfo.magFilter = VK_FILTER_LINEAR;
-            createInfo.minFilter = VK_FILTER_LINEAR;
-            createInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            createInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            createInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            // Todo: Enable Anisotropy
-            createInfo.anisotropyEnable = VK_FALSE;
-            createInfo.unnormalizedCoordinates = VK_FALSE;
-            createInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-            createInfo.compareEnable = VK_FALSE;
-            createInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-            createInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-            createInfo.mipLodBias = 0.0f;
-            createInfo.minLod = 0.0f;
-            createInfo.maxLod = VK_LOD_CLAMP_NONE;
-
-            RenderSamplerHandle handle = m_resources.CreateSampler(createInfo);
-            material.m_albedoSamplerHandle = handle;
-            material.m_normalSamplerHandle = handle;
-            material.m_metallicSamplerHandle = handle;
-            material.m_roughnessSamplerHandle = handle;
-            material.m_aoSamplerHandle = handle;
-        }
+        material.m_textures = m_fallbackTextures;
 
         return material;
     }
 
     void RenderScene::DestroyRenderMaterial(RenderMaterial& material)
     {
-        // Samplers(only destroy once)
-        m_resources.DestroySampler(material.m_albedoSamplerHandle);
-
+        auto& textures = material.m_textures;
+        for (size_t i = 0; i < textures.size(); ++i)
+        {
+            bool isFallback = (textures[i] == m_fallbackTextures[i]);
+            if (!isFallback)
+            {
+                DestroyRenderTexture(textures[i]);
+            }
+        }
         material = {};
     }
 
@@ -259,8 +329,13 @@ namespace Kita::Pbrv
         mesh = {};
     }
 
-    RenderTexture RenderScene::CreateRenderTexture(const std::vector<uint8_t>& pixels, uint32_t width, uint32_t height, Texture::Type type)
+    RenderTexture RenderScene::CreateRenderTexture(const Texture& sceneTex, RenderSamplerHandle samplerHandle)
     {
+        auto& pixels = sceneTex.GetPixels();
+        auto width = sceneTex.GetWidth();
+        auto height = sceneTex.GetHeight();
+        auto type = sceneTex.GetType();
+
         VkFormat format = TypeToFormat(type);
         auto mipLevels = static_cast<uint32_t>(
             std::floor(std::log2(std::max(width, height))) + 1
@@ -308,7 +383,7 @@ namespace Kita::Pbrv
             imageViewHandle = m_resources.CreateImageView(imageViewInfo);
         }
 
-        return { imageHandle, imageViewHandle };
+        return { imageHandle, imageViewHandle, samplerHandle };
     }
 
     void RenderScene::DestroyRenderTexture(RenderTexture& texture)
