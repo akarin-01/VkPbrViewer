@@ -7,13 +7,119 @@
 #include <vector>
 #include <array>
 #include <memory>
+#include <functional>
 #include <vulkan/vulkan.h>
 
 namespace Kita::Pbrv
 {
     class RenderContext;
 
-    /// @brief 管理渲染基础资源，与业务逻辑类型无关
+    template <typename TResource>
+    class ResourcePool
+    {
+    public:
+        using Handle = typename TResource::Handle;
+        using DestroyFn = std::function<void(TResource&)>;
+
+        explicit ResourcePool(DestroyFn destroyer)
+            : m_destroyer(destroyer)
+        {
+        }
+
+        ~ResourcePool()
+        {
+            Clear();
+        }
+
+        Handle Add(std::unique_ptr<TResource> res)
+        {
+            Handle handle = m_nextHandle++;
+            m_resources.emplace(handle, std::move(res));
+            return handle;
+        }
+
+        TResource* Get(Handle handle) const
+        {
+            auto it = m_resources.find(handle);
+            if (it == m_resources.end())
+            {
+                return nullptr;
+            }
+
+            return it->second.get();
+        }
+
+        std::unique_ptr<TResource> Remove(Handle handle)
+        {
+            auto it = m_resources.find(handle);
+            if (it == m_resources.end())
+            {
+                return nullptr;
+            }
+
+            auto res = std::move(it->second);
+            m_resources.erase(it);
+            return res;
+        }
+
+        void Clear()
+        {
+            for (auto& [handle, res] : m_resources)
+            {
+                m_destroyer(*res);
+            }
+            m_resources.clear();
+        }
+
+    private:
+        DestroyFn m_destroyer;
+
+        Handle m_nextHandle{ 1 };
+        std::unordered_map<Handle, std::unique_ptr<TResource>> m_resources;
+    };
+
+    template <typename TResource>
+    class DeferredQueue
+    {
+    public:
+        using DestroyFn = std::function<void(TResource&)>;
+
+        explicit DeferredQueue(DestroyFn destroyer)
+            : m_destroyer(destroyer)
+        {
+        }
+
+        ~DeferredQueue()
+        {
+            for (size_t i = 0; i < m_queues.size(); ++i)
+            {
+                Flush(i);
+            }
+        }
+
+        void Push(uint32_t frameIndex, std::unique_ptr<TResource> res)
+        {
+            m_queues[frameIndex].push_back(std::move(res));
+        }
+
+        size_t Flush(uint32_t frameIndex)
+        {
+            auto& queue = m_queues[frameIndex];
+            size_t count = queue.size();
+            for (auto& res : queue)
+            {
+                m_destroyer(*res);
+            }
+            queue.clear();
+            return count;
+        }
+
+    private:
+        DestroyFn m_destroyer;
+        std::array<std::vector<std::unique_ptr<TResource>>, kMaxFramesInFlight> m_queues;
+    };
+
+    /// @brief Manages low-level rendering resources, independent of business logic types
     class RenderResources
     {
     public:
@@ -24,31 +130,22 @@ namespace Kita::Pbrv
 
         RenderBufferHandle CreateBuffer(const VkBufferCreateInfo& bufferInfo, VkMemoryPropertyFlags properties, bool mapped = false);
         RenderBufferHandle CreateBufferWithData(const VkBufferCreateInfo& bufferInfo, VkMemoryPropertyFlags properties, const void* data, size_t size);
-        RenderBuffer* GetBuffer(const RenderBufferHandle& handle) const;
-        void DestroyBuffer(const RenderBufferHandle& handle);
-        void WriteBuffer(const RenderBufferHandle& handle, const void* data, size_t size, size_t offset = 0);
+        RenderBuffer* GetBuffer(RenderBufferHandle handle) const;
+        void DestroyBuffer(RenderBufferHandle handle);
+        void WriteBuffer(RenderBufferHandle handle, const void* data, size_t size, size_t offset = 0);
 
         RenderImageHandle CreateImage(VkImageCreateInfo imageInfo, VkMemoryPropertyFlags properties);
         RenderImageHandle CreateImageWithData(VkImageCreateInfo imageInfo, VkMemoryPropertyFlags properties, const void* data, size_t size, VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT);
-        RenderImage* GetImage(const RenderImageHandle& handle) const;
-        void DestroyImage(const RenderImageHandle& handle);
+        RenderImage* GetImage(RenderImageHandle handle) const;
+        void DestroyImage(RenderImageHandle handle);
 
         RenderImageViewHandle CreateImageView(const VkImageViewCreateInfo& createInfo);
-        RenderImageView* GetImageView(const RenderImageViewHandle& handle) const;
-        void DestroyImageView(const RenderImageViewHandle& handle);
+        RenderImageView* GetImageView(RenderImageViewHandle handle) const;
+        void DestroyImageView(RenderImageViewHandle handle);
 
         RenderSamplerHandle CreateSampler(const VkSamplerCreateInfo& createInfo);
-        RenderSampler* GetSampler(const RenderSamplerHandle& handle) const;
-        void DestroySampler(const RenderSamplerHandle& handle);
-
-    private:
-        struct DeferredQueue
-        {
-            std::vector<std::unique_ptr<RenderBuffer>> m_bufferQueue;
-            std::vector<std::unique_ptr<RenderImage>> m_imageQueue;
-            std::vector<std::unique_ptr<RenderImageView>> m_imageViewQueue;
-            std::vector<std::unique_ptr<RenderSampler>> m_samplerQueue;
-        };
+        RenderSampler* GetSampler(RenderSamplerHandle handle) const;
+        void DestroySampler(RenderSamplerHandle handle);
 
     private:
         std::unique_ptr<RenderBuffer> CreateBufferHelper(const VkBufferCreateInfo& bufferInfo, VkMemoryPropertyFlags properties, bool mapped = false) const;
@@ -64,24 +161,18 @@ namespace Kita::Pbrv
         std::unique_ptr<RenderSampler> CreateSamplerHelper(const VkSamplerCreateInfo& createInfo) const;
         void DestroySamplerHelper(const RenderSampler& sampler) const;
 
-        void FlushFrameDeferedQueue(uint32_t frameIndex);
-
     private:
         const RenderContext& m_context;
 
-        RenderBufferHandle m_nextBufferHandle{ 1 };
-        std::unordered_map<RenderBufferHandle, std::unique_ptr<RenderBuffer>> m_buffers;
-
-        RenderImageHandle m_nextImageHandle{ 1 };
-        std::unordered_map<RenderImageHandle, std::unique_ptr<RenderImage>> m_images;
-
-        RenderImageViewHandle m_nextImageViewHandle{ 1 };
-        std::unordered_map<RenderImageViewHandle, std::unique_ptr<RenderImageView>> m_imageViews;
-
-        RenderSamplerHandle m_nextSamplerHandle{ 1 };
-        std::unordered_map<RenderSamplerHandle, std::unique_ptr<RenderSampler>> m_samplers;
+        ResourcePool<RenderBuffer> m_buffers;
+        ResourcePool<RenderImage> m_images;
+        ResourcePool<RenderImageView> m_imageViews;
+        ResourcePool<RenderSampler> m_samplers;
 
         uint32_t m_frameIndex{ 0 };
-        std::array<DeferredQueue, kMaxFramesInFlight> m_deferredQueues;
+        DeferredQueue<RenderBuffer> m_bufferQueue;
+        DeferredQueue<RenderImage> m_imageQueue;
+        DeferredQueue<RenderImageView> m_imageViewQueue;
+        DeferredQueue<RenderSampler> m_samplerQueue;
     };
 }

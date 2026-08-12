@@ -9,55 +9,60 @@
 namespace Kita::Pbrv
 {
     RenderResources::RenderResources(const RenderContext& context)
-        : m_context(context)
+        : m_context(context),
+        m_buffers([this](RenderBuffer& b) { DestroyBufferHelper(b); }),
+        m_images([this](RenderImage& i) { DestroyImageHelper(i); }),
+        m_imageViews([this](RenderImageView& v) { DestroyImageViewHelper(v); }),
+        m_samplers([this](RenderSampler& s) { DestroySamplerHelper(s); }),
+        m_bufferQueue([this](RenderBuffer& b) { DestroyBufferHelper(b); }),
+        m_imageQueue([this](RenderImage& i) { DestroyImageHelper(i); }),
+        m_imageViewQueue([this](RenderImageView& v) { DestroyImageViewHelper(v); }),
+        m_samplerQueue([this](RenderSampler& s) { DestroySamplerHelper(s); })
     {
     }
 
     RenderResources::~RenderResources()
     {
-        // Defered Queues
-        for (size_t i = 0; i < m_deferredQueues.size(); ++i)
+        for (uint32_t i = 0; i < kMaxFramesInFlight; ++i)
         {
-            FlushFrameDeferedQueue(i);
+            FlushDeferred(i);
         }
 
-        for (auto& [handle, buffer] : m_buffers)
-        {
-            DestroyBufferHelper(*buffer);
-        }
-        m_buffers.clear();
-
-        for (auto& [handle, image] : m_images)
-        {
-            DestroyImageHelper(*image);
-        }
-        m_images.clear();
-
-        for (auto& [handle, imageView] : m_imageViews)
-        {
-            DestroyImageViewHelper(*imageView);
-        }
-        m_imageViews.clear();
-
-        for (auto& [handle, sampler] : m_samplers)
-        {
-            DestroySamplerHelper(*sampler);
-        }
-        m_samplers.clear();
+        m_buffers.Clear();
+        m_images.Clear();
+        m_imageViews.Clear();
+        m_samplers.Clear();
     }
 
     void RenderResources::FlushDeferred(uint32_t frameIndex)
     {
-        FlushFrameDeferedQueue(frameIndex);
+        size_t bufferCount = m_bufferQueue.Flush(frameIndex);
+        size_t imageCount = m_imageQueue.Flush(frameIndex);
+        size_t imageViewCount = m_imageViewQueue.Flush(frameIndex);
+        size_t samplerCount = m_samplerQueue.Flush(frameIndex);
+
+        bool empty = (bufferCount == 0
+            && imageCount == 0
+            && imageViewCount == 0
+            && samplerCount == 0);
+
+        if (!empty)
+        {
+            std::clog << "[Resources] Flush "
+                << bufferCount << " buffers, "
+                << imageCount << " images, "
+                << imageViewCount << " imageViews, "
+                << samplerCount << " samplers -> frame "
+                << frameIndex << "\n";
+        }
+
         m_frameIndex = frameIndex;
     }
 
     RenderBufferHandle RenderResources::CreateBuffer(const VkBufferCreateInfo& bufferInfo, VkMemoryPropertyFlags properties, bool mapped)
     {
-        auto handle = m_nextBufferHandle++;
         auto renderBuffer = CreateBufferHelper(bufferInfo, properties, mapped);
-        m_buffers.emplace(handle, std::move(renderBuffer));
-        return handle;
+        return m_buffers.Add(std::move(renderBuffer));
     }
 
     RenderBufferHandle RenderResources::CreateBufferWithData(const VkBufferCreateInfo& bufferInfo, VkMemoryPropertyFlags properties, const void* data, size_t size)
@@ -80,45 +85,31 @@ namespace Kita::Pbrv
         // Clean
         DestroyBufferHelper(*stagingBuffer);
 
-        auto handle = m_nextBufferHandle++;
-        m_buffers.emplace(handle, std::move(buffer));
-        return handle;
+        return m_buffers.Add(std::move(buffer));
     }
 
-    RenderBuffer* RenderResources::GetBuffer(const RenderBufferHandle& handle) const
+    RenderBuffer* RenderResources::GetBuffer(RenderBufferHandle handle) const
     {
-        auto it = m_buffers.find(handle);
-        if (it == m_buffers.end())
-        {
-            return nullptr;
-        }
-
-        return it->second.get();
+        return m_buffers.Get(handle);
     }
 
-    void RenderResources::DestroyBuffer(const RenderBufferHandle& handle)
+    void RenderResources::DestroyBuffer(RenderBufferHandle handle)
     {
-        auto it = m_buffers.find(handle);
-        if (it == m_buffers.end())
+        auto buffer = m_buffers.Remove(handle);
+        if (!buffer)
         {
             return;
         }
 
         // Deferred destruction
-        auto& frameDeferredQueue = m_deferredQueues[m_frameIndex];
-        frameDeferredQueue.m_bufferQueue.push_back(std::move(it->second));
+        m_bufferQueue.Push(m_frameIndex, std::move(buffer));
         std::clog << "[Resources] Defer destroy buffer(" << handle << ") -> frame " << m_frameIndex << "\n";
-
-        m_buffers.erase(it);
     }
 
     RenderImageHandle RenderResources::CreateImage(VkImageCreateInfo imageInfo, VkMemoryPropertyFlags properties)
     {
-        // Add image
-        auto handle = m_nextImageHandle++;
         auto renderImage = CreateImageHelper(imageInfo, properties);
-        m_images.emplace(handle, std::move(renderImage));
-        return handle;
+        return m_images.Add(std::move(renderImage));
     }
 
     RenderImageHandle RenderResources::CreateImageWithData(VkImageCreateInfo imageInfo, VkMemoryPropertyFlags properties, const void* data, size_t size, VkImageAspectFlags aspect)
@@ -167,105 +158,73 @@ namespace Kita::Pbrv
         DestroyBufferHelper(*stagingBuffer);
 
         // Add image
-        auto handle = m_nextImageHandle++;
-        m_images.emplace(handle, std::move(image));
-        return handle;
+        return m_images.Add(std::move(image));
     }
 
-    RenderImage* RenderResources::GetImage(const RenderImageHandle& handle) const
+    RenderImage* RenderResources::GetImage(RenderImageHandle handle) const
     {
-        auto it = m_images.find(handle);
-        if (it == m_images.end())
-        {
-            return nullptr;
-        }
-
-        return it->second.get();
+        return m_images.Get(handle);
     }
 
-    void RenderResources::DestroyImage(const RenderImageHandle& handle)
+    void RenderResources::DestroyImage(RenderImageHandle handle)
     {
-        auto it = m_images.find(handle);
-        if (it == m_images.end())
+        auto image = m_images.Remove(handle);
+        if (!image)
         {
             return;
         }
-        // Deferred destruction
-        auto& frameDeferredQueue = m_deferredQueues[m_frameIndex];
-        frameDeferredQueue.m_imageQueue.push_back(std::move(it->second));
-        std::clog << "[Resources] Defer destroy image(" << handle << ") -> frame " << m_frameIndex << "\n";
 
-        m_images.erase(it);
+        // Deferred destruction
+        m_imageQueue.Push(m_frameIndex, std::move(image));
+        std::clog << "[Resources] Defer destroy image(" << handle << ") -> frame " << m_frameIndex << "\n";
     }
 
     RenderImageViewHandle RenderResources::CreateImageView(const VkImageViewCreateInfo& createInfo)
     {
-        // Add image view
-        auto handle = m_nextImageViewHandle++;
-        auto renderImageView = CreateImageViewHelper(createInfo);
-        m_imageViews.emplace(handle, std::move(renderImageView));
-        return handle;
+        auto imageView = CreateImageViewHelper(createInfo);
+        return m_imageViews.Add(std::move(imageView));
     }
 
-    RenderImageView* RenderResources::GetImageView(const RenderImageViewHandle& handle) const
+    RenderImageView* RenderResources::GetImageView(RenderImageViewHandle handle) const
     {
-        auto it = m_imageViews.find(handle);
-        if (it == m_imageViews.end())
-        {
-            return nullptr;
-        }
-
-        return it->second.get();
+        return m_imageViews.Get(handle);
     }
 
-    void RenderResources::DestroyImageView(const RenderImageViewHandle& handle)
+    void RenderResources::DestroyImageView(RenderImageViewHandle handle)
     {
-        auto it = m_imageViews.find(handle);
-        if (it == m_imageViews.end())
+        auto imageView = m_imageViews.Remove(handle);
+        if (!imageView)
         {
             return;
         }
-        // Deferred destruction
-        auto& frameDeferredQueue = m_deferredQueues[m_frameIndex];
-        frameDeferredQueue.m_imageViewQueue.push_back(std::move(it->second));
-        std::clog << "[Resources] Defer destroy image view(" << handle << ") -> frame " << m_frameIndex << "\n";
 
-        m_imageViews.erase(it);
+        // Deferred destruction
+        m_imageViewQueue.Push(m_frameIndex, std::move(imageView));
+        std::clog << "[Resources] Defer destroy image view(" << handle << ") -> frame " << m_frameIndex << "\n";
     }
 
     RenderSamplerHandle RenderResources::CreateSampler(const VkSamplerCreateInfo& createInfo)
     {
-        // Add sampler
-        auto handle = m_nextSamplerHandle++;
-        auto renderSampler = CreateSamplerHelper(createInfo);
-        m_samplers.emplace(handle, std::move(renderSampler));
-        return handle;
+        auto sampler = CreateSamplerHelper(createInfo);
+        return m_samplers.Add(std::move(sampler));
     }
 
-    RenderSampler* RenderResources::GetSampler(const RenderSamplerHandle& handle) const
+    RenderSampler* RenderResources::GetSampler(RenderSamplerHandle handle) const
     {
-        auto it = m_samplers.find(handle);
-        if (it == m_samplers.end())
-        {
-            return nullptr;
-        }
-
-        return it->second.get();
+        return m_samplers.Get(handle);
     }
 
-    void RenderResources::DestroySampler(const RenderSamplerHandle& handle)
+    void RenderResources::DestroySampler(RenderSamplerHandle handle)
     {
-        auto it = m_samplers.find(handle);
-        if (it == m_samplers.end())
+        auto sampler = m_samplers.Remove(handle);
+        if (!sampler)
         {
             return;
         }
-        // Deferred destruction
-        auto& frameDeferredQueue = m_deferredQueues[m_frameIndex];
-        frameDeferredQueue.m_samplerQueue.push_back(std::move(it->second));
-        std::clog << "[Resources] Defer destroy sampler(" << handle << ") -> frame " << m_frameIndex << "\n";
 
-        m_samplers.erase(it);
+        // Deferred destruction
+        m_samplerQueue.Push(m_frameIndex, std::move(sampler));
+        std::clog << "[Resources] Defer destroy sampler(" << handle << ") -> frame " << m_frameIndex << "\n";
     }
 
     std::unique_ptr<RenderBuffer> RenderResources::CreateBufferHelper(const VkBufferCreateInfo& bufferInfo, VkMemoryPropertyFlags properties, bool mapped) const
@@ -306,7 +265,6 @@ namespace Kita::Pbrv
 
     void RenderResources::DestroyBufferHelper(const RenderBuffer& buffer) const
     {
-        // Todo: Delay destroy
         if (buffer.m_mapped)
         {
             vkUnmapMemory(m_context.Device(), buffer.m_memory);
@@ -356,7 +314,6 @@ namespace Kita::Pbrv
 
     void RenderResources::DestroyImageHelper(const RenderImage& image) const
     {
-        // Todo: Delay destroy
         vkDestroyImage(m_context.Device(), image.m_image, nullptr);
         vkFreeMemory(m_context.Device(), image.m_memory, nullptr);
     }
@@ -395,51 +352,7 @@ namespace Kita::Pbrv
         vkDestroySampler(m_context.Device(), sampler.m_sampler, nullptr);
     }
 
-    void RenderResources::FlushFrameDeferedQueue(uint32_t frameIndex)
-    {
-        auto& frameDeferredQueue = m_deferredQueues[frameIndex];
-
-        if (frameDeferredQueue.m_bufferQueue.empty()
-            && frameDeferredQueue.m_imageQueue.empty()
-            && frameDeferredQueue.m_imageViewQueue.empty()
-            && frameDeferredQueue.m_samplerQueue.empty())
-        {
-            return;
-        }
-
-        std::clog << "[Resources] Flush "
-            << frameDeferredQueue.m_bufferQueue.size() << " buffers, "
-            << frameDeferredQueue.m_imageQueue.size() << " images, "
-            << frameDeferredQueue.m_imageViewQueue.size() << " imageViews, "
-            << frameDeferredQueue.m_samplerQueue.size() << " samplers -> frame "
-            << frameIndex << "\n";
-
-        for (auto& buffer : frameDeferredQueue.m_bufferQueue)
-        {
-            DestroyBufferHelper(*buffer);
-        }
-        frameDeferredQueue.m_bufferQueue.clear();
-
-        for (auto& image : frameDeferredQueue.m_imageQueue)
-        {
-            DestroyImageHelper(*image);
-        }
-        frameDeferredQueue.m_imageQueue.clear();
-
-        for (auto& imageView : frameDeferredQueue.m_imageViewQueue)
-        {
-            DestroyImageViewHelper(*imageView);
-        }
-        frameDeferredQueue.m_imageViewQueue.clear();
-
-        for (auto& sampler : frameDeferredQueue.m_samplerQueue)
-        {
-            DestroySamplerHelper(*sampler);
-        }
-        frameDeferredQueue.m_samplerQueue.clear();
-    }
-
-    void RenderResources::WriteBuffer(const RenderBufferHandle& handle, const void* data, size_t size, size_t offset)
+    void RenderResources::WriteBuffer(RenderBufferHandle handle, const void* data, size_t size, size_t offset)
     {
         RenderBuffer* buffer = GetBuffer(handle);
         if (!buffer)

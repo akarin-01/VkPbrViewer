@@ -9,8 +9,14 @@
 
 namespace Kita::Pbrv
 {
+    using RenderBufferHandle = uint64_t;
+    using RenderImageHandle = uint64_t;
+    using RenderImageViewHandle = uint64_t;
+    using RenderSamplerHandle = uint64_t;
+
     struct RenderBuffer
     {
+        using Handle = RenderBufferHandle;
         VkBuffer m_buffer{ VK_NULL_HANDLE };
         VkDeviceMemory m_memory{ VK_NULL_HANDLE };
         void* m_mapped{ nullptr };
@@ -18,24 +24,22 @@ namespace Kita::Pbrv
 
     struct RenderImage
     {
+        using Handle = RenderImageHandle;
         VkImage m_image{ VK_NULL_HANDLE };
         VkDeviceMemory m_memory{ VK_NULL_HANDLE };
     };
 
     struct RenderImageView
     {
+        using Handle = RenderImageViewHandle;
         VkImageView m_imageView{ VK_NULL_HANDLE };
     };
 
     struct RenderSampler
     {
+        using Handle = RenderSamplerHandle;
         VkSampler m_sampler{ VK_NULL_HANDLE };
     };
-
-    using RenderBufferHandle = uint64_t;
-    using RenderImageHandle = uint64_t;
-    using RenderImageViewHandle = uint64_t;
-    using RenderSamplerHandle = uint64_t;
 
     struct FrameInfo
     {
