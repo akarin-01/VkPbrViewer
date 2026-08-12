@@ -9,6 +9,22 @@
 
 namespace Kita::Pbrv
 {
+    struct FrameUbo
+    {
+        alignas(16) glm::mat4 m_viewProj;
+        alignas(16) glm::vec4 m_viewPos;            // xyz - pos, w - 1 always
+        alignas(16) glm::vec4 m_lightDir;           // xyz - dir, w - 0(directional light)
+        alignas(16) glm::vec4 m_lightColor;         // xyz - rgb, w - intensity
+    };
+    STD140_ASSERT(FrameUbo, 112);
+
+    struct MaterialPC
+    {
+        alignas(16) glm::vec4 m_albedo;
+        alignas(16) glm::vec4 m_params;             // x - metallic, y - roughness, z - ao, w - padding
+    };
+    STD140_ASSERT(MaterialPC, 32);
+
     using RenderBufferHandle = uint64_t;
     using RenderImageHandle = uint64_t;
     using RenderImageViewHandle = uint64_t;
@@ -62,7 +78,7 @@ namespace Kita::Pbrv
 
     struct RenderMaterial
     {
-        std::vector<RenderBufferHandle> m_uboHandles;
+        MaterialPC m_pushConstant{ {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f} };
 
         RenderTexture m_albedo;
         RenderSamplerHandle m_albedoSamplerHandle{ 0 };
@@ -93,20 +109,4 @@ namespace Kita::Pbrv
         RenderMaterial m_material;
         RenderMesh m_mesh;
     };
-
-    struct FrameUbo
-    {
-        alignas(16) glm::mat4 m_viewProj;
-        alignas(16) glm::vec4 m_viewPos;            // xyz - pos, w - 1 always
-        alignas(16) glm::vec4 m_lightDir;           // xyz - dir, w - 0(directional light)
-        alignas(16) glm::vec4 m_lightColor;         // xyz - rgb, w - intensity
-    };
-    STD140_ASSERT(FrameUbo, 112);
-
-    struct MaterialUbo
-    {
-        alignas(16) glm::vec4 m_albedo;
-        alignas(16) glm::vec4 m_params;     // x - metallic, y - roughness, z - ao, w - padding
-    };
-    STD140_ASSERT(MaterialUbo, 32);
 }

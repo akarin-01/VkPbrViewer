@@ -72,10 +72,13 @@ namespace Kita::Pbrv
         // Material
         {
             auto& sceneMat = scene.GetMaterial();
-            MaterialUbo ubo{};
-            ubo.m_albedo = sceneMat.GetAlbedo();
-            ubo.m_params = glm::vec4(sceneMat.GetMetallic(), sceneMat.GetRoughness(), sceneMat.GetAO(), 0.0f);
-            m_resources.WriteBuffer(m_list.m_material.m_uboHandles[frameIndex], &ubo, sizeof(ubo));
+            MaterialPC pushConstant{};
+            pushConstant.m_albedo = sceneMat.GetAlbedo();
+            pushConstant.m_params = glm::vec4(sceneMat.GetMetallic(),
+                sceneMat.GetRoughness(),
+                sceneMat.GetAO(),
+                0.0f);
+            m_list.m_material.m_pushConstant = pushConstant;
 
 #define UPDATE_TEXTURE(Name, member)                                                     \
             {                                                                                \
@@ -156,21 +159,6 @@ namespace Kita::Pbrv
     {
         RenderMaterial material;
 
-        // Ubo
-        {
-            material.m_uboHandles.resize(kMaxFramesInFlight);
-
-            VkBufferCreateInfo bufferInfo{};
-            bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-            bufferInfo.size = sizeof(MaterialUbo);
-            bufferInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-            bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-            for (auto& handle : material.m_uboHandles)
-            {
-                handle = m_resources.CreateBuffer(bufferInfo, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, true);
-            }
-        }
-
         // Textures fallback
         {
             uint8_t white[] = { 255, 255, 255, 255 };
@@ -218,12 +206,6 @@ namespace Kita::Pbrv
 
     void RenderScene::DestroyRenderMaterial(RenderMaterial& material)
     {
-        // Ubo
-        for (auto& handle : material.m_uboHandles)
-        {
-            m_resources.DestroyBuffer(handle);
-        }
-
         // Samplers(only destroy once)
         m_resources.DestroySampler(material.m_albedoSamplerHandle);
 

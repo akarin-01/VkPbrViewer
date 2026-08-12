@@ -130,6 +130,11 @@ namespace Kita::Pbrv
             vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout,
                 1, 1, &m_matSets[frameIndex], 0, nullptr);
 
+            auto& pushConstant = list.m_material.m_pushConstant;
+            vkCmdPushConstants(commandBuffer, m_pipelineLayout,
+                VK_SHADER_STAGE_FRAGMENT_BIT,
+                0, sizeof(pushConstant), &pushConstant);
+
             RenderBuffer* vertexBuffer = m_resources.GetBuffer(list.m_mesh.m_vertexBufferHandle);
             assert(vertexBuffer && "Vertex buffer handle is invalid");
             VkBuffer buffers[]{ vertexBuffer->m_buffer };
@@ -158,7 +163,7 @@ namespace Kita::Pbrv
     {
         std::vector<VkDescriptorPoolSize> poolSizes(2);
         poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        poolSizes[0].descriptorCount = kMaxFramesInFlight * 2;
+        poolSizes[0].descriptorCount = kMaxFramesInFlight * 1;
         poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         poolSizes[1].descriptorCount = kMaxFramesInFlight * 5;
 
@@ -194,9 +199,9 @@ namespace Kita::Pbrv
 
         // Material layout
         {
-            std::vector<VkDescriptorSetLayoutBinding> bindings(6);
+            std::vector<VkDescriptorSetLayoutBinding> bindings(5);
             bindings[0].binding = 0;
-            bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
             bindings[0].descriptorCount = 1;
             bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
@@ -219,11 +224,6 @@ namespace Kita::Pbrv
             bindings[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
             bindings[4].descriptorCount = 1;
             bindings[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-            bindings[5].binding = 5;
-            bindings[5].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            bindings[5].descriptorCount = 1;
-            bindings[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
             VkDescriptorSetLayoutCreateInfo createInfo{};
             createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -299,35 +299,7 @@ namespace Kita::Pbrv
                 throw std::runtime_error("Failed to allocate descriptor sets!");
             }
 
-            // Setup
-            for (size_t i = 0; i < m_matSets.size(); ++i)
-            {
-                auto& set = m_matSets[i];
-
-                VkDescriptorBufferInfo bufferInfo{};
-                {
-                    RenderBuffer* buffer = m_resources.GetBuffer(list.m_material.m_uboHandles[i]);
-                    assert(buffer && "Material buffer handle is invalid");
-                    bufferInfo.buffer = buffer->m_buffer;
-                    bufferInfo.offset = 0;
-                    bufferInfo.range = sizeof(MaterialUbo);
-                }
-
-                std::vector<VkWriteDescriptorSet> writes(1);
-                // Binding 0: MaterialUbo
-                writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                writes[0].dstSet = set;
-                writes[0].dstBinding = 0;
-                writes[0].dstArrayElement = 0;
-                writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-                writes[0].descriptorCount = 1;
-                writes[0].pBufferInfo = &bufferInfo;
-
-                // Update texture when draw
-                vkUpdateDescriptorSets(m_context.Device(),
-                    static_cast<uint32_t>(writes.size()), writes.data()
-                    , 0, nullptr);
-            }
+            // Setup when drawing(if necessary)
         }
     }
 
@@ -392,7 +364,7 @@ namespace Kita::Pbrv
         // Binding 1: albedo
         writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         writes[0].dstSet = matSet;
-        writes[0].dstBinding = 1;
+        writes[0].dstBinding = 0;
         writes[0].dstArrayElement = 0;
         writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         writes[0].descriptorCount = 1;
@@ -401,7 +373,7 @@ namespace Kita::Pbrv
         // Binding 2: normal
         writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         writes[1].dstSet = matSet;
-        writes[1].dstBinding = 2;
+        writes[1].dstBinding = 1;
         writes[1].dstArrayElement = 0;
         writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         writes[1].descriptorCount = 1;
@@ -410,7 +382,7 @@ namespace Kita::Pbrv
         // Binding 3: metallic
         writes[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         writes[2].dstSet = matSet;
-        writes[2].dstBinding = 3;
+        writes[2].dstBinding = 2;
         writes[2].dstArrayElement = 0;
         writes[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         writes[2].descriptorCount = 1;
@@ -419,7 +391,7 @@ namespace Kita::Pbrv
         // Binding 4: roughness
         writes[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         writes[3].dstSet = matSet;
-        writes[3].dstBinding = 4;
+        writes[3].dstBinding = 3;
         writes[3].dstArrayElement = 0;
         writes[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         writes[3].descriptorCount = 1;
@@ -428,7 +400,7 @@ namespace Kita::Pbrv
         // Binding 5: ao
         writes[4].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         writes[4].dstSet = matSet;
-        writes[4].dstBinding = 5;
+        writes[4].dstBinding = 4;
         writes[4].dstArrayElement = 0;
         writes[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         writes[4].descriptorCount = 1;
@@ -549,6 +521,12 @@ namespace Kita::Pbrv
         dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
         dynamicState.pDynamicStates = dynamicStates.data();
 
+        // Push constant
+        VkPushConstantRange pushConstant{};
+        pushConstant.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        pushConstant.offset = 0;
+        pushConstant.size = sizeof(MaterialPC);
+
         // Pipeline layout
         std::vector<VkDescriptorSetLayout> setLayouts
         {
@@ -559,8 +537,8 @@ namespace Kita::Pbrv
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(setLayouts.size());
         pipelineLayoutInfo.pSetLayouts = setLayouts.data();
-        pipelineLayoutInfo.pushConstantRangeCount = 0;
-        pipelineLayoutInfo.pPushConstantRanges = nullptr;
+        pipelineLayoutInfo.pushConstantRangeCount = 1;
+        pipelineLayoutInfo.pPushConstantRanges = &pushConstant;
 
         if (vkCreatePipelineLayout(m_context.Device(), &pipelineLayoutInfo, nullptr, &m_pipelineLayout) != VK_SUCCESS)
         {
