@@ -27,9 +27,10 @@ namespace Kita::Pbrv
 
         void LoadFromObj(const std::string& path);
         void SetData(const std::string& name, std::vector<Vertex>&& vertices, std::vector<uint32_t>&& indices);
+        void SetEmpty();
 
     private:
-        std::string m_name;
+        std::string m_name{ "empty" };
         std::vector<Vertex> m_vertices;
         std::vector<uint32_t> m_indices;
         mutable bool m_isDirty{ false };

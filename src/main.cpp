@@ -33,7 +33,7 @@ int main()
         // mat.GetMetallicTex().LoadFromFile("assets/textures/Cerberus_M.tga", Pbrv::Texture::Type::Linear);
         mat.GetRoughnessTex().LoadFromFile("assets/textures/Cerberus_R.tga", Pbrv::Texture::Type::Linear);
         mat.GetAOTex().LoadFromFile("assets/textures/Cerberus_AO.tga", Pbrv::Texture::Type::Linear);
-        scene.GetMesh().LoadFromObj("assets/models/Cerberus_LP.obj");
+        // scene.GetMesh().LoadFromObj("assets/models/Cerberus_LP.obj");
 
         Pbrv::Renderer renderer(window);
 
@@ -43,7 +43,16 @@ int main()
             window.PollEvents();
 
             ++frame;
-            if (frame == 240)
+            if (frame == 60)
+            {
+                scene.GetMesh().SetEmpty();
+                mat.GetAlbedoTex().SetEmpty();
+            }
+            else if (frame == 120)
+            {
+                scene.GetMesh().LoadFromObj("assets/models/Cerberus_LP.obj");
+            }
+            else if (frame == 240)
             {
                 mat.GetAlbedoTex().LoadFromFile("assets/textures/Cerberus_A.tga", Pbrv::Texture::Type::Albedo);
             }
@@ -53,7 +62,11 @@ int main()
             }
             else if (frame == 480)
             {
-                mat.GetAlbedoTex().Reset();
+                mat.GetAlbedoTex().SetEmpty();
+            }
+            else if (frame == 600)
+            {
+                scene.GetMesh().SetEmpty();
             }
 
             renderer.DrawFrame(scene);

@@ -78,6 +78,17 @@ namespace Kita::Pbrv
 
     void Texture::SetData(const std::string& name, std::vector<uint8_t>&& pixels, uint32_t width, uint32_t height, Type type)
     {
+        bool unchanged = m_name == name
+            && m_pixels == pixels
+            && m_width == width
+            && m_height == height
+            && m_type == type;
+        if (unchanged)
+        {
+            std::clog << "[Scene] Set texture data unchanged, skip: " << name << "\n";
+            return;
+        }
+
         m_name = name;
         m_pixels = std::move(pixels);
         m_width = width;
@@ -91,8 +102,8 @@ namespace Kita::Pbrv
             << TypeToString(m_type) << " type\n";
     }
 
-    void Texture::Reset()
+    void Texture::SetEmpty()
     {
-        SetData("empty", {}, 1, 1, Type::None);
+        SetData("empty", {}, 0, 0, Type::None);
     }
 }

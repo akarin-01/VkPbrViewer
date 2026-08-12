@@ -145,11 +145,14 @@ namespace Kita::Pbrv
                 // Destroy old mesh
                 DestroyRenderMesh(m_list.m_mesh);
 
-                // Create new mesh
-                m_list.m_mesh = CreateRenderMesh(sceneMesh.GetVertices(), sceneMesh.GetIndices());
+                if (!sceneMesh.IsEmpty())
+                {
+                    // Create new mesh
+                    m_list.m_mesh = CreateRenderMesh(sceneMesh);
 
-                std::clog << "[Renderer] Upload mesh: " << sceneMesh.GetName() << ", "
-                    << sceneMesh.GetIndexCount() << " indices\n";
+                    std::clog << "[Renderer] Upload mesh: " << sceneMesh.GetName() << ", "
+                        << sceneMesh.GetIndexCount() << " indices\n";
+                }
             }
         }
     }
@@ -282,10 +285,12 @@ namespace Kita::Pbrv
         material = {};
     }
 
-    RenderMesh RenderScene::CreateRenderMesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices)
+    RenderMesh RenderScene::CreateRenderMesh(const Mesh& sceneMesh)
     {
-        assert(vertices.size() && "Vertices data is invalid");
-        assert(indices.size() && "Indices data is invalid");
+        assert(!sceneMesh.IsEmpty() && "CreateRenderMesh requires non-empty mesh");
+
+        auto& vertices = sceneMesh.GetVertices();
+        auto& indices = sceneMesh.GetIndices();
 
         // Vertex buffer
         RenderBufferHandle vertexHandle;

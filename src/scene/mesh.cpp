@@ -101,6 +101,15 @@ namespace Kita::Pbrv
     void Mesh::SetData(const std::string& name,
         std::vector<Vertex>&& vertices, std::vector<uint32_t>&& indices)
     {
+        bool unchanged = m_name == name
+            && m_vertices == vertices
+            && m_indices == indices;
+        if (unchanged)
+        {
+            std::clog << "[Scene] Set mesh data unchanged, skip: " << name << "\n";
+            return;
+        }
+
         m_name = name;
         m_vertices = std::move(vertices);
         m_indices = std::move(indices);
@@ -109,5 +118,10 @@ namespace Kita::Pbrv
         std::clog << "[Scene] Set mesh data: " << m_name << ", "
             << m_vertices.size() << " vertices, "
             << m_indices.size() << " indices\n";
+    }
+
+    void Mesh::SetEmpty()
+    {
+        SetData("empty", {}, {});
     }
 }

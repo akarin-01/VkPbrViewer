@@ -137,17 +137,20 @@ namespace Kita::Pbrv
                 VK_SHADER_STAGE_FRAGMENT_BIT,
                 0, sizeof(pushConstant), &pushConstant);
 
-            RenderBuffer* vertexBuffer = m_resources.GetBuffer(list.m_mesh.m_vertexBufferHandle);
-            assert(vertexBuffer && "Vertex buffer handle is invalid");
-            VkBuffer buffers[]{ vertexBuffer->m_buffer };
-            VkDeviceSize offsets[]{ 0 };
-            vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
+            if (list.m_mesh.m_indexCount != 0)
+            {
+                RenderBuffer* vertexBuffer = m_resources.GetBuffer(list.m_mesh.m_vertexBufferHandle);
+                assert(vertexBuffer && "Vertex buffer handle is invalid");
+                VkBuffer buffers[]{ vertexBuffer->m_buffer };
+                VkDeviceSize offsets[]{ 0 };
+                vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
 
-            RenderBuffer* indexBuffer = m_resources.GetBuffer(list.m_mesh.m_indexBufferHandle);
-            assert(indexBuffer && "Index buffer handle is invalid");
-            vkCmdBindIndexBuffer(commandBuffer, indexBuffer->m_buffer, 0, VK_INDEX_TYPE_UINT32);
+                RenderBuffer* indexBuffer = m_resources.GetBuffer(list.m_mesh.m_indexBufferHandle);
+                assert(indexBuffer && "Index buffer handle is invalid");
+                vkCmdBindIndexBuffer(commandBuffer, indexBuffer->m_buffer, 0, VK_INDEX_TYPE_UINT32);
 
-            vkCmdDrawIndexed(commandBuffer, list.m_mesh.m_indexCount, 1, 0, 0, 0);
+                vkCmdDrawIndexed(commandBuffer, list.m_mesh.m_indexCount, 1, 0, 0, 0);
+            }
         }
 
         // End rendering

@@ -4,6 +4,7 @@
 #include "render/render_constants.h"
 
 #include "scene/texture.h"
+#include "scene/mesh.h"
 
 #include <vulkan/vulkan.h>
 #include <array>
@@ -36,7 +37,7 @@ namespace Kita::Pbrv
         void DestroyRenderPerFrame(RenderPerFrame& frame);
         RenderMaterial CreateRenderMaterial();
         void DestroyRenderMaterial(RenderMaterial& material);
-        RenderMesh CreateRenderMesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
+        RenderMesh CreateRenderMesh(const Mesh& sceneMesh);
         void DestroyRenderMesh(RenderMesh& mesh);
         RenderTexture CreateRenderTexture(const Texture& sceneTex, RenderSamplerHandle samplerHandle);
         void DestroyRenderTexture(RenderTexture& texture);

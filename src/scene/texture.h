@@ -35,13 +35,13 @@ namespace Kita::Pbrv
 
         void LoadFromFile(const std::string& path, Type type);
         void SetData(const std::string& name, std::vector<uint8_t>&& pixels, uint32_t width, uint32_t height, Type type);
-        void Reset();
+        void SetEmpty();
 
     private:
         std::string m_name{ "empty" };
         std::vector<uint8_t> m_pixels;
-        uint32_t m_width{ 1 };
-        uint32_t m_height{ 1 };
+        uint32_t m_width{ 0 };
+        uint32_t m_height{ 0 };
         Type m_type{ Type::None };
         mutable bool m_isDirty{ false };
     };
