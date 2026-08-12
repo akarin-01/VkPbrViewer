@@ -52,6 +52,8 @@ namespace Kita::Pbrv
             return;
         }
 
+        m_resources->FlushDeferred(frameInfo.m_frameIndex);
+
         // Update scene data
         m_renderScene->Update(scene, frameInfo);
 

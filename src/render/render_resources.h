@@ -1,8 +1,11 @@
 #pragma once
 
 #include "render/render_resource_types.h"
+#include "render/render_constants.h"
 
 #include <unordered_map>
+#include <vector>
+#include <array>
 #include <memory>
 #include <vulkan/vulkan.h>
 
@@ -16,6 +19,8 @@ namespace Kita::Pbrv
     public:
         RenderResources(const RenderContext& context);
         ~RenderResources();
+
+        void FlushDeferred(uint32_t frameIndex);
 
         RenderBufferHandle CreateBuffer(const VkBufferCreateInfo& bufferInfo, VkMemoryPropertyFlags properties, bool mapped = false);
         RenderBufferHandle CreateBufferWithData(const VkBufferCreateInfo& bufferInfo, VkMemoryPropertyFlags properties, const void* data, size_t size);
@@ -37,6 +42,15 @@ namespace Kita::Pbrv
         void DestroySampler(const RenderSamplerHandle& handle);
 
     private:
+        struct DeferredQueue
+        {
+            std::vector<std::unique_ptr<RenderBuffer>> m_bufferQueue;
+            std::vector<std::unique_ptr<RenderImage>> m_imageQueue;
+            std::vector<std::unique_ptr<RenderImageView>> m_imageViewQueue;
+            std::vector<std::unique_ptr<RenderSampler>> m_samplerQueue;
+        };
+
+    private:
         std::unique_ptr<RenderBuffer> CreateBufferHelper(const VkBufferCreateInfo& bufferInfo, VkMemoryPropertyFlags properties, bool mapped = false) const;
         void DestroyBufferHelper(const RenderBuffer& buffer) const;
         void WriteBufferHelper(const RenderBuffer& buffer, const void* data, size_t size, size_t offset = 0) const;
@@ -50,16 +64,24 @@ namespace Kita::Pbrv
         std::unique_ptr<RenderSampler> CreateSamplerHelper(const VkSamplerCreateInfo& createInfo) const;
         void DestroySamplerHelper(const RenderSampler& sampler) const;
 
+        void FlushFrameDeferedQueue(uint32_t frameIndex);
+
     private:
         const RenderContext& m_context;
 
         RenderBufferHandle m_nextBufferHandle{ 1 };
         std::unordered_map<RenderBufferHandle, std::unique_ptr<RenderBuffer>> m_buffers;
+
         RenderImageHandle m_nextImageHandle{ 1 };
         std::unordered_map<RenderImageHandle, std::unique_ptr<RenderImage>> m_images;
+
         RenderImageViewHandle m_nextImageViewHandle{ 1 };
         std::unordered_map<RenderImageViewHandle, std::unique_ptr<RenderImageView>> m_imageViews;
+
         RenderSamplerHandle m_nextSamplerHandle{ 1 };
         std::unordered_map<RenderSamplerHandle, std::unique_ptr<RenderSampler>> m_samplers;
+
+        uint32_t m_frameIndex{ 0 };
+        std::array<DeferredQueue, kMaxFramesInFlight> m_deferredQueues;
     };
 }
