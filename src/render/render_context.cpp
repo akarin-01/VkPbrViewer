@@ -108,7 +108,7 @@ namespace Kita::Pbrv
         bool featuresSupported = queryDeviceFeatures2.features.samplerAnisotropy
             && queryVulkan13Features.dynamicRendering && queryVulkan13Features.synchronization2;
 
-        return indices.isComplete() && extensionsSupported && swapChainAdequate
+        return indices.IsComplete() && extensionsSupported && swapChainAdequate
             && featuresSupported;
     }
 

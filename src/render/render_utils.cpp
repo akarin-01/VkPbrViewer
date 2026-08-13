@@ -29,7 +29,7 @@ namespace Kita::Pbrv
                 indices.m_presentFamily = i;
             }
 
-            if (indices.isComplete())
+            if (indices.IsComplete())
             {
                 break;
             }

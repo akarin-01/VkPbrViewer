@@ -157,7 +157,7 @@ namespace Kita::Pbrv
         }
     }
 
-    RenderList RenderScene::GetRenderList() const
+    const RenderList& RenderScene::GetRenderList() const
     {
         return m_list;
     }

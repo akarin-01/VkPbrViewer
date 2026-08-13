@@ -15,13 +15,15 @@
 
 namespace Kita::Pbrv
 {
-    RenderPass::RenderPass(const RenderContext& context, RenderResources& resources, const SwapChain& swapChain)
+    RenderPass::RenderPass(const RenderContext& context, RenderResources& resources, const SwapChain& swapChain, const RenderList& list)
         : m_context(context), m_resources(resources), m_swapChain(swapChain)
     {
         CreateDescriptorPool();
         CreateDescriptorSetLayouts();
         CreatePipeline();
         CreateDepthImage();
+
+        AllocateDescriptorSets(list);
     }
 
     RenderPass::~RenderPass()
@@ -32,11 +34,6 @@ namespace Kita::Pbrv
         vkDestroyDescriptorSetLayout(m_context.Device(), m_frameLayout, nullptr);
         vkDestroyDescriptorSetLayout(m_context.Device(), m_matLayout, nullptr);
         vkDestroyDescriptorPool(m_context.Device(), m_descriptorPool, nullptr);
-    }
-
-    void RenderPass::Initialize(const RenderList& list)
-    {
-        AllocateDescriptorSets(list);
     }
 
     void RenderPass::RecreateResources()

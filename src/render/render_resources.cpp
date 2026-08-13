@@ -5,6 +5,7 @@
 
 #include <stdexcept>
 #include <iostream>
+#include <cassert>
 
 namespace Kita::Pbrv
 {
@@ -355,11 +356,8 @@ namespace Kita::Pbrv
     void RenderResources::WriteBuffer(RenderBufferHandle handle, const void* data, size_t size, size_t offset)
     {
         RenderBuffer* buffer = GetBuffer(handle);
-        if (!buffer)
-        {
-            return;
-        }
 
+        assert(buffer && "Invalid buffer handle to write");
         WriteBufferHelper(*buffer, data, size, offset);
     }
 }

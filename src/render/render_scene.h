@@ -25,7 +25,7 @@ namespace Kita::Pbrv
         ~RenderScene();
 
         void Update(const Scene& scene, const FrameInfo& frameInfo);
-        RenderList GetRenderList() const;
+        const RenderList& GetRenderList() const;
 
     private:
         void CreateSamplers();

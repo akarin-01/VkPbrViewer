@@ -17,10 +17,9 @@ namespace Kita::Pbrv
     class RenderPass
     {
     public:
-        RenderPass(const RenderContext& context, RenderResources& resources, const SwapChain& swapChain);
+        RenderPass(const RenderContext& context, RenderResources& resources, const SwapChain& swapChain, const RenderList& list);
         ~RenderPass();
 
-        void Initialize(const RenderList& list);
         void RecreateResources();
         void Draw(const RenderList& list, const FrameInfo& frameInfo);
 

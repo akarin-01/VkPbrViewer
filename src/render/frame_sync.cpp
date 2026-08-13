@@ -14,13 +14,13 @@ namespace Kita::Pbrv
     {
         CreateCommandBuffers();
         CreateFrameSyncObjects();
-        CreateRenderSyncObjects();
+        CreatePresentSyncObjects();
     }
 
     FrameSync::~FrameSync()
     {
         CleanupFrameSyncObjects();
-        CleanupRenderSyncObjects();
+        CleanupPresentSyncObjects();
     }
 
     FrameInfo FrameSync::BeginFrame()
@@ -32,7 +32,7 @@ namespace Kita::Pbrv
         bool swapChainRecreated = m_swapChain.AcquireNextImage(UINT64_MAX, m_imageAvailables[m_frameIndex], VK_NULL_HANDLE, &m_imageIndex);
         if (swapChainRecreated)
         {
-            RecreateRenderSyncObjects();
+            RecreatePresentSyncObjects();
             frameInfo.m_swapChainRecreated = true;
             return frameInfo;
         }
@@ -64,7 +64,7 @@ namespace Kita::Pbrv
         // Submit commands
         std::array<VkSemaphore, 1> waitSemaphores = { m_imageAvailables[m_frameIndex] };
         std::array<VkPipelineStageFlags, 1> waitStages = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-        std::array<VkSemaphore, 1> signalSemaphores = { m_renderFinisheds[m_imageIndex] };
+        std::array<VkSemaphore, 1> signalSemaphores = { m_presentSemaphores[m_imageIndex] };
         VkSubmitInfo submitInfo{};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
         submitInfo.waitSemaphoreCount = static_cast<uint32_t>(waitSemaphores.size());
@@ -94,7 +94,7 @@ namespace Kita::Pbrv
         bool swapChainRecreated = m_swapChain.QueuePresent(presentInfo);
         if (swapChainRecreated)
         {
-            RecreateRenderSyncObjects();
+            RecreatePresentSyncObjects();
         }
 
         m_frameIndex = (m_frameIndex + 1) % kMaxFramesInFlight;
@@ -163,34 +163,34 @@ namespace Kita::Pbrv
         }
     }
 
-    void FrameSync::CreateRenderSyncObjects()
+    void FrameSync::CreatePresentSyncObjects()
     {
-        // Render finished semaphores
-        m_renderFinisheds.resize(m_swapChain.ImageCount());
+        // Present semaphores: one per swapchain image, signals "slot ready" for present.
+        m_presentSemaphores.resize(m_swapChain.ImageCount());
 
         VkSemaphoreCreateInfo semaphoreInfo{};
         semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-        for (size_t i = 0; i < m_renderFinisheds.size(); ++i)
+        for (size_t i = 0; i < m_presentSemaphores.size(); ++i)
         {
-            if (vkCreateSemaphore(m_context.Device(), &semaphoreInfo, nullptr, &m_renderFinisheds[i]) != VK_SUCCESS)
+            if (vkCreateSemaphore(m_context.Device(), &semaphoreInfo, nullptr, &m_presentSemaphores[i]) != VK_SUCCESS)
             {
                 throw std::runtime_error("Failed to create semaphore!");
             }
         }
     }
 
-    void FrameSync::CleanupRenderSyncObjects()
+    void FrameSync::CleanupPresentSyncObjects()
     {
-        for (size_t i = 0; i < m_renderFinisheds.size(); ++i)
+        for (size_t i = 0; i < m_presentSemaphores.size(); ++i)
         {
-            vkDestroySemaphore(m_context.Device(), m_renderFinisheds[i], nullptr);
+            vkDestroySemaphore(m_context.Device(), m_presentSemaphores[i], nullptr);
         }
     }
 
-    void FrameSync::RecreateRenderSyncObjects()
+    void FrameSync::RecreatePresentSyncObjects()
     {
-        CleanupRenderSyncObjects();
-        CreateRenderSyncObjects();
+        CleanupPresentSyncObjects();
+        CreatePresentSyncObjects();
     }
 }

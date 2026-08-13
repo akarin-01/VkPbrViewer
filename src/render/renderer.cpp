@@ -21,10 +21,8 @@ namespace Kita::Pbrv
         m_frameSync = std::make_unique<FrameSync>(*m_context, *m_swapChain);
         m_renderScene = std::make_unique<RenderScene>(*m_resources, *m_swapChain);
 
-        m_pass = std::make_unique<RenderPass>(*m_context, *m_resources, *m_swapChain);
-
-        RenderList list = m_renderScene->GetRenderList();
-        m_pass->Initialize(list);
+        auto& list = m_renderScene->GetRenderList();
+        m_pass = std::make_unique<RenderPass>(*m_context, *m_resources, *m_swapChain, list);
     }
 
     Renderer::~Renderer()
@@ -58,7 +56,7 @@ namespace Kita::Pbrv
         m_renderScene->Update(scene, frameInfo);
 
         // Draw
-        RenderList list = m_renderScene->GetRenderList();
+        auto& list = m_renderScene->GetRenderList();
         m_pass->Draw(list, frameInfo);
 
         if (m_frameSync->EndFrame())
