@@ -4,6 +4,7 @@
 #include "render/swap_chain.h"
 #include "render/frame_sync.h"
 #include "render/render_resources.h"
+#include "render/descriptor_allocator.h"
 #include "render/render_scene.h"
 #include "render/render_utils.h"
 #include "render/render_pass.h"
@@ -19,10 +20,13 @@ namespace Kita::Pbrv
         m_resources = std::make_unique<RenderResources>(*m_context);
         m_swapChain = std::make_unique<SwapChain>(window, *m_context, *m_resources);
         m_frameSync = std::make_unique<FrameSync>(*m_context, *m_swapChain);
-        m_renderScene = std::make_unique<RenderScene>(*m_resources, *m_swapChain);
+
+        m_descriptorAllocator = std::move(CreateDescriptorAllocator(*m_context));
+
+        m_renderScene = std::make_unique<RenderScene>(*m_context, *m_resources, *m_swapChain, *m_descriptorAllocator);
 
         auto& list = m_renderScene->GetRenderList();
-        m_pass = std::make_unique<RenderPass>(*m_context, *m_resources, *m_swapChain, list);
+        m_pass = std::make_unique<RenderPass>(*m_context, *m_resources, *m_swapChain, *m_descriptorAllocator, list);
     }
 
     Renderer::~Renderer()
@@ -32,6 +36,7 @@ namespace Kita::Pbrv
         m_pass.reset();
 
         m_renderScene.reset();
+        m_descriptorAllocator.reset();
         m_frameSync.reset();
         m_swapChain.reset();
         m_resources.reset();
@@ -64,5 +69,22 @@ namespace Kita::Pbrv
             // Recreate
             m_pass->RecreateResources();
         }
+    }
+
+    std::unique_ptr<DescriptorAllocator> Renderer::CreateDescriptorAllocator(const RenderContext& context)
+    {
+        std::vector<VkDescriptorPoolSize> poolSizes(2);
+        poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        poolSizes[0].descriptorCount = kMaxFramesInFlight * 1;
+        poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        poolSizes[1].descriptorCount = kMaxFramesInFlight * kMaterialTextureCount;
+
+        VkDescriptorPoolCreateInfo poolInfo{};
+        poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
+        poolInfo.pPoolSizes = poolSizes.data();
+        poolInfo.maxSets = kMaxFramesInFlight * 2;
+
+        return std::make_unique<DescriptorAllocator>(context, poolInfo);
     }
 }

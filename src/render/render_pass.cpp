@@ -5,6 +5,7 @@
 #include "render/render_utils.h"
 #include "render/render_resources.h"
 #include "render/swap_chain.h"
+#include "render/descriptor_allocator.h"
 
 #include "scene/vertex.h"
 
@@ -14,12 +15,18 @@
 
 namespace Kita::Pbrv
 {
-    RenderPass::RenderPass(const RenderContext& context, RenderResources& resources, const SwapChain& swapChain, const RenderList& list)
-        : m_context(context), m_resources(resources), m_swapChain(swapChain)
+    RenderPass::RenderPass(const RenderContext& context,
+        RenderResources& resources,
+        const SwapChain& swapChain,
+        const DescriptorAllocator& descriptorAllocator,
+        const RenderList& list)
+        : m_context(context),
+        m_resources(resources),
+        m_swapChain(swapChain),
+        m_descriptorAllocator(descriptorAllocator)
     {
-        CreateDescriptorPool();
         CreateDescriptorSetLayouts();
-        CreatePipeline();
+        CreatePipeline(list);
         CreateDepthImage();
 
         AllocateDescriptorSets(list);
@@ -31,8 +38,6 @@ namespace Kita::Pbrv
         vkDestroyPipeline(m_context.Device(), m_pipeline, nullptr);
         vkDestroyPipelineLayout(m_context.Device(), m_pipelineLayout, nullptr);
         vkDestroyDescriptorSetLayout(m_context.Device(), m_frameLayout, nullptr);
-        vkDestroyDescriptorSetLayout(m_context.Device(), m_matLayout, nullptr);
-        vkDestroyDescriptorPool(m_context.Device(), m_descriptorPool, nullptr);
     }
 
     void RenderPass::RecreateResources()
@@ -41,7 +46,7 @@ namespace Kita::Pbrv
         CreateDepthImage();
     }
 
-    void RenderPass::Draw(const RenderList& list, const FrameInfo& frameInfo)
+    void RenderPass::Draw(const RenderList& list, const FrameInfo& frameInfo) const
     {
         auto& commandBuffer = frameInfo.m_commandBuffer;
         auto& frameIndex = frameInfo.m_frameIndex;
@@ -137,28 +142,29 @@ namespace Kita::Pbrv
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout,
             0, 1, &m_frameSets[frameIndex], 0, nullptr);
         {
-            UpdateMaterialDescriptorSet(frameIndex, list);
+            auto& material = list.m_material;
             vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout,
-                1, 1, &m_matSets[frameIndex], 0, nullptr);
+                1, 1, &material.m_sets[frameIndex], 0, nullptr);
 
-            auto& pushConstant = list.m_material.m_pushConstant;
+            auto& pushConstant = material.m_pushConstant;
             vkCmdPushConstants(commandBuffer, m_pipelineLayout,
                 VK_SHADER_STAGE_FRAGMENT_BIT,
                 0, sizeof(pushConstant), &pushConstant);
 
-            if (list.m_mesh.m_indexCount != 0)
+            auto& mesh = list.m_mesh;
+            if (mesh.m_indexCount != 0)
             {
-                RenderBuffer* vertexBuffer = m_resources.GetBuffer(list.m_mesh.m_vertexBufferHandle);
+                RenderBuffer* vertexBuffer = m_resources.GetBuffer(mesh.m_vertexBufferHandle);
                 assert(vertexBuffer && "Vertex buffer handle is invalid");
                 VkBuffer buffers[]{ vertexBuffer->m_buffer };
                 VkDeviceSize offsets[]{ 0 };
                 vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
 
-                RenderBuffer* indexBuffer = m_resources.GetBuffer(list.m_mesh.m_indexBufferHandle);
+                RenderBuffer* indexBuffer = m_resources.GetBuffer(mesh.m_indexBufferHandle);
                 assert(indexBuffer && "Index buffer handle is invalid");
                 vkCmdBindIndexBuffer(commandBuffer, indexBuffer->m_buffer, 0, VK_INDEX_TYPE_UINT32);
 
-                vkCmdDrawIndexed(commandBuffer, list.m_mesh.m_indexCount, 1, 0, 0, 0);
+                vkCmdDrawIndexed(commandBuffer, mesh.m_indexCount, 1, 0, 0, 0);
             }
         }
 
@@ -172,26 +178,6 @@ namespace Kita::Pbrv
             VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
             VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, VK_ACCESS_2_NONE,
             colorRange);
-    }
-
-    void RenderPass::CreateDescriptorPool()
-    {
-        std::vector<VkDescriptorPoolSize> poolSizes(2);
-        poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        poolSizes[0].descriptorCount = kMaxFramesInFlight * 1;
-        poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        poolSizes[1].descriptorCount = kMaxFramesInFlight * kMaterialTextureCount;
-
-        VkDescriptorPoolCreateInfo poolInfo{};
-        poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-        poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
-        poolInfo.pPoolSizes = poolSizes.data();
-        poolInfo.maxSets = kMaxFramesInFlight * 2;
-
-        if (vkCreateDescriptorPool(m_context.Device(), &poolInfo, nullptr, &m_descriptorPool) != VK_SUCCESS)
-        {
-            throw std::runtime_error("Failed to create descriptor pool!");
-        }
     }
 
     void RenderPass::CreateDescriptorSetLayouts()
@@ -211,22 +197,6 @@ namespace Kita::Pbrv
 
             m_frameLayout = CreateDescriptorSetLayout(m_context.Device(), createInfo);
         }
-
-        // Material layout
-        {
-            std::vector<VkDescriptorSetLayoutBinding> bindings(1);
-            bindings[0].binding = 0;
-            bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            bindings[0].descriptorCount = 5;
-            bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-            VkDescriptorSetLayoutCreateInfo createInfo{};
-            createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-            createInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-            createInfo.pBindings = bindings.data();
-
-            m_matLayout = CreateDescriptorSetLayout(m_context.Device(), createInfo);
-        }
     }
 
     void RenderPass::AllocateDescriptorSets(const RenderList& list)
@@ -234,18 +204,9 @@ namespace Kita::Pbrv
         // Frame set
         {
             // Allocate
-            m_frameSets.resize(kMaxFramesInFlight);
-            std::vector<VkDescriptorSetLayout> layouts(kMaxFramesInFlight, m_frameLayout);
-
-            VkDescriptorSetAllocateInfo allocInfo{};
-            allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-            allocInfo.descriptorPool = m_descriptorPool;
-            allocInfo.descriptorSetCount = static_cast<uint32_t>(layouts.size());
-            allocInfo.pSetLayouts = layouts.data();
-
-            if (vkAllocateDescriptorSets(m_context.Device(), &allocInfo, m_frameSets.data()) != VK_SUCCESS)
+            for (auto& set : m_frameSets)
             {
-                throw std::runtime_error("Failed to allocate descriptor sets!");
+                set = m_descriptorAllocator.Allocate(m_frameLayout);
             }
 
             // Setup
@@ -276,74 +237,9 @@ namespace Kita::Pbrv
                     , 0, nullptr);
             }
         }
-
-        // Material set
-        {
-            // Allocate
-            m_matSets.resize(kMaxFramesInFlight);
-            std::vector<VkDescriptorSetLayout> layouts(kMaxFramesInFlight, m_matLayout);
-
-            VkDescriptorSetAllocateInfo allocInfo{};
-            allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-            allocInfo.descriptorPool = m_descriptorPool;
-            allocInfo.descriptorSetCount = static_cast<uint32_t>(layouts.size());
-            allocInfo.pSetLayouts = layouts.data();
-
-            if (vkAllocateDescriptorSets(m_context.Device(), &allocInfo, m_matSets.data()) != VK_SUCCESS)
-            {
-                throw std::runtime_error("Failed to allocate descriptor sets!");
-            }
-
-            // Setup when drawing(if necessary)
-        }
     }
 
-    void RenderPass::UpdateMaterialDescriptorSet(uint32_t frameIndex, const RenderList& list)
-    {
-        auto& bound = m_boundTextures[frameIndex];
-        if (bound == list.m_material.m_textures)
-        {
-            return;
-        }
-
-        auto& matSet = m_matSets[frameIndex];
-        std::array<VkDescriptorImageInfo, kMaterialTextureCount> imageInfos{};
-        for (size_t i = 0; i < imageInfos.size(); ++i)
-        {
-            auto slot = MaterialTextureSlot(i);
-            auto& texture = list.m_material.m_textures[i];
-
-            KITA_LOG_DEBUG("[RenderPass] Update texture ", ToString(slot), ", ",
-                "image view (", texture.m_imageViewHandle, "), ",
-                "sampler (", texture.m_samplerHandle, ")");
-
-            RenderImageView* imageView = m_resources.GetImageView(texture.m_imageViewHandle);
-            assert(imageView && "Image view handle is invalid");
-            RenderSampler* sampler = m_resources.GetSampler(texture.m_samplerHandle);
-            assert(sampler && "Sampler handle is invalid");
-
-            auto& imageInfo = imageInfos[i];
-            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            imageInfo.imageView = imageView->m_imageView;
-            imageInfo.sampler = sampler->m_sampler;
-        }
-
-        std::array<VkWriteDescriptorSet, 1> writes{};
-        writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writes[0].dstSet = matSet;
-        writes[0].dstBinding = 0;
-        writes[0].dstArrayElement = 0;
-        writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        writes[0].descriptorCount = static_cast<uint32_t>(imageInfos.size());
-        writes[0].pImageInfo = imageInfos.data();
-
-        vkUpdateDescriptorSets(m_context.Device(),
-            static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
-
-        bound = list.m_material.m_textures;
-    }
-
-    void RenderPass::CreatePipeline()
+    void RenderPass::CreatePipeline(const RenderList& list)
     {
         // Shaders
         VkShaderModule vertShaderModule = CreateShaderModule(m_context.Device(), "assets/shaders/lit_vert.spv");
@@ -463,7 +359,7 @@ namespace Kita::Pbrv
         std::vector<VkDescriptorSetLayout> setLayouts
         {
             m_frameLayout,
-            m_matLayout
+            list.m_material.m_setLayout,
         };
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;

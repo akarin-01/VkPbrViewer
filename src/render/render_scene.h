@@ -3,8 +3,7 @@
 #include "render/render_resource_types.h"
 #include "render/render_constants.h"
 
-#include "scene/texture.h"
-#include "scene/mesh.h"
+#include "scene/scene.h"
 
 #include <vulkan/vulkan.h>
 #include <array>
@@ -12,8 +11,10 @@
 
 namespace Kita::Pbrv
 {
+    class RenderContext;
     class RenderResources;
     class SwapChain;
+    class DescriptorAllocator;
     class Scene;
 
     struct Vertex;
@@ -21,7 +22,10 @@ namespace Kita::Pbrv
     class RenderScene
     {
     public:
-        RenderScene(RenderResources& resources, const SwapChain& swapChain);
+        RenderScene(const RenderContext& context,
+            RenderResources& resources,
+            const SwapChain& swapChain,
+            const DescriptorAllocator& descriptorAllocator);
         ~RenderScene();
 
         void Update(const Scene& scene, const FrameInfo& frameInfo);
@@ -33,22 +37,34 @@ namespace Kita::Pbrv
         void CreateFallbackTextures();
         void DestroyFallbackTextures();
 
-        RenderPerFrame CreateRenderPerFrame();
+        RenderPerFrame CreateRenderPerFrame() const;
         void DestroyRenderPerFrame(RenderPerFrame& frame);
-        RenderMaterial CreateRenderMaterial();
+        void UpdateRenderPerFrame(RenderPerFrame& frame, uint32_t frameIndex, const Camera& sceneCamera, const Light& sceneLight) const;
+
+        RenderMaterial CreateRenderMaterial() const;
         void DestroyRenderMaterial(RenderMaterial& material);
-        RenderMesh CreateRenderMesh(const Mesh& sceneMesh);
-        void DestroyRenderMesh(RenderMesh& mesh);
-        RenderTexture CreateRenderTexture(const Texture& sceneTex, RenderSamplerHandle samplerHandle);
-        void DestroyRenderTexture(RenderTexture& texture);
+        void UpdateRenderMaterial(RenderMaterial& material, uint32_t frameIndex, const Material& sceneMat);
+        void WriteMaterialSet(VkDescriptorSet set, const std::array<RenderTexture, kMaterialTextureCount>& textures) const;
+
+        RenderMesh CreateRenderMesh(const Mesh& sceneMesh) const;
+        void DestroyRenderMesh(RenderMesh& mesh) const;
+        bool UpdateRenderMesh(RenderMesh& mesh, const Mesh& sceneMesh) const;
+
+        RenderTexture CreateRenderTexture(const Texture& sceneTex, RenderSamplerHandle samplerHandle) const;
+        void DestroyRenderTexture(RenderTexture& texture) const;
+        bool UpdateRenderTexture(RenderTexture& texture, uint32_t slot, const Texture& sceneTex) const;
 
     private:
+        const RenderContext& m_context;
         RenderResources& m_resources;
         const SwapChain& m_swapChain;
+        const DescriptorAllocator& m_descriptorAllocator;
 
         RenderList m_list{};
 
         RenderSamplerHandle m_linearRepeatSamplerHandle{ 0 };
         std::array<RenderTexture, kMaterialTextureCount> m_fallbackTextures{ 0 };
+
+        uint32_t m_matSetRefreshCount{ 0 };
     };
 }

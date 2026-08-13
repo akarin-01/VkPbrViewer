@@ -97,6 +97,8 @@ namespace Kita::Pbrv
         MaterialPC m_pushConstant{ {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f} };
 
         std::array<RenderTexture, kMaterialTextureCount> m_textures{};
+        VkDescriptorSetLayout m_setLayout{ VK_NULL_HANDLE };
+        std::array<VkDescriptorSet, kMaxFramesInFlight> m_sets{};
     };
 
     struct RenderMesh

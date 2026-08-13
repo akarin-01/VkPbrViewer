@@ -1,11 +1,14 @@
 #include "render_scene.h"
 
 #include "core/log.h"
+#include "render/render_context.h"
+#include "render/render_utils.h"
+#include "render/render_resources.h"
+#include "render/descriptor_allocator.h"
+#include "render/swap_chain.h"
 #include "scene/scene.h"
 #include "scene/vertex.h"
 #include "scene/texture.h"
-#include "render/render_resources.h"
-#include "render/swap_chain.h"
 
 #include <glm/glm.hpp>
 #include <cassert>
@@ -50,11 +53,18 @@ namespace Kita::Pbrv
         }
     }
 
-    RenderScene::RenderScene(RenderResources& resources, const SwapChain& swapChain)
-        : m_resources(resources), m_swapChain(swapChain)
+    RenderScene::RenderScene(const RenderContext& context,
+        RenderResources& resources,
+        const SwapChain& swapChain,
+        const DescriptorAllocator& descriptorAllocator)
+        : m_context(context),
+        m_resources(resources),
+        m_swapChain(swapChain),
+        m_descriptorAllocator(descriptorAllocator)
     {
         CreateSamplers();
         CreateFallbackTextures();
+
         m_list.m_frame = CreateRenderPerFrame();
         // RenderMesh would be created when update
         m_list.m_material = CreateRenderMaterial();
@@ -71,91 +81,15 @@ namespace Kita::Pbrv
 
     void RenderScene::Update(const Scene& scene, const FrameInfo& frameInfo)
     {
-        auto& commandBuffer = frameInfo.m_commandBuffer;
         auto& frameIndex = frameInfo.m_frameIndex;
-        auto& imageIndex = frameInfo.m_imageIndex;
 
-        // Per frame
-        {
-            auto& sceneCamera = scene.GetCamera();
-            auto& sceneLight = scene.GetLight();
-
-            FrameUbo ubo{};
-            ubo.m_viewProj = sceneCamera.GetProjectMatrix(m_swapChain.Aspect())
-                * sceneCamera.GetViewMatrix();
-            ubo.m_viewPos = glm::vec4(sceneCamera.GetPosition(), 1.0f);
-            ubo.m_lightDir = glm::vec4(sceneLight.GetDirection(), 0.0f);
-            ubo.m_lightColor = glm::vec4(sceneLight.GetColor(), sceneLight.GetIntensity());
-
-            m_resources.WriteBuffer(m_list.m_frame.m_uboHandles[frameIndex], &ubo, sizeof(ubo));
-        }
+        UpdateRenderPerFrame(m_list.m_frame, frameIndex, scene.GetCamera(), scene.GetLight());
 
         // Material
-        {
-            auto& sceneMat = scene.GetMaterial();
-            MaterialPC pushConstant{};
-            pushConstant.m_albedo = sceneMat.GetAlbedo();
-            pushConstant.m_params = glm::vec4(sceneMat.GetMetallic(),
-                sceneMat.GetRoughness(),
-                sceneMat.GetAO(),
-                0.0f);
-            m_list.m_material.m_pushConstant = pushConstant;
-
-            for (uint32_t i = 0; i < kMaterialTextureCount; ++i)
-            {
-                auto slot = MaterialTextureSlot(i);
-                auto& sceneTex = GetTexture(sceneMat, i);
-                auto& renderTex = m_list.m_material.m_textures[i];
-                if (sceneTex.IsDirty())
-                {
-                    sceneTex.ClearDirty();
-
-                    bool isOldFallback = renderTex == m_fallbackTextures[i];
-                    if (!isOldFallback)
-                    {
-                        DestroyRenderTexture(renderTex);
-                    }
-
-                    RenderTexture newTex{};
-                    if (sceneTex.IsEmpty())
-                    {
-                        // New texture is empty, use fallback
-                        newTex = m_fallbackTextures[i];
-                    }
-                    else
-                    {
-                        // New texture is not empty, create new texture
-                        newTex = CreateRenderTexture(sceneTex, m_linearRepeatSamplerHandle);
-
-                        Log::Info("[Renderer] Upload ", ToString(slot), " texture: ",
-                            sceneTex.GetName(), ", ", sceneTex.GetPixelCount(), " bytes");
-                    }
-                    renderTex = newTex;
-                }
-            }
-        }
+        UpdateRenderMaterial(m_list.m_material, frameIndex, scene.GetMaterial());
 
         // Mesh
-        {
-            auto& sceneMesh = scene.GetMesh();
-            bool hasNewMesh = sceneMesh.IsDirty();
-            if (hasNewMesh)
-            {
-                sceneMesh.ClearDirty();
-
-                // Destroy old mesh
-                DestroyRenderMesh(m_list.m_mesh);
-
-                if (!sceneMesh.IsEmpty())
-                {
-                    // Create new mesh
-                    m_list.m_mesh = CreateRenderMesh(sceneMesh);
-
-                    Log::Info("[Renderer] Upload mesh: ", sceneMesh.GetName(), ", ",
-                        sceneMesh.GetIndexCount(), " indices");
-                }
-            }
-        }
+        UpdateRenderMesh(m_list.m_mesh, scene.GetMesh());
     }
 
     const RenderList& RenderScene::GetRenderList() const
@@ -235,7 +169,7 @@ namespace Kita::Pbrv
         }
     }
 
-    RenderPerFrame RenderScene::CreateRenderPerFrame()
+    RenderPerFrame RenderScene::CreateRenderPerFrame() const
     {
         RenderPerFrame frame;
 
@@ -263,30 +197,139 @@ namespace Kita::Pbrv
         frame = {};
     }
 
-    RenderMaterial RenderScene::CreateRenderMaterial()
+    void RenderScene::UpdateRenderPerFrame(RenderPerFrame& frame, uint32_t frameIndex, const Camera& sceneCamera, const Light& sceneLight) const
+    {
+        FrameUbo ubo{};
+        ubo.m_viewProj = sceneCamera.GetProjectMatrix(m_swapChain.Aspect())
+            * sceneCamera.GetViewMatrix();
+        ubo.m_viewPos = glm::vec4(sceneCamera.GetPosition(), 1.0f);
+        ubo.m_lightDir = glm::vec4(sceneLight.GetDirection(), 0.0f);
+        ubo.m_lightColor = glm::vec4(sceneLight.GetColor(), sceneLight.GetIntensity());
+
+        m_resources.WriteBuffer(frame.m_uboHandles[frameIndex], &ubo, sizeof(ubo));
+    }
+
+    RenderMaterial RenderScene::CreateRenderMaterial() const
     {
         RenderMaterial material{};
 
+        // Textures
         material.m_textures = m_fallbackTextures;
+
+        // Set layout
+        {
+            std::array<VkDescriptorSetLayoutBinding, 1> bindings{};
+            bindings[0].binding = 0;
+            bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            bindings[0].descriptorCount = kMaterialTextureCount;
+            bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+            VkDescriptorSetLayoutCreateInfo createInfo{};
+            createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+            createInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+            createInfo.pBindings = bindings.data();
+
+            material.m_setLayout = CreateDescriptorSetLayout(m_context.Device(), createInfo);
+        }
+
+        // Sets
+        {
+            for (auto& set : material.m_sets)
+            {
+                set = m_descriptorAllocator.Allocate(material.m_setLayout);
+                WriteMaterialSet(set, material.m_textures);
+            }
+        }
 
         return material;
     }
 
     void RenderScene::DestroyRenderMaterial(RenderMaterial& material)
     {
-        auto& textures = material.m_textures;
-        for (size_t i = 0; i < textures.size(); ++i)
+        // Sets will be destroyed automatically
+
+        // Set layout
+        vkDestroyDescriptorSetLayout(m_context.Device(), material.m_setLayout, nullptr);
+
+        // Textures
         {
-            bool isFallback = (textures[i] == m_fallbackTextures[i]);
-            if (!isFallback)
+            auto& textures = material.m_textures;
+            for (size_t i = 0; i < textures.size(); ++i)
             {
-                DestroyRenderTexture(textures[i]);
+                bool isFallback = (textures[i] == m_fallbackTextures[i]);
+                if (!isFallback)
+                {
+                    DestroyRenderTexture(textures[i]);
+                }
             }
         }
+
         material = {};
     }
 
-    RenderMesh RenderScene::CreateRenderMesh(const Mesh& sceneMesh)
+    void RenderScene::UpdateRenderMaterial(RenderMaterial& material, uint32_t frameIndex, const Material& sceneMat)
+    {
+        MaterialPC pushConstant{};
+        pushConstant.m_albedo = sceneMat.GetAlbedo();
+        pushConstant.m_params = glm::vec4(sceneMat.GetMetallic(),
+            sceneMat.GetRoughness(),
+            sceneMat.GetAO(),
+            0.0f);
+        material.m_pushConstant = pushConstant;
+
+        bool anyTexUpdated = false;
+        for (uint32_t i = 0; i < kMaterialTextureCount; ++i)
+        {
+            anyTexUpdated |= UpdateRenderTexture(material.m_textures[i], i, GetTexture(sceneMat, i));
+        }
+
+        if (anyTexUpdated)
+        {
+            m_matSetRefreshCount = kMaxFramesInFlight;
+
+            KITA_LOG_DEBUG("[Renderer] Update material descriptor set: textures changed");
+        }
+
+        bool setRefreshed = m_matSetRefreshCount > 0;
+        if (setRefreshed)
+        {
+            WriteMaterialSet(material.m_sets[frameIndex], material.m_textures);
+            --m_matSetRefreshCount;
+        }
+    }
+
+    void RenderScene::WriteMaterialSet(VkDescriptorSet set, const std::array<RenderTexture, kMaterialTextureCount>& textures) const
+    {
+        std::array<VkDescriptorImageInfo, kMaterialTextureCount> imageInfos{};
+        for (uint32_t i = 0; i < kMaterialTextureCount; ++i)
+        {
+            auto& texture = textures[i];
+
+            RenderImageView* imageView = m_resources.GetImageView(texture.m_imageViewHandle);
+            assert(imageView && "Image view handle is invalid");
+            RenderSampler* sampler = m_resources.GetSampler(texture.m_samplerHandle);
+            assert(sampler && "Sampler handle is invalid");
+
+            auto& imageInfo = imageInfos[i];
+            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            imageInfo.imageView = imageView->m_imageView;
+            imageInfo.sampler = sampler->m_sampler;
+        }
+
+        std::array<VkWriteDescriptorSet, 1> writes{};
+        writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writes[0].dstSet = set;
+        writes[0].dstBinding = 0;
+        writes[0].dstArrayElement = 0;
+        writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        writes[0].descriptorCount = static_cast<uint32_t>(imageInfos.size());
+        writes[0].pImageInfo = imageInfos.data();
+
+        vkUpdateDescriptorSets(m_context.Device(),
+            static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
+    }
+
+    RenderMesh RenderScene::CreateRenderMesh(const Mesh& sceneMesh) const
     {
         assert(!sceneMesh.IsEmpty() && "CreateRenderMesh requires non-empty mesh");
 
@@ -327,7 +370,7 @@ namespace Kita::Pbrv
         return { vertexHandle, indexHandle, indexCount };
     }
 
-    void RenderScene::DestroyRenderMesh(RenderMesh& mesh)
+    void RenderScene::DestroyRenderMesh(RenderMesh& mesh) const
     {
         m_resources.DestroyBuffer(mesh.m_vertexBufferHandle);
         m_resources.DestroyBuffer(mesh.m_indexBufferHandle);
@@ -335,7 +378,30 @@ namespace Kita::Pbrv
         mesh = {};
     }
 
-    RenderTexture RenderScene::CreateRenderTexture(const Texture& sceneTex, RenderSamplerHandle samplerHandle)
+    bool RenderScene::UpdateRenderMesh(RenderMesh& mesh, const Mesh& sceneMesh) const
+    {
+        if (sceneMesh.IsDirty())
+        {
+            sceneMesh.ClearDirty();
+
+            // Destroy old mesh
+            DestroyRenderMesh(mesh);
+
+            if (!sceneMesh.IsEmpty())
+            {
+                // Create new mesh
+                mesh = CreateRenderMesh(sceneMesh);
+
+                Log::Info("[Renderer] Upload mesh: ", sceneMesh.GetName(), ", ",
+                    sceneMesh.GetIndexCount(), " indices");
+            }
+
+            return true;
+        }
+        return false;
+    }
+
+    RenderTexture RenderScene::CreateRenderTexture(const Texture& sceneTex, RenderSamplerHandle samplerHandle) const
     {
         auto& pixels = sceneTex.GetPixels();
         auto width = sceneTex.GetWidth();
@@ -392,11 +458,45 @@ namespace Kita::Pbrv
         return { imageHandle, imageViewHandle, samplerHandle };
     }
 
-    void RenderScene::DestroyRenderTexture(RenderTexture& texture)
+    void RenderScene::DestroyRenderTexture(RenderTexture& texture) const
     {
         m_resources.DestroyImageView(texture.m_imageViewHandle);
         m_resources.DestroyImage(texture.m_imageHandle);
 
         texture = {};
+    }
+
+    bool RenderScene::UpdateRenderTexture(RenderTexture& texture, uint32_t slot, const Texture& sceneTex) const
+    {
+        if (sceneTex.IsDirty())
+        {
+            sceneTex.ClearDirty();
+
+            bool isOldFallback = texture == m_fallbackTextures[slot];
+            if (!isOldFallback)
+            {
+                DestroyRenderTexture(texture);
+            }
+
+            RenderTexture newTex{};
+            if (sceneTex.IsEmpty())
+            {
+                // New texture is empty, use fallback
+                newTex = m_fallbackTextures[slot];
+            }
+            else
+            {
+                // New texture is not empty, create new texture
+                newTex = CreateRenderTexture(sceneTex, m_linearRepeatSamplerHandle);
+
+                Log::Info("[Renderer] Upload ", ToString(MaterialTextureSlot(slot)), " texture: ",
+                    sceneTex.GetName(), ", ", sceneTex.GetPixelCount(), " bytes");
+            }
+            texture = newTex;
+
+            return true;
+        }
+
+        return false;
     }
 }
