@@ -104,8 +104,11 @@ target_include_directories(VkPbrViewer PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_compile_definitions(VkPbrViewer PRIVATE GLM_FORCE_DEPTH_ZERO_TO_ONE)
 
 # ===== 编译选项 =====
-if(WIN32)
-    target_compile_options(VkPbrViewer PRIVATE /utf-8)
+if(MSVC)
+    # /utf-8: 源码按 UTF-8 解析；/W4: 最高警告级别
+    target_compile_options(VkPbrViewer PRIVATE /utf-8 /W4)
+else()
+    target_compile_options(VkPbrViewer PRIVATE -Wall -Wextra)
 endif()
 
 # ===== 链接 =====

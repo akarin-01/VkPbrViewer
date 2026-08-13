@@ -129,11 +129,17 @@ namespace Kita::Pbrv
         VkCommandBuffer commandBuffer = BeginSingleTimeCommands(m_context.Device(), m_context.CommandPool());
 
         // Transition the image layout to transfer dst optimal
+        VkImageSubresourceRange range{};
+        range.aspectMask = aspect;
+        range.baseMipLevel = 0;
+        range.levelCount = imageInfo.mipLevels;
+        range.baseArrayLayer = 0;
+        range.layerCount = imageInfo.arrayLayers;
         TransitionImageLayout(commandBuffer, image->m_image,
             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
             VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
-            aspect, 0, imageInfo.mipLevels, 0, imageInfo.arrayLayers);
+            range);
 
         // Copy data
         VkBufferImageCopy region{};

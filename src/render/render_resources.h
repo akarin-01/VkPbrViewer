@@ -91,7 +91,7 @@ namespace Kita::Pbrv
 
         ~DeferredQueue()
         {
-            for (size_t i = 0; i < m_queues.size(); ++i)
+            for (uint32_t i = 0; i < kMaxFramesInFlight; ++i)
             {
                 Flush(i);
             }

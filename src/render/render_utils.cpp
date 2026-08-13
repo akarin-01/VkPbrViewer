@@ -1,6 +1,7 @@
 #include "render_utils.h"
 
 #include <stdexcept>
+#include <fstream>
 
 namespace Kita::Pbrv
 {
@@ -82,7 +83,7 @@ namespace Kita::Pbrv
         throw std::runtime_error("failed to find suitable memory type!");
     }
 
-    void TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask, VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask, VkImageAspectFlags aspectMask, uint32_t baseMipLevel, uint32_t levelCount, uint32_t baseArrayLayer, uint32_t layerCount)
+    void TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask, VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask, const VkImageSubresourceRange& range)
     {
         VkImageMemoryBarrier2 barrier{};
         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
@@ -93,11 +94,7 @@ namespace Kita::Pbrv
         barrier.oldLayout = oldLayout;
         barrier.newLayout = newLayout;
         barrier.image = image;
-        barrier.subresourceRange.aspectMask = aspectMask;
-        barrier.subresourceRange.baseMipLevel = baseMipLevel;
-        barrier.subresourceRange.levelCount = levelCount;
-        barrier.subresourceRange.baseArrayLayer = baseArrayLayer;
-        barrier.subresourceRange.layerCount = layerCount;
+        barrier.subresourceRange = range;
 
         VkDependencyInfo dependencyInfo{};
         dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
@@ -120,14 +117,19 @@ namespace Kita::Pbrv
 
         int32_t mipWidth = width, mipHeight = height;
 
+        VkImageSubresourceRange range{};
+        range.aspectMask = aspectMask;
+        range.levelCount = 1;
+        range.baseArrayLayer = 0;
+        range.layerCount = 1;
         for (uint32_t i = 1; i < mipLevels; ++i)
         {
+            range.baseMipLevel = i - 1;
             TransitionImageLayout(commandBuffer, image,
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                 VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
                 VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_READ_BIT,
-                aspectMask,
-                i - 1, 1, 0, 1);
+                range);
 
             VkImageBlit blit{};
             blit.srcOffsets[0] = { 0, 0, 0 };
@@ -157,7 +159,7 @@ namespace Kita::Pbrv
                 VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                 VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_READ_BIT,
                 VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT,
-                aspectMask, i - 1, 1, 0, 1);
+                range);
 
             if (mipWidth > 1)
             {
@@ -169,11 +171,12 @@ namespace Kita::Pbrv
             }
         }
 
+        range.baseMipLevel = mipLevels - 1;
         TransitionImageLayout(commandBuffer, image,
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
             VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_READ_BIT,
             VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT,
-            aspectMask, mipLevels - 1, 1, 0, 1);
+            range);
     }
 
     VkCommandBuffer BeginSingleTimeCommands(VkDevice device, VkCommandPool commandPool)
@@ -242,5 +245,44 @@ namespace Kita::Pbrv
         }
 
         return layout;
+    }
+
+    VkShaderModule CreateShaderModule(VkDevice device, const std::string& filePath)
+    {
+        auto code = ReadFile(filePath);
+
+        VkShaderModule shaderModule;
+
+        VkShaderModuleCreateInfo shaderInfo{};
+        shaderInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        shaderInfo.codeSize = code.size();
+        shaderInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
+
+        if (vkCreateShaderModule(device, &shaderInfo, nullptr, &shaderModule) != VK_SUCCESS)
+        {
+            throw std::runtime_error("Failed to create shader module!");
+        }
+
+        return shaderModule;
+    }
+
+    std::vector<char> ReadFile(const std::string& path)
+    {
+        std::ifstream file(path, std::ios::ate | std::ios::binary);
+
+        if (!file.is_open())
+        {
+            throw std::runtime_error("Failed to open file " + path + "!");
+        }
+
+        size_t filesize = static_cast<size_t>(file.tellg());
+        std::vector<char> buffer(filesize);
+
+        file.seekg(0);
+        file.read(buffer.data(), filesize);
+
+        file.close();
+
+        return buffer;
     }
 }

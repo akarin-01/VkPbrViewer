@@ -10,7 +10,6 @@
 #include <stdexcept>
 #include <array>
 #include <cassert>
-#include <fstream>
 #include <iostream>
 
 namespace Kita::Pbrv
@@ -48,13 +47,26 @@ namespace Kita::Pbrv
         auto& frameIndex = frameInfo.m_frameIndex;
         auto& imageIndex = frameInfo.m_imageIndex;
 
+        VkImageSubresourceRange colorRange{};
+        colorRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        colorRange.baseMipLevel = 0;
+        colorRange.levelCount = 1;
+        colorRange.baseArrayLayer = 0;
+        colorRange.layerCount = 1;
         // Transition the image layout to color attachment optimal
         TransitionImageLayout(commandBuffer,
             m_swapChain.Image(imageIndex),
             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
             VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
-            VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
+            VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+            colorRange);
 
+        VkImageSubresourceRange depthRange{};
+        depthRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+        depthRange.baseMipLevel = 0;
+        depthRange.levelCount = 1;
+        depthRange.baseArrayLayer = 0;
+        depthRange.layerCount = 1;
         // Transition depth image layout
         auto depthImage = m_resources.GetImage(m_depthImageHandle);
         assert(depthImage && "Depth image handle is invalid");
@@ -63,10 +75,10 @@ namespace Kita::Pbrv
             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
             VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
             VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-            VK_IMAGE_ASPECT_DEPTH_BIT);
+            depthRange);
 
         // Begin rendering
-        std::vector<VkClearValue> clearValues(2, VkClearValue{});
+        std::array<VkClearValue, 2> clearValues{};
         clearValues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
         clearValues[1].depthStencil = { 1.0f, 0 };
         VkExtent2D extent = m_swapChain.Extent();
@@ -158,7 +170,8 @@ namespace Kita::Pbrv
             m_swapChain.Image(imageIndex),
             VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
             VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-            VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, VK_ACCESS_2_NONE);
+            VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, VK_ACCESS_2_NONE,
+            colorRange);
     }
 
     void RenderPass::CreateDescriptorPool()
@@ -325,8 +338,7 @@ namespace Kita::Pbrv
         writes[0].pImageInfo = imageInfos.data();
 
         vkUpdateDescriptorSets(m_context.Device(),
-            static_cast<uint32_t>(writes.size()), writes.data()
-            , 0, nullptr);
+            static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
 
         bound = list.m_material.m_textures;
     }
@@ -334,8 +346,8 @@ namespace Kita::Pbrv
     void RenderPass::CreatePipeline()
     {
         // Shaders
-        VkShaderModule vertShaderModule = CreateShaderModule("assets/shaders/lit_vert.spv");
-        VkShaderModule fragShaderModule = CreateShaderModule("assets/shaders/lit_frag.spv");
+        VkShaderModule vertShaderModule = CreateShaderModule(m_context.Device(), "assets/shaders/lit_vert.spv");
+        VkShaderModule fragShaderModule = CreateShaderModule(m_context.Device(), "assets/shaders/lit_frag.spv");
 
         VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
         vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -553,44 +565,5 @@ namespace Kita::Pbrv
     {
         m_resources.DestroyImageView(m_depthImageViewHandle);
         m_resources.DestroyImage(m_depthImageHandle);
-    }
-
-    VkShaderModule RenderPass::CreateShaderModule(const std::string& filePath) const
-    {
-        auto code = ReadFile(filePath);
-
-        VkShaderModule shaderModule;
-
-        VkShaderModuleCreateInfo shaderInfo{};
-        shaderInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-        shaderInfo.codeSize = code.size();
-        shaderInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
-
-        if (vkCreateShaderModule(m_context.Device(), &shaderInfo, nullptr, &shaderModule) != VK_SUCCESS)
-        {
-            throw std::runtime_error("Failed to create shader module!");
-        }
-
-        return shaderModule;
-    }
-
-    std::vector<char> RenderPass::ReadFile(const std::string& path) const
-    {
-        std::ifstream file(path, std::ios::ate | std::ios::binary);
-
-        if (!file.is_open())
-        {
-            throw std::runtime_error("Failed to open file " + path + "!");
-        }
-
-        size_t filesize = (size_t)file.tellg();
-        std::vector<char> buffer(filesize);
-
-        file.seekg(0);
-        file.read(buffer.data(), filesize);
-
-        file.close();
-
-        return buffer;
     }
 }

@@ -15,19 +15,14 @@ namespace Kita::Pbrv
         {
         case Texture::Type::Albedo:
             return "Albedo";
-            break;
         case Texture::Type::Normal:
             return "Normal";
-            break;
         case Texture::Type::Linear:
             return "Linear";
-            break;
         case Texture::Type::Hdr:
             return "Hdr";
-            break;
         default:
             return "Unknown";
-            break;
         }
     }
 

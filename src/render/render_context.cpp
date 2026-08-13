@@ -9,27 +9,28 @@
 #include <set>
 #include <string>
 #include <iostream>
+#include <cstring>
 
 namespace Kita::Pbrv
 {
 #ifdef NDEBUG
-    const bool enableValidationLayers = false;
+    static const bool enableValidationLayers = false;
 #else
-    const bool enableValidationLayers = true;
+    static const bool enableValidationLayers = true;
 #endif
 
-    const std::vector<const char*> validationLayers =
+    static const std::vector<const char*> validationLayers =
     {
         "VK_LAYER_KHRONOS_validation"
     };
 
-    const std::vector<const char*> deviceExtensions =
+    static const std::vector<const char*> deviceExtensions =
     {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME
     };
 
 
-    bool CheckValidationLayerSupport()
+    static bool CheckValidationLayerSupport()
     {
         uint32_t layerCount;
         vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
@@ -58,7 +59,7 @@ namespace Kita::Pbrv
         return true;
     }
 
-    bool CheckDeviceExtensionSupport(VkPhysicalDevice device)
+    static bool CheckDeviceExtensionSupport(VkPhysicalDevice device)
     {
         uint32_t extensionCount;
         vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
@@ -76,7 +77,7 @@ namespace Kita::Pbrv
         return requiredExtensions.empty();
     }
 
-    bool IsDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface)
+    static bool IsDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface)
     {
         VkPhysicalDeviceProperties deviceProperties;
         vkGetPhysicalDeviceProperties(device, &deviceProperties);

@@ -31,8 +31,6 @@ namespace Kita::Pbrv
         void CreatePipeline();
         void CreateDepthImage();
         void DestroyDepthImage();
-        VkShaderModule CreateShaderModule(const std::string& filePath) const;
-        std::vector<char> ReadFile(const std::string& path) const;
 
     private:
         const RenderContext& m_context;

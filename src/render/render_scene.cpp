@@ -10,6 +10,7 @@
 #include <glm/glm.hpp>
 #include <cassert>
 #include <stdexcept>
+#include <algorithm>
 
 namespace Kita::Pbrv
 {

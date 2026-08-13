@@ -7,8 +7,6 @@
 
 namespace Kita::Pbrv
 {
-    class Mesh;
-
     /// @brief Only supports one model for now.
     class Scene
     {

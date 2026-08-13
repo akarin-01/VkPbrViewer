@@ -3,6 +3,7 @@
 #include <optional>
 #include <vector>
 #include <vulkan/vulkan.h>
+#include <string>
 
 namespace Kita::Pbrv
 {
@@ -39,9 +40,7 @@ namespace Kita::Pbrv
         VkImageLayout oldLayout, VkImageLayout newLayout,
         VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
         VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask,
-        VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-        uint32_t baseMipLevel = 0, uint32_t levelCount = 1,
-        uint32_t baseArrayLayer = 0, uint32_t layerCount = 1);
+        const VkImageSubresourceRange& range);
 
     void GenerateImageMipmaps(
         VkPhysicalDevice physicalDevice,
@@ -60,4 +59,7 @@ namespace Kita::Pbrv
     void CopyBufferToImage(VkCommandBuffer commandBuffer, VkBuffer src, VkImage dst, const VkBufferImageCopy& region);
 
     VkDescriptorSetLayout CreateDescriptorSetLayout(VkDevice device, const VkDescriptorSetLayoutCreateInfo& createInfo);
+
+    VkShaderModule CreateShaderModule(VkDevice device, const std::string& filePath);
+    std::vector<char> ReadFile(const std::string& path);
 }
