@@ -13,104 +13,106 @@
 
 namespace Kita::Pbrv
 {
+    namespace
+    {
 #ifdef NDEBUG
-    static const bool enableValidationLayers = false;
+        const bool enableValidationLayers = false;
 #else
-    static const bool enableValidationLayers = true;
+        const bool enableValidationLayers = true;
 #endif
 
-    static const std::vector<const char*> validationLayers =
-    {
-        "VK_LAYER_KHRONOS_validation"
-    };
-
-    static const std::vector<const char*> deviceExtensions =
-    {
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME
-    };
-
-
-    static bool CheckValidationLayerSupport()
-    {
-        uint32_t layerCount;
-        vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-
-        std::vector<VkLayerProperties> availableLayers(layerCount);
-        vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
-
-        for (const char* layerName : validationLayers)
+        const std::vector<const char*> validationLayers =
         {
-            bool layerFound = false;
-            for (const auto& layerProperties : availableLayers)
+            "VK_LAYER_KHRONOS_validation"
+        };
+
+        const std::vector<const char*> deviceExtensions =
+        {
+            VK_KHR_SWAPCHAIN_EXTENSION_NAME
+        };
+
+        bool CheckValidationLayerSupport()
+        {
+            uint32_t layerCount;
+            vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+
+            std::vector<VkLayerProperties> availableLayers(layerCount);
+            vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+
+            for (const char* layerName : validationLayers)
             {
-                if (strcmp(layerName, layerProperties.layerName) == 0)
+                bool layerFound = false;
+                for (const auto& layerProperties : availableLayers)
                 {
-                    layerFound = true;
-                    break;
+                    if (strcmp(layerName, layerProperties.layerName) == 0)
+                    {
+                        layerFound = true;
+                        break;
+                    }
+                }
+
+                if (!layerFound)
+                {
+                    return false;
                 }
             }
 
-            if (!layerFound)
+            return true;
+        }
+
+        bool CheckDeviceExtensionSupport(VkPhysicalDevice device)
+        {
+            uint32_t extensionCount;
+            vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
+
+            std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+            vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
+
+            std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
+
+            for (const auto& extension : availableExtensions)
             {
+                requiredExtensions.erase(extension.extensionName);
+            }
+
+            return requiredExtensions.empty();
+        }
+
+        bool IsDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface)
+        {
+            VkPhysicalDeviceProperties deviceProperties;
+            vkGetPhysicalDeviceProperties(device, &deviceProperties);
+
+            if (deviceProperties.apiVersion < VK_API_VERSION_1_3)
+            {
+                Log::Info("[Device Check] Skip ", deviceProperties.deviceName, ": API version too low.");
                 return false;
             }
+
+            QueueFamilyIndices indices = FindQueueFamilies(device, surface);
+
+            bool extensionsSupported = CheckDeviceExtensionSupport(device);
+
+            bool swapChainAdequate = false;
+            if (extensionsSupported)
+            {
+                SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(device, surface);
+                swapChainAdequate = !swapChainSupport.m_formats.empty()
+                    && !swapChainSupport.m_presentModes.empty();
+            }
+
+            VkPhysicalDeviceVulkan13Features queryVulkan13Features{};
+            queryVulkan13Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+            VkPhysicalDeviceFeatures2 queryDeviceFeatures2{};
+            queryDeviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+            queryDeviceFeatures2.pNext = &queryVulkan13Features;
+            vkGetPhysicalDeviceFeatures2(device, &queryDeviceFeatures2);
+            bool featuresSupported = queryDeviceFeatures2.features.samplerAnisotropy
+                && queryVulkan13Features.dynamicRendering && queryVulkan13Features.synchronization2;
+
+            return indices.IsComplete() && extensionsSupported && swapChainAdequate
+                && featuresSupported;
         }
-
-        return true;
-    }
-
-    static bool CheckDeviceExtensionSupport(VkPhysicalDevice device)
-    {
-        uint32_t extensionCount;
-        vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
-
-        std::vector<VkExtensionProperties> availableExtensions(extensionCount);
-        vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
-
-        std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
-
-        for (const auto& extension : availableExtensions)
-        {
-            requiredExtensions.erase(extension.extensionName);
-        }
-
-        return requiredExtensions.empty();
-    }
-
-    static bool IsDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface)
-    {
-        VkPhysicalDeviceProperties deviceProperties;
-        vkGetPhysicalDeviceProperties(device, &deviceProperties);
-
-        if (deviceProperties.apiVersion < VK_API_VERSION_1_3)
-        {
-            Log::Info("[Device Check] Skip ", deviceProperties.deviceName, ": API version too low.");
-            return false;
-        }
-
-        QueueFamilyIndices indices = FindQueueFamilies(device, surface);
-
-        bool extensionsSupported = CheckDeviceExtensionSupport(device);
-
-        bool swapChainAdequate = false;
-        if (extensionsSupported)
-        {
-            SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(device, surface);
-            swapChainAdequate = !swapChainSupport.m_formats.empty()
-                && !swapChainSupport.m_presentModes.empty();
-        }
-
-        VkPhysicalDeviceVulkan13Features queryVulkan13Features{};
-        queryVulkan13Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
-        VkPhysicalDeviceFeatures2 queryDeviceFeatures2{};
-        queryDeviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-        queryDeviceFeatures2.pNext = &queryVulkan13Features;
-        vkGetPhysicalDeviceFeatures2(device, &queryDeviceFeatures2);
-        bool featuresSupported = queryDeviceFeatures2.features.samplerAnisotropy
-            && queryVulkan13Features.dynamicRendering && queryVulkan13Features.synchronization2;
-
-        return indices.IsComplete() && extensionsSupported && swapChainAdequate
-            && featuresSupported;
     }
 
     RenderContext::RenderContext(const Window& window)

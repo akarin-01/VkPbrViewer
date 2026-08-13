@@ -10,20 +10,23 @@
 
 namespace Kita::Pbrv
 {
-    static std::string TypeToString(Texture::Type type)
+    namespace
     {
-        switch (type)
+        std::string TypeToString(Texture::Type type)
         {
-        case Texture::Type::Albedo:
-            return "Albedo";
-        case Texture::Type::Normal:
-            return "Normal";
-        case Texture::Type::Linear:
-            return "Linear";
-        case Texture::Type::Hdr:
-            return "Hdr";
-        default:
-            return "Unknown";
+            switch (type)
+            {
+            case Texture::Type::Albedo:
+                return "Albedo";
+            case Texture::Type::Normal:
+                return "Normal";
+            case Texture::Type::Linear:
+                return "Linear";
+            case Texture::Type::Hdr:
+                return "Hdr";
+            default:
+                return "Unknown";
+            }
         }
     }
 

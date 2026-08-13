@@ -17,39 +17,42 @@
 
 namespace Kita::Pbrv
 {
-    static VkFormat TypeToFormat(Texture::Type type)
+    namespace
     {
-        switch (type)
+        VkFormat TypeToFormat(Texture::Type type)
         {
-        case Texture::Type::Albedo:
-            return VK_FORMAT_R8G8B8A8_SRGB;
-        case Texture::Type::Normal:
-            return VK_FORMAT_R8G8B8A8_UNORM;
-        case Texture::Type::Linear:
-            return VK_FORMAT_R8_UNORM;
-        case Texture::Type::Hdr:
-            return VK_FORMAT_R16G16B16A16_SFLOAT;
-        default:
-            throw std::runtime_error("Invalid texture type!");
+            switch (type)
+            {
+            case Texture::Type::Albedo:
+                return VK_FORMAT_R8G8B8A8_SRGB;
+            case Texture::Type::Normal:
+                return VK_FORMAT_R8G8B8A8_UNORM;
+            case Texture::Type::Linear:
+                return VK_FORMAT_R8_UNORM;
+            case Texture::Type::Hdr:
+                return VK_FORMAT_R16G16B16A16_SFLOAT;
+            default:
+                throw std::runtime_error("Invalid texture type!");
+            }
         }
-    }
 
-    static const Texture& GetTexture(const Material& mat, uint32_t slot)
-    {
-        switch (slot)
+        const Texture& GetTexture(const Material& mat, uint32_t slot)
         {
-        case Albedo:
-            return mat.GetAlbedoTex();
-        case Normal:
-            return mat.GetNormalTex();
-        case Metallic:
-            return mat.GetMetallicTex();
-        case Roughness:
-            return mat.GetRoughnessTex();
-        case AO:
-            return mat.GetAOTex();
-        default:
-            throw std::runtime_error("Invalid texture slot!");
+            switch (slot)
+            {
+            case Albedo:
+                return mat.GetAlbedoTex();
+            case Normal:
+                return mat.GetNormalTex();
+            case Metallic:
+                return mat.GetMetallicTex();
+            case Roughness:
+                return mat.GetRoughnessTex();
+            case AO:
+                return mat.GetAOTex();
+            default:
+                throw std::runtime_error("Invalid texture slot!");
+            }
         }
     }
 
