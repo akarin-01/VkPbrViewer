@@ -63,7 +63,9 @@ namespace Kita::Pbrv
     RenderBufferHandle RenderResources::CreateBuffer(const VkBufferCreateInfo& bufferInfo, VkMemoryPropertyFlags properties, bool mapped)
     {
         auto renderBuffer = CreateBufferHelper(bufferInfo, properties, mapped);
-        return m_buffers.Add(std::move(renderBuffer));
+        RenderBufferHandle handle = m_buffers.Add(std::move(renderBuffer));
+        KITA_LOG_DEBUG("[Resources] Create buffer(", handle, "), ", bufferInfo.size, " bytes");
+        return handle;
     }
 
     RenderBufferHandle RenderResources::CreateBufferWithData(const VkBufferCreateInfo& bufferInfo, VkMemoryPropertyFlags properties, const void* data, size_t size)
@@ -86,7 +88,9 @@ namespace Kita::Pbrv
         // Clean
         DestroyBufferHelper(*stagingBuffer);
 
-        return m_buffers.Add(std::move(buffer));
+        RenderBufferHandle handle = m_buffers.Add(std::move(buffer));
+        KITA_LOG_DEBUG("[Resources] Create buffer(", handle, "), ", bufferInfo.size, " bytes");
+        return handle;
     }
 
     RenderBuffer* RenderResources::GetBuffer(RenderBufferHandle handle) const
@@ -110,7 +114,10 @@ namespace Kita::Pbrv
     RenderImageHandle RenderResources::CreateImage(VkImageCreateInfo imageInfo, VkMemoryPropertyFlags properties)
     {
         auto renderImage = CreateImageHelper(imageInfo, properties);
-        return m_images.Add(std::move(renderImage));
+        RenderImageHandle handle = m_images.Add(std::move(renderImage));
+        KITA_LOG_DEBUG("[Resources] Create image(", handle, "), ",
+            imageInfo.extent.width, "x", imageInfo.extent.height, ", ", imageInfo.mipLevels, " mips");
+        return handle;
     }
 
     RenderImageHandle RenderResources::CreateImageWithData(VkImageCreateInfo imageInfo, VkMemoryPropertyFlags properties, const void* data, size_t size, VkImageAspectFlags aspect)
@@ -165,7 +172,10 @@ namespace Kita::Pbrv
         DestroyBufferHelper(*stagingBuffer);
 
         // Add image
-        return m_images.Add(std::move(image));
+        RenderImageHandle handle = m_images.Add(std::move(image));
+        KITA_LOG_DEBUG("[Resources] Create image(", handle, "), ",
+            imageInfo.extent.width, "x", imageInfo.extent.height, ", ", imageInfo.mipLevels, " mips");
+        return handle;
     }
 
     RenderImage* RenderResources::GetImage(RenderImageHandle handle) const
@@ -189,7 +199,9 @@ namespace Kita::Pbrv
     RenderImageViewHandle RenderResources::CreateImageView(const VkImageViewCreateInfo& createInfo)
     {
         auto imageView = CreateImageViewHelper(createInfo);
-        return m_imageViews.Add(std::move(imageView));
+        RenderImageViewHandle handle = m_imageViews.Add(std::move(imageView));
+        KITA_LOG_DEBUG("[Resources] Create image view(", handle, ")");
+        return handle;
     }
 
     RenderImageView* RenderResources::GetImageView(RenderImageViewHandle handle) const
@@ -213,7 +225,9 @@ namespace Kita::Pbrv
     RenderSamplerHandle RenderResources::CreateSampler(const VkSamplerCreateInfo& createInfo)
     {
         auto sampler = CreateSamplerHelper(createInfo);
-        return m_samplers.Add(std::move(sampler));
+        RenderSamplerHandle handle = m_samplers.Add(std::move(sampler));
+        KITA_LOG_DEBUG("[Resources] Create sampler(", handle, ")");
+        return handle;
     }
 
     RenderSampler* RenderResources::GetSampler(RenderSamplerHandle handle) const

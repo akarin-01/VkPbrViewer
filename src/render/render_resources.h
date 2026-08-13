@@ -119,7 +119,7 @@ namespace Kita::Pbrv
         std::array<std::vector<std::unique_ptr<TResource>>, kMaxFramesInFlight> m_queues{};
     };
 
-    /// @brief Manages low-level rendering resources, independent of business logic types
+    /// Manages low-level rendering resources, independent of business logic types
     class RenderResources
     {
     public:

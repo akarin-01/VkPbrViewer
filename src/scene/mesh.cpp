@@ -115,7 +115,7 @@ namespace Kita::Pbrv
         m_indices = std::move(indices);
         m_isDirty = true;
 
-        Log::Info("[Scene] Set mesh data: ", m_name, ", ",
+        KITA_LOG_DEBUG("[Scene] Set mesh data: ", m_name, ", ",
             m_vertices.size(), " vertices, ",
             m_indices.size(), " indices");
     }

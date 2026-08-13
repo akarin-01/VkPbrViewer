@@ -7,7 +7,7 @@
 
 namespace Kita::Pbrv
 {
-    /// @brief Only supports one model for now.
+    /// Only supports one model for now.
     class Scene
     {
     public:

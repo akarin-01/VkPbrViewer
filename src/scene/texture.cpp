@@ -93,7 +93,7 @@ namespace Kita::Pbrv
         m_type = type;
         m_isDirty = true;
 
-        Log::Info("[Scene] Set texture data: ", m_name, ", ",
+        KITA_LOG_DEBUG("[Scene] Set texture data: ", m_name, ", ",
             m_pixels.size(), " pixels, ",
             m_width, " * ", m_height, " ",
             TypeToString(m_type), " type");
