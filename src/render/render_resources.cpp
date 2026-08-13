@@ -341,7 +341,7 @@ namespace Kita::Pbrv
 
         if (vkCreateSampler(m_context.Device(), &createInfo, nullptr, &sampler) != VK_SUCCESS)
         {
-            throw std::runtime_error("Failed to create shadow sampler!");
+            throw std::runtime_error("Failed to create sampler!");
         }
 
         return std::make_unique<RenderSampler>(RenderSampler{ sampler });

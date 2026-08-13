@@ -49,6 +49,7 @@ namespace Kita::Pbrv
             if (isHdr)
             {
                 // Todo: Load hdr texture
+                throw std::runtime_error("Hdr not implemented");
             }
             else
             {
