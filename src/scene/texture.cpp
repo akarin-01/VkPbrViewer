@@ -1,10 +1,11 @@
 #include "texture.h"
 
+#include "core/log.h"
+
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
 #include <filesystem>
-#include <iostream>
 #include <stdexcept>
 
 namespace Kita::Pbrv
@@ -33,7 +34,7 @@ namespace Kita::Pbrv
     void Texture::LoadFromFile(const std::string& path, Type type)
     {
         // Load texture data
-        std::clog << "[Scene] Load texture: " << path << "\n";
+        Log::Info("[Scene] Load texture: ", path);
 
         std::vector<uint8_t> pixels;
         uint32_t width, height;
@@ -81,7 +82,7 @@ namespace Kita::Pbrv
             && m_type == type;
         if (unchanged)
         {
-            std::clog << "[Scene] Set texture data unchanged, skip: " << name << "\n";
+            KITA_LOG_DEBUG("[Scene] Set texture data unchanged, skip: ", name);
             return;
         }
 
@@ -92,10 +93,10 @@ namespace Kita::Pbrv
         m_type = type;
         m_isDirty = true;
 
-        std::clog << "[Scene] Set texture data: " << m_name << ", "
-            << m_pixels.size() << " pixels, "
-            << m_width << " * " << m_height << " "
-            << TypeToString(m_type) << " type\n";
+        Log::Info("[Scene] Set texture data: ", m_name, ", ",
+            m_pixels.size(), " pixels, ",
+            m_width, " * ", m_height, " ",
+            TypeToString(m_type), " type");
     }
 
     void Texture::SetEmpty()

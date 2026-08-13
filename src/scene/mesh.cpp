@@ -1,10 +1,10 @@
 #include "mesh.h"
 
+#include "core/log.h"
 #include "scene/vertex.h"
 
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
-#include <iostream>
 #include <unordered_map>
 #include <filesystem>
 
@@ -42,7 +42,7 @@ namespace Kita::Pbrv
     void Mesh::LoadFromObj(const std::string& path)
     {
         // Load mesh data
-        std::clog << "[Scene] Load mesh: " << path << "\n";
+        Log::Info("[Scene] Load mesh: ", path);
 
         std::vector<Vertex> vertices;
         std::vector<uint32_t> indices;
@@ -106,7 +106,7 @@ namespace Kita::Pbrv
             && m_indices == indices;
         if (unchanged)
         {
-            std::clog << "[Scene] Set mesh data unchanged, skip: " << name << "\n";
+            KITA_LOG_DEBUG("[Scene] Set mesh data unchanged, skip: ", name);
             return;
         }
 
@@ -115,9 +115,9 @@ namespace Kita::Pbrv
         m_indices = std::move(indices);
         m_isDirty = true;
 
-        std::clog << "[Scene] Set mesh data: " << m_name << ", "
-            << m_vertices.size() << " vertices, "
-            << m_indices.size() << " indices\n";
+        Log::Info("[Scene] Set mesh data: ", m_name, ", ",
+            m_vertices.size(), " vertices, ",
+            m_indices.size(), " indices");
     }
 
     void Mesh::SetEmpty()

@@ -1,5 +1,6 @@
 #include "render_context.h"
 
+#include "core/log.h"
 #include "core/window.h"
 #include "render/render_utils.h"
 
@@ -8,7 +9,6 @@
 #include <optional>
 #include <set>
 #include <string>
-#include <iostream>
 #include <cstring>
 
 namespace Kita::Pbrv
@@ -84,7 +84,7 @@ namespace Kita::Pbrv
 
         if (deviceProperties.apiVersion < VK_API_VERSION_1_3)
         {
-            std::clog << "[Device Check] 跳过 " << deviceProperties.deviceName << ": API 版本过低。" << std::endl;
+            Log::Info("[Device Check] Skip ", deviceProperties.deviceName, ": API version too low.");
             return false;
         }
 

@@ -1,7 +1,7 @@
-#include <iostream>
 #include <stdexcept>
 #include <filesystem>
 
+#include "core/log.h"
 #include "core/window.h"
 #include "render/renderer.h"
 #include "scene/scene.h"
@@ -76,7 +76,7 @@ int main()
     }
     catch (const std::exception& e)
     {
-        std::cerr << "Error: " << e.what() << std::endl;
+        Pbrv::Log::Error(e.what());
         return EXIT_FAILURE;
     }
 }

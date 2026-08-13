@@ -1,10 +1,10 @@
 #include "render_resources.h"
 
+#include "core/log.h"
 #include "render/render_context.h"
 #include "render/render_utils.h"
 
 #include <stdexcept>
-#include <iostream>
 #include <cassert>
 
 namespace Kita::Pbrv
@@ -49,12 +49,12 @@ namespace Kita::Pbrv
 
         if (!empty)
         {
-            std::clog << "[Resources] Flush "
-                << bufferCount << " buffers, "
-                << imageCount << " images, "
-                << imageViewCount << " imageViews, "
-                << samplerCount << " samplers -> frame "
-                << frameIndex << "\n";
+            KITA_LOG_DEBUG("[Resources] Flush ",
+                bufferCount, " buffers, ",
+                imageCount, " images, ",
+                imageViewCount, " imageViews, ",
+                samplerCount, " samplers -> frame ",
+                frameIndex);
         }
 
         m_frameIndex = frameIndex;
@@ -104,7 +104,7 @@ namespace Kita::Pbrv
 
         // Deferred destruction
         m_bufferQueue.Push(m_frameIndex, std::move(buffer));
-        std::clog << "[Resources] Defer destroy buffer(" << handle << ") -> frame " << m_frameIndex << "\n";
+        KITA_LOG_DEBUG("[Resources] Defer destroy buffer(", handle, ") -> frame ", m_frameIndex);
     }
 
     RenderImageHandle RenderResources::CreateImage(VkImageCreateInfo imageInfo, VkMemoryPropertyFlags properties)
@@ -183,7 +183,7 @@ namespace Kita::Pbrv
 
         // Deferred destruction
         m_imageQueue.Push(m_frameIndex, std::move(image));
-        std::clog << "[Resources] Defer destroy image(" << handle << ") -> frame " << m_frameIndex << "\n";
+        KITA_LOG_DEBUG("[Resources] Defer destroy image(", handle, ") -> frame ", m_frameIndex);
     }
 
     RenderImageViewHandle RenderResources::CreateImageView(const VkImageViewCreateInfo& createInfo)
@@ -207,7 +207,7 @@ namespace Kita::Pbrv
 
         // Deferred destruction
         m_imageViewQueue.Push(m_frameIndex, std::move(imageView));
-        std::clog << "[Resources] Defer destroy image view(" << handle << ") -> frame " << m_frameIndex << "\n";
+        KITA_LOG_DEBUG("[Resources] Defer destroy image view(", handle, ") -> frame ", m_frameIndex);
     }
 
     RenderSamplerHandle RenderResources::CreateSampler(const VkSamplerCreateInfo& createInfo)
@@ -231,7 +231,7 @@ namespace Kita::Pbrv
 
         // Deferred destruction
         m_samplerQueue.Push(m_frameIndex, std::move(sampler));
-        std::clog << "[Resources] Defer destroy sampler(" << handle << ") -> frame " << m_frameIndex << "\n";
+        KITA_LOG_DEBUG("[Resources] Defer destroy sampler(", handle, ") -> frame ", m_frameIndex);
     }
 
     std::unique_ptr<RenderBuffer> RenderResources::CreateBufferHelper(const VkBufferCreateInfo& bufferInfo, VkMemoryPropertyFlags properties, bool mapped) const

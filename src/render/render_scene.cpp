@@ -1,12 +1,12 @@
 #include "render_scene.h"
 
+#include "core/log.h"
 #include "scene/scene.h"
 #include "scene/vertex.h"
 #include "scene/texture.h"
 #include "render/render_resources.h"
 #include "render/swap_chain.h"
 
-#include <iostream>
 #include <glm/glm.hpp>
 #include <cassert>
 #include <stdexcept>
@@ -127,8 +127,8 @@ namespace Kita::Pbrv
                         // New texture is not empty, create new texture
                         newTex = CreateRenderTexture(sceneTex, m_linearRepeatSamplerHandle);
 
-                        std::clog << "[Renderer] Upload " << ToString(slot) << " texture: "
-                            << sceneTex.GetName() << ", " << sceneTex.GetPixelCount() << " bytes\n";
+                        Log::Info("[Renderer] Upload ", ToString(slot), " texture: ",
+                            sceneTex.GetName(), ", ", sceneTex.GetPixelCount(), " bytes");
                     }
                     renderTex = newTex;
                 }
@@ -151,8 +151,8 @@ namespace Kita::Pbrv
                     // Create new mesh
                     m_list.m_mesh = CreateRenderMesh(sceneMesh);
 
-                    std::clog << "[Renderer] Upload mesh: " << sceneMesh.GetName() << ", "
-                        << sceneMesh.GetIndexCount() << " indices\n";
+                    Log::Info("[Renderer] Upload mesh: ", sceneMesh.GetName(), ", ",
+                        sceneMesh.GetIndexCount(), " indices");
                 }
             }
         }

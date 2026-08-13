@@ -1,5 +1,6 @@
 #include "render_pass.h"
 
+#include "core/log.h"
 #include "render/render_context.h"
 #include "render/render_utils.h"
 #include "render/render_resources.h"
@@ -10,7 +11,6 @@
 #include <stdexcept>
 #include <array>
 #include <cassert>
-#include <iostream>
 
 namespace Kita::Pbrv
 {
@@ -313,9 +313,9 @@ namespace Kita::Pbrv
             auto slot = MaterialTextureSlot(i);
             auto& texture = list.m_material.m_textures[i];
 
-            std::clog << "[RenderPass] Update texture " << ToString(slot) << ", "
-                << "image view (" << texture.m_imageViewHandle << "), "
-                << "sampler (" << texture.m_samplerHandle << ")\n";
+            KITA_LOG_DEBUG("[RenderPass] Update texture ", ToString(slot), ", ",
+                "image view (", texture.m_imageViewHandle, "), ",
+                "sampler (", texture.m_samplerHandle, ")");
 
             RenderImageView* imageView = m_resources.GetImageView(texture.m_imageViewHandle);
             assert(imageView && "Image view handle is invalid");

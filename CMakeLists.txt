@@ -77,6 +77,7 @@ add_executable(VkPbrViewer
     src/main.cpp
 
     # core
+    src/core/log.cpp
     src/core/window.cpp
 
     # render
