@@ -20,6 +20,10 @@ lib/
 # ===== Vulkan 着色器编译产物（可选，一般运行时生成） =====
 *.spv
 
+# ===== 运行时资产（大体积二进制，本地管理） =====
+/assets/textures/
+/assets/models/
+
 # ===== IDE 配置文件 =====
 # Visual Studio / VS Code / CLion
 .vs/
