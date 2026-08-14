@@ -14,12 +14,20 @@ layout(set = 1, binding = 0) uniform sampler2D textures[TEXTURE_COUNT];
 layout(location = 0) in vec3 fragPos;
 layout(location = 1) in vec3 fragNormal;
 layout(location = 2) in vec2 fragTexCoord;
+layout(location = 3) in vec4 fragTangent;
 
 layout(location = 0) out vec4 outColor;
 
 void main()
 {
-    vec3 nDir = normalize(fragNormal);
+    vec3 normal = normalize(fragNormal);
+    vec3 tangent = normalize(fragTangent.xyz - dot(normal, fragTangent.xyz) * normal);
+    vec3 bitangent = normalize(cross(normal, tangent) * fragTangent.w);
+
+    mat3 TBN = mat3(tangent, bitangent, normal);
+    vec3 normalTS = texture(textures[NORMAL], fragTexCoord).xyz * 2.0 - 1.0;
+
+    vec3 nDir = normalize(TBN * normalTS);
     vec3 vDir = normalize(frame.viewPos.xyz - fragPos);
     vec3 lDir = normalize(frame.lightDir.xyz);
     vec3 hDir = normalize(vDir + lDir);
