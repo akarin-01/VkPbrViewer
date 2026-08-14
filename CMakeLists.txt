@@ -16,13 +16,19 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glm)
 
-# tinyobjloader — 轻量 OBJ 解析库
+# tinygltf — glTF 2.0 解析库（自带 json.hpp，single-header 模式，与 stb 同款接入）
+# 锁定 2.x 系列（v2.9.7）；v3 重写分支（tiny_gltf_v3.h）API 不兼容，勿升级
 FetchContent_Declare(
-    tinyobjloader
-    GIT_REPOSITORY https://github.com/tinyobjloader/tinyobjloader.git
-    GIT_TAG        v2.0.0rc13
+    tinygltf
+    GIT_REPOSITORY https://github.com/syoyo/tinygltf.git
+    GIT_TAG        v2.9.7
 )
-FetchContent_MakeAvailable(tinyobjloader)
+FetchContent_GetProperties(tinygltf)
+if(NOT tinygltf_POPULATED)
+    FetchContent_Populate(tinygltf)
+endif()
+add_library(tinygltf INTERFACE)
+target_include_directories(tinygltf INTERFACE ${tinygltf_SOURCE_DIR})
 
 # stb — 单头文件图像库，无版本号，用 commit hash 锁定
 FetchContent_Declare(
@@ -92,6 +98,7 @@ add_executable(VkPbrViewer
     src/render/swap_chain.cpp
 
     # scene
+    src/scene/asset_loader.cpp
     src/scene/camera.cpp
     src/scene/light.cpp
     src/scene/material.cpp
@@ -119,7 +126,7 @@ target_link_libraries(VkPbrViewer PRIVATE
     Vulkan::Headers
     Vulkan::Vulkan
     glm::glm
-    tinyobjloader
+    tinygltf
     stb
 )
 

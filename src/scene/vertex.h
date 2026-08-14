@@ -4,9 +4,6 @@
 #include <vulkan/vulkan.h>
 #include <vector>
 
-#define GLM_ENABLE_EXPERIMENTAL
-#include <glm/gtx/hash.hpp>
-
 namespace Kita::Pbrv
 {
     struct Vertex
@@ -14,6 +11,7 @@ namespace Kita::Pbrv
         glm::vec3 position;
         glm::vec3 normal;
         glm::vec2 texCoord;
+        glm::vec4 tangent;      // w = handedness
 
         static VkVertexInputBindingDescription GetBindingDescription()
         {
@@ -27,7 +25,7 @@ namespace Kita::Pbrv
 
         static std::vector<VkVertexInputAttributeDescription> GetAttributeDescriptions()
         {
-            std::vector<VkVertexInputAttributeDescription> attributeDescriptions(3);
+            std::vector<VkVertexInputAttributeDescription> attributeDescriptions(4);
 
             attributeDescriptions[0].binding = 0;
             attributeDescriptions[0].location = 0;
@@ -44,27 +42,21 @@ namespace Kita::Pbrv
             attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
             attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
 
+            attributeDescriptions[3].binding = 0;
+            attributeDescriptions[3].location = 3;
+            attributeDescriptions[3].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+            attributeDescriptions[3].offset = offsetof(Vertex, tangent);
+
             return attributeDescriptions;
         }
 
+        /// 用于 Mesh::SetData 的防重比较（顶点内容未变则跳过）。
         bool operator==(const Vertex& other) const
         {
             return position == other.position
                 && normal == other.normal
-                && texCoord == other.texCoord;
-        }
-    };
-}
-
-namespace std
-{
-    template<> struct hash<Kita::Pbrv::Vertex>
-    {
-        size_t operator()(const Kita::Pbrv::Vertex& vertex) const
-        {
-            return ((hash<glm::vec3>()(vertex.position) ^
-                (hash<glm::vec3>()(vertex.normal) << 1)) >> 1) ^
-                (hash<glm::vec2>()(vertex.texCoord) << 1);
+                && texCoord == other.texCoord
+                && tangent == other.tangent;
         }
     };
 }

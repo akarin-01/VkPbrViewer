@@ -25,7 +25,6 @@ namespace Kita::Pbrv
 
         bool IsEmpty() const;
 
-        void LoadFromObj(const std::string& path);
         void SetData(const std::string& name, std::vector<Vertex>&& vertices, std::vector<uint32_t>&& indices);
         void SetEmpty();
 

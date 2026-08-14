@@ -33,7 +33,6 @@ namespace Kita::Pbrv
 
         bool IsEmpty() const { return m_pixels.empty(); }
 
-        void LoadFromFile(const std::string& path, Type type);
         void SetData(const std::string& name, std::vector<uint8_t>&& pixels, uint32_t width, uint32_t height, Type type);
         void SetEmpty();
 
