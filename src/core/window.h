@@ -1,18 +1,22 @@
 #pragma once
 
+#include <vulkan/vulkan.h>
 #include <memory>
 #include <vector>
-#include <vulkan/vulkan.h>
+#include <functional>
 
 namespace Kita::Pbrv
 {
     class Window
     {
     public:
+        using ScrollCallback = std::function<void(double, double)>;
+
         Window(int width, int height, const char* title);
         ~Window();
 
         bool ShouldClose() const;
+        void RequestClose() const;
         void PollEvents() const;
         void WaitEvents() const;
 
@@ -22,6 +26,10 @@ namespace Kita::Pbrv
 
         bool FramebufferWasResized() const;
         void ResetFramebufferResized();
+
+        void SetScrollCallback(ScrollCallback callback);
+
+        void* GetNativeHandle() const;
 
     private:
         class Impl;

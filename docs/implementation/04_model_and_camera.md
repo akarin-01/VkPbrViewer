@@ -14,7 +14,7 @@
 - [x] 材质参数结构体：BaseColor、Metallic、Roughness、AO 等
 - [x] 灯光结构体：方向、颜色、强度（CPU 侧保持单一 `Light` 概念）
 - [x] 纹理结构体：像素数据 / 宽高 / 格式类型，纯数据类（`SetData` / `SetEmpty`）
-- [x] 相机结构体：Orbit 参数（fov、aspect、zNear/zFar）
+- [x] 相机结构体：Orbit 参数（target / yaw / pitch / distance、fov、aspect、zNear/zFar）
 
 ### 二、glTF 加载（`AssetLoader`）
 
@@ -63,7 +63,11 @@ CPU 场景 → GPU 资源映射的唯一入口，持有各层引用（不拥有�
 
 ### 五、渲染与交互
 
-- [ ] 实现 Orbit 相机：左键旋转、滚轮缩放、中键平移
+- [x] 实现 Orbit 相机：右键旋转、滚轮缩放、中键平移（LMB 预留 UI）
+- [x] `Input` 输入系统（`core/input.h`）：`Key`/`MouseButton` 统一枚举，按键/鼠标状态（按下 / 刚按下 / 刚松开）、光标位移、滚轮累计；`InputBackend` 封装 GLFW（映射表 + 回调内部化，pImpl 藏在 .cpp），Input 为平台无关状态层
+- [x] `Time` 帧计时（`core/time.h`）：`steady_clock` 计算每帧 dt（帧率无关的运动）
+- [x] `CameraController`（`scene/camera_controller.h`）：输入 → 相机适配层（键位、符号约定、速度），Camera 保持纯数学
+- [x] `Window` 扩展：`GetNativeHandle` / `SetScrollCallback`（GLFW 回调转发口）/ `RequestClose`
 - [x] 写临时 Lambert 着色器，确保模型正确显示
 - [x] normal map 生效（TBN 变换 + 采样解码 `*2-1`）
 
@@ -75,8 +79,8 @@ CPU 场景 → GPU 资源映射的唯一入口，持有各层引用（不拥有�
 
 ```
                   ┌────────────────────────────┐
-                  │  GltfLoader（装配层）       │
-                  │  .gltf/.glb → Scene        │
+                  │  AssetLoader（装配层）       │
+                  │  .gltf/.glb → Mesh（几何）  │
                   └─────────────┬──────────────┘
                                 ▼
 Scene (CPU 数据) ──► RenderScene ──► RenderList ──► Pass
@@ -85,8 +89,8 @@ Scene (CPU 数据) ──► RenderScene ──► RenderList ──► Pass
                       RenderResources ◄─────── handle 查询
 ```
 
-- **CPU 层**（`src/scene/`）：`Mesh`/`Camera`/`Light`/`Material` 纯数据，不依赖 Vulkan，通过 dirty 标记暴露变更
-- **GltfLoader**：装配层，与数据类分离——解析 glTF 文件 → 填充 Scene 的 mesh / material / textures
+- **CPU 层**（`src/scene/`）：`Mesh`/`Camera`/`Light`/`Material` 纯数据，不依赖 Vulkan，通过 dirty 标记暴露变更；`CameraController` 是输入适配层（屏幕 → 相机语义）
+- **AssetLoader**：装配层，与数据类分离——解析 glTF 文件 → 填充 Mesh（几何 + 切线）；材质与纹理由调用方（main）手动装配
 - **RenderResources**：只认 Buffer/Image 基础 GPU 类型，不感知业务概念。提供 create/destroy/write + 延迟销毁队列，外部通过 handle 操作
 - **DescriptorAllocator**：共享 descriptor pool 的 RAII 封装，业务无关（不碰 set 内容）；配额在组合根（Renderer）定义
 - **RenderScene**：唯一的 CPU→GPU 映射入口。读 dirty → 调 RenderResources 创建/销毁资源 → 打包 UBO → 更新材质 descriptor → 产出 RenderList

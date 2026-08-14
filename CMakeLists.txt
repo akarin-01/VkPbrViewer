@@ -83,6 +83,7 @@ add_executable(VkPbrViewer
     src/main.cpp
 
     # core
+    src/core/input.cpp
     src/core/log.cpp
     src/core/window.cpp
 
@@ -99,6 +100,7 @@ add_executable(VkPbrViewer
 
     # scene
     src/scene/asset_loader.cpp
+    src/scene/camera_controller.cpp
     src/scene/camera.cpp
     src/scene/light.cpp
     src/scene/material.cpp

@@ -10,7 +10,16 @@ namespace Kita::Pbrv
     class Window::Impl
     {
     public:
-        static void OnFramebufferResized(GLFWwindow* window, int width, int height)
+        static void OnScroll(GLFWwindow* window, double xOffset, double yOffset)
+        {
+            auto impl = reinterpret_cast<Window::Impl*>(glfwGetWindowUserPointer(window));
+            if (impl->m_scrollCallback)
+            {
+                impl->m_scrollCallback(xOffset, yOffset);
+            }
+        }
+
+        static void OnFramebufferResized(GLFWwindow* window, int /*width*/, int /*height*/)
         {
             auto impl = reinterpret_cast<Window::Impl*>(glfwGetWindowUserPointer(window));
             impl->m_framebufferResized = true;
@@ -19,6 +28,8 @@ namespace Kita::Pbrv
     public:
         GLFWwindow* m_window{ nullptr };
         bool m_framebufferResized{ false };
+
+        std::function<void(double, double)> m_scrollCallback;
     };
 
     Window::Window(int width, int height, const char* title)
@@ -36,6 +47,7 @@ namespace Kita::Pbrv
             throw std::runtime_error("Failed to create GLFW window");
         }
         glfwSetWindowUserPointer(m_pImpl->m_window, m_pImpl.get());
+        glfwSetScrollCallback(m_pImpl->m_window, Impl::OnScroll);
         glfwSetFramebufferSizeCallback(m_pImpl->m_window, Impl::OnFramebufferResized);
     }
 
@@ -51,6 +63,11 @@ namespace Kita::Pbrv
     bool Window::ShouldClose() const
     {
         return glfwWindowShouldClose(m_pImpl->m_window);
+    }
+
+    void Window::RequestClose() const
+    {
+        glfwSetWindowShouldClose(m_pImpl->m_window, GLFW_TRUE);
     }
 
     void Window::PollEvents() const
@@ -96,5 +113,15 @@ namespace Kita::Pbrv
     void Window::ResetFramebufferResized()
     {
         m_pImpl->m_framebufferResized = false;
+    }
+
+    void Window::SetScrollCallback(ScrollCallback callback)
+    {
+        m_pImpl->m_scrollCallback = std::move(callback);
+    }
+
+    void* Window::GetNativeHandle() const
+    {
+        return m_pImpl->m_window;
     }
 }

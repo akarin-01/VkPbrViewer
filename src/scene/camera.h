@@ -12,6 +12,7 @@ namespace Kita::Pbrv
         ~Camera();
 
         Camera& SetTarget(const glm::vec3& target);
+        Camera& Pan(float offsetX, float offsetY);
         Camera& SetYaw(float yaw);
         Camera& RotateYaw(float delta);
         Camera& SetPitch(float pitch);
@@ -24,6 +25,10 @@ namespace Kita::Pbrv
         glm::vec3 GetPosition() const;
         glm::mat4 GetViewMatrix() const;
         glm::mat4 GetProjectMatrix(float aspect) const;
+
+    private:
+        /// Calculate the vec from target to camera 
+        glm::vec3 GetOrbitDirection() const;
 
     private:
         glm::vec3 m_target{ 0.0f };

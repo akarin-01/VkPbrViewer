@@ -1,13 +1,18 @@
 #include <stdexcept>
 #include <filesystem>
 
+#include "core/input.h"
 #include "core/log.h"
+#include "core/time.h"
 #include "core/window.h"
 #include "render/renderer.h"
 #include "scene/scene.h"
 #include "scene/asset_loader.h"
+#include "scene/camera_controller.h"
 
-using namespace Kita;
+using TextureType = Kita::Pbrv::Texture::Type;
+using Key = Kita::Pbrv::Key;
+using MouseButton = Kita::Pbrv::MouseButton;
 
 int main()
 {
@@ -19,44 +24,44 @@ int main()
             throw std::runtime_error("assets/ directory not found");
         }
 
-        Pbrv::Window window(800, 600, "Vk Pbr Viewer");
+        Kita::Pbrv::Window window(800, 600, "Vk Pbr Viewer");
+        Kita::Pbrv::Input input(window);
+        Kita::Pbrv::Time time{};
 
-        Pbrv::Scene scene;
+        Kita::Pbrv::Scene scene;
         scene.GetLight()
             .SetDirection(glm::vec3(1.0f, 1.0f, 0.0f));
 
-        Pbrv::Mesh& mesh = scene.GetMesh();
-        Pbrv::AssetLoader::LoadGltfMesh("assets/models/Cerberus_LP.glb", mesh);
+        Kita::Pbrv::Mesh& mesh = scene.GetMesh();
+        Kita::Pbrv::AssetLoader::LoadGltfMesh("assets/models/Cerberus_LP.glb", mesh);
 
-        Pbrv::Material& mat = scene.GetMaterial()
+        Kita::Pbrv::Material& mat = scene.GetMaterial()
             .SetMetallic(0.0f);
-        Pbrv::AssetLoader::LoadTexture("assets/textures/Cerberus_A.tga", Pbrv::Texture::Type::Albedo, mat.GetAlbedoTex());
-        Pbrv::AssetLoader::LoadTexture("assets/textures/Cerberus_N.tga", Pbrv::Texture::Type::Normal, mat.GetNormalTex());
-        Pbrv::AssetLoader::LoadTexture("assets/textures/Cerberus_M.tga", Pbrv::Texture::Type::Linear, mat.GetMetallicTex());
-        Pbrv::AssetLoader::LoadTexture("assets/textures/Cerberus_R.tga", Pbrv::Texture::Type::Linear, mat.GetRoughnessTex());
-        Pbrv::AssetLoader::LoadTexture("assets/textures/Cerberus_AO.tga", Pbrv::Texture::Type::Linear, mat.GetAOTex());
+        Kita::Pbrv::AssetLoader::LoadTexture("assets/textures/Cerberus_A.tga", TextureType::Albedo, mat.GetAlbedoTex());
+        Kita::Pbrv::AssetLoader::LoadTexture("assets/textures/Cerberus_N.tga", TextureType::Normal, mat.GetNormalTex());
+        Kita::Pbrv::AssetLoader::LoadTexture("assets/textures/Cerberus_M.tga", TextureType::Linear, mat.GetMetallicTex());
+        Kita::Pbrv::AssetLoader::LoadTexture("assets/textures/Cerberus_R.tga", TextureType::Linear, mat.GetRoughnessTex());
+        Kita::Pbrv::AssetLoader::LoadTexture("assets/textures/Cerberus_AO.tga", TextureType::Linear, mat.GetAOTex());
 
-        Pbrv::Renderer renderer(window);
+        Kita::Pbrv::CameraController cameraController(input, scene.GetCamera());
 
-        uint32_t frame = 0;
+        Kita::Pbrv::Renderer renderer(window);
+
         while (!window.ShouldClose())
         {
             window.PollEvents();
+            input.Update();
+            time.Update();
 
-            ++frame;
+            float deltaTime = time.GetDeltaTime();
 
-            // if (frame == 10000)
-            // {
-            //     mat.GetAlbedoTex().SetEmpty();
-            //     mat.GetNormalTex().SetEmpty();
-            //     mat.GetMetallicTex().SetEmpty();
-            //     mat.GetRoughnessTex().SetEmpty();
-            //     mat.GetAOTex().SetEmpty();
-            // }
-            // else if (frame == 20000)
-            // {
-            //     scene.GetMesh().SetEmpty();
-            // }
+            if (input.IsKeyPressed(Key::Escape))
+            {
+                window.RequestClose();
+                continue;
+            }
+
+            cameraController.Update(deltaTime);
 
             renderer.DrawFrame(scene);
         }
@@ -65,7 +70,7 @@ int main()
     }
     catch (const std::exception& e)
     {
-        Pbrv::Log::Error(e.what());
+        Kita::Pbrv::Log::Error(e.what());
         return EXIT_FAILURE;
     }
 }
