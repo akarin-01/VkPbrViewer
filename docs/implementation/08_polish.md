@@ -12,4 +12,4 @@
   - **模型热替换**：运行时切换模型无需重启
   - **MSAA**：Dynamic Rendering 下通过 `VkRenderingAttachmentInfo::resolveMode` + `pResolveImageView` + 多采样临时 Color Image 实现。阶段 03 已预留 `VkSampleCountFlagBits` 参数
   - 截图保存
-  - glTF 格式支持
+  - glTF 材质 / 纹理读取（可选）：`AssetLoader::LoadGltf` 扩展——factor 映射（baseColor → albedo、metallic/roughness → 标量）、metallicRoughness 纹理拆双通道（R → roughness、G → metallic）、三来源纹理加载（外部 URI / data URI / GLB bufferView，需 `stbi_load_from_memory` 内存解码）；若 glTF 未提供 tangent，按 Mikktspace 计算填充
