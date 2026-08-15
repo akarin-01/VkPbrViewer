@@ -5,15 +5,18 @@
 ### 一、PBR 直接光照
 
 - [ ] 替换临时 Blinn-Phong 着色器，实现 Cook-Torrance BRDF（D: GGX, F: Schlick Fresnel, G: Smith GGX），保留现有 TBN / normal map 支持
-- [ ] 实现 Tone Mapping（ACES Filmic）+ Gamma 校正，HDR → LDR 正确显示
+- [ ] 实现 Tone Mapping（ACES Filmic），HDR → LDR 正确显示（sRGB 编码由 SRGB Swapchain 硬件承担，无需手动 Gamma 校正）
 
 ### 二、天空盒
 
 - [ ] 加载 HDR 环境贴图（`stbi_loadf`，equirect → cubemap 转换），创建 Cubemap Image / ImageView / Sampler
+- [ ] 引入 HDR 中间目标（`R16G16B16A16_SFLOAT`），与 Depth Attachment 一起封装为 `RenderTargets`，由 RenderPipeline 统一创建（随 Swapchain 重建），Pass 通过引用共享
+- [ ] 引入 RenderPipeline 组合结构：抽象 `RenderPassBase`（`RecreateResources` / `Draw` 生命周期），主 Pass / 天空盒 Pass / PostProcess Pass 继承之，Renderer 只持有 RenderPipeline
 - [ ] 渲染天空盒：全屏三角形 + Cubemap 采样，作为场景背景
-  - 引入天空盒 Pass 时调整主渲染循环 Color / Depth Attachment 的 Load / Store 操作（天空盒 Pass 负责 `LOAD_OP_CLEAR`，主 Pass 使用 `LOAD_OP_LOAD`），避免遮挡错误
-  - 天空盒深度写 1.0（或深度测试 `LESS` + 深度预置 1.0），保证不遮挡场景
-  - 引入多 Pass 结构（天空盒 Pass + 主 Pass）
+  - 主 Pass（lit）先渲染：Color `LOAD_OP_CLEAR`（清 HDR 目标），Depth CLEAR 到 1.0，正常深度写入
+  - 天空盒 Pass 后渲染：Color `LOAD_OP_LOAD`，Depth `LOAD_OP_LOAD` + `LESS_EQUAL` 测试，深度写关闭（只覆盖深度仍为 1.0 的背景像素，不遮挡场景）
+  - 两个 Pass 共用同一个 Depth Attachment（`VK_FORMAT_D32_SFLOAT`）
+- [ ] PostProcess Pass：全屏三角形采样 HDR 目标，ACES Tone Mapping 后输出到 SRGB Swapchain（硬件完成 sRGB 编码），未来 Bloom / FXAA 等效果挂载于此
 - [ ] 天空盒 cubemap 供阶段 06 的 IBL 复用（同一张环境图，无需重复加载）
 
 ### 三、UI（ImGui）
