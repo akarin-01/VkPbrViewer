@@ -7,7 +7,7 @@
 #include "render/descriptor_allocator.h"
 #include "render/render_scene.h"
 #include "render/render_utils.h"
-#include "render/render_pass.h"
+#include "render/render_pipeline.h"
 
 #include <fstream>
 #include <cassert>
@@ -26,15 +26,14 @@ namespace Kita::Pbrv
         m_renderScene = std::make_unique<RenderScene>(*m_context, *m_resources, *m_swapChain, *m_descriptorAllocator);
 
         auto& list = m_renderScene->GetRenderList();
-        m_pass = std::make_unique<RenderPass>(*m_context, *m_resources, *m_swapChain, *m_descriptorAllocator, list);
+        m_pipeline = std::make_unique<RenderPipeline>(*m_context, *m_resources, *m_swapChain, *m_descriptorAllocator, list);
     }
 
     Renderer::~Renderer()
     {
         vkDeviceWaitIdle(m_context->Device());
 
-        m_pass.reset();
-
+        m_pipeline.reset();
         m_renderScene.reset();
         m_descriptorAllocator.reset();
         m_frameSync.reset();
@@ -50,7 +49,7 @@ namespace Kita::Pbrv
         if (frameInfo.m_swapChainRecreated)
         {
             // Recreate
-            m_pass->RecreateResources();
+            m_pipeline->RecreateResources();
 
             return;
         }
@@ -62,12 +61,12 @@ namespace Kita::Pbrv
 
         // Draw
         auto& list = m_renderScene->GetRenderList();
-        m_pass->Draw(list, frameInfo);
+        m_pipeline->Draw(list, frameInfo);
 
         if (m_frameSync->EndFrame())
         {
             // Recreate
-            m_pass->RecreateResources();
+            m_pipeline->RecreateResources();
         }
     }
 

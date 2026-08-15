@@ -91,12 +91,15 @@ add_executable(VkPbrViewer
     src/render/descriptor_allocator.cpp
     src/render/frame_sync.cpp
     src/render/render_context.cpp
-    src/render/render_pass.cpp
+    src/render/render_pipeline.cpp
     src/render/render_resources.cpp
     src/render/render_scene.cpp
     src/render/render_utils.cpp
     src/render/renderer.cpp
     src/render/swap_chain.cpp
+
+    #render passes
+    src/render/passes/lit_pass.cpp
 
     # scene
     src/scene/asset_loader.cpp

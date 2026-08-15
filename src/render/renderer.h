@@ -15,7 +15,7 @@ namespace Kita::Pbrv
     class DescriptorAllocator;
 
     class RenderScene;
-    class RenderPass;
+    class RenderPipeline;
     class Scene;
 
     class Renderer
@@ -38,6 +38,6 @@ namespace Kita::Pbrv
         std::unique_ptr<DescriptorAllocator> m_descriptorAllocator;
 
         std::unique_ptr<RenderScene> m_renderScene;
-        std::unique_ptr<RenderPass> m_pass;
+        std::unique_ptr<RenderPipeline> m_pipeline;
     };
 }

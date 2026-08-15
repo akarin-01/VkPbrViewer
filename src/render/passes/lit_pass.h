@@ -1,32 +1,26 @@
 #pragma once
 
+#include "render/render_pass_base.h"
 #include "render/render_resource_types.h"
 #include "render/render_constants.h"
 
 #include <vulkan/vulkan.h>
-#include <string>
-#include <vector>
 #include <array>
 
 namespace Kita::Pbrv
 {
-    class RenderContext;
-    class RenderResources;
-    class SwapChain;
-    class DescriptorAllocator;
-
-    class RenderPass
+    class LitPass : public RenderPassBase
     {
     public:
-        RenderPass(const RenderContext& context,
+        LitPass(const RenderContext& context,
             RenderResources& resources,
             const SwapChain& swapChain,
             const DescriptorAllocator& descriptorAllocator,
             const RenderList& list);
-        ~RenderPass();
+        ~LitPass();
 
-        void RecreateResources();
-        void Draw(const RenderList& list, const FrameInfo& frameInfo) const;
+        void RecreateResources() override;
+        void Draw(const RenderList& list, const FrameInfo& frameInfo) const override;
 
     private:
         void CreateDescriptorSetLayouts();
@@ -36,11 +30,6 @@ namespace Kita::Pbrv
         void DestroyDepthImage();
 
     private:
-        const RenderContext& m_context;
-        RenderResources& m_resources;
-        const SwapChain& m_swapChain;
-        const DescriptorAllocator& m_descriptorAllocator;
-
         VkDescriptorSetLayout m_frameLayout{ VK_NULL_HANDLE };
         std::array<VkDescriptorSet, kMaxFramesInFlight> m_frameSets{};
 

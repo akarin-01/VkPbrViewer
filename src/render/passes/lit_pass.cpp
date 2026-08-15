@@ -1,4 +1,4 @@
-#include "render_pass.h"
+#include "lit_pass.h"
 
 #include "core/log.h"
 #include "render/render_context.h"
@@ -15,15 +15,12 @@
 
 namespace Kita::Pbrv
 {
-    RenderPass::RenderPass(const RenderContext& context,
+    LitPass::LitPass(const RenderContext& context,
         RenderResources& resources,
         const SwapChain& swapChain,
         const DescriptorAllocator& descriptorAllocator,
         const RenderList& list)
-        : m_context(context),
-        m_resources(resources),
-        m_swapChain(swapChain),
-        m_descriptorAllocator(descriptorAllocator)
+        : RenderPassBase(context, resources, swapChain, descriptorAllocator)
     {
         CreateDescriptorSetLayouts();
         CreatePipeline(list);
@@ -32,7 +29,7 @@ namespace Kita::Pbrv
         AllocateDescriptorSets(list);
     }
 
-    RenderPass::~RenderPass()
+    LitPass::~LitPass()
     {
         DestroyDepthImage();
         vkDestroyPipeline(m_context.Device(), m_pipeline, nullptr);
@@ -40,13 +37,13 @@ namespace Kita::Pbrv
         vkDestroyDescriptorSetLayout(m_context.Device(), m_frameLayout, nullptr);
     }
 
-    void RenderPass::RecreateResources()
+    void LitPass::RecreateResources()
     {
         DestroyDepthImage();
         CreateDepthImage();
     }
 
-    void RenderPass::Draw(const RenderList& list, const FrameInfo& frameInfo) const
+    void LitPass::Draw(const RenderList& list, const FrameInfo& frameInfo) const
     {
         auto& commandBuffer = frameInfo.m_commandBuffer;
         auto& frameIndex = frameInfo.m_frameIndex;
@@ -180,7 +177,7 @@ namespace Kita::Pbrv
             colorRange);
     }
 
-    void RenderPass::CreateDescriptorSetLayouts()
+    void LitPass::CreateDescriptorSetLayouts()
     {
         // Frame layout
         {
@@ -199,7 +196,7 @@ namespace Kita::Pbrv
         }
     }
 
-    void RenderPass::AllocateDescriptorSets(const RenderList& list)
+    void LitPass::AllocateDescriptorSets(const RenderList& list)
     {
         // Frame set
         {
@@ -239,7 +236,7 @@ namespace Kita::Pbrv
         }
     }
 
-    void RenderPass::CreatePipeline(const RenderList& list)
+    void LitPass::CreatePipeline(const RenderList& list)
     {
         // Shaders
         VkShaderModule vertShaderModule = CreateShaderModule(m_context.Device(), "assets/shaders/lit_vert.spv");
@@ -418,7 +415,7 @@ namespace Kita::Pbrv
         vkDestroyShaderModule(m_context.Device(), fragShaderModule, nullptr);
     }
 
-    void RenderPass::CreateDepthImage()
+    void LitPass::CreateDepthImage()
     {
         VkExtent2D extent = m_swapChain.Extent();
 
@@ -457,7 +454,7 @@ namespace Kita::Pbrv
         m_depthImageViewHandle = m_resources.CreateImageView(imageViewInfo);
     }
 
-    void RenderPass::DestroyDepthImage()
+    void LitPass::DestroyDepthImage()
     {
         m_resources.DestroyImageView(m_depthImageViewHandle);
         m_resources.DestroyImage(m_depthImageHandle);
