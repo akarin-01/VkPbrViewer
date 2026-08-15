@@ -20,8 +20,8 @@ namespace Kita::Pbrv
         const Input& m_input;
         Camera& m_camera;
 
-        float m_rotateSpeed{ 200.0f };
-        float m_panSpeed{ 1.5f };
-        float m_zoomSpeed{ 0.1f };
+        float m_rotateSpeed{ 240.0f };
+        float m_panSpeed{ 1.8f };
+        float m_zoomSpeed{ 0.08f };
     };
 }

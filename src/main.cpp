@@ -35,8 +35,7 @@ int main()
         Kita::Pbrv::Mesh& mesh = scene.GetMesh();
         Kita::Pbrv::AssetLoader::LoadGltfMesh("assets/models/Cerberus_LP.glb", mesh);
 
-        Kita::Pbrv::Material& mat = scene.GetMaterial()
-            .SetMetallic(0.0f);
+        Kita::Pbrv::Material& mat = scene.GetMaterial();
         Kita::Pbrv::AssetLoader::LoadTexture("assets/textures/Cerberus_A.tga", TextureType::Albedo, mat.GetAlbedoTex());
         Kita::Pbrv::AssetLoader::LoadTexture("assets/textures/Cerberus_N.tga", TextureType::Normal, mat.GetNormalTex());
         Kita::Pbrv::AssetLoader::LoadTexture("assets/textures/Cerberus_M.tga", TextureType::Linear, mat.GetMetallicTex());
