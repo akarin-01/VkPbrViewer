@@ -239,7 +239,7 @@ namespace Kita::Pbrv
         {
             for (auto& set : material.m_sets)
             {
-                set = m_descriptorAllocator.Allocate(material.m_setLayout);
+                set = m_descriptorAllocator.Allocate(material.m_setLayout, "Material set");
                 WriteMaterialSet(set, material.m_textures);
             }
         }

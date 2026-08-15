@@ -12,7 +12,7 @@ namespace Kita::Pbrv
         DescriptorAllocator(const RenderContext& context, const VkDescriptorPoolCreateInfo& createInfo);
         ~DescriptorAllocator();
 
-        VkDescriptorSet Allocate(VkDescriptorSetLayout layout) const;
+        VkDescriptorSet Allocate(VkDescriptorSetLayout layout, const char* debugName) const;
 
     private:
         const RenderContext& m_context;

@@ -9,16 +9,16 @@
 
 namespace Kita::Pbrv
 {
-    class LitPass : public RenderPassBase
+    class PostProcessPass : public RenderPassBase
     {
     public:
-        LitPass(const RenderContext& context,
+        PostProcessPass(const RenderContext& context,
             RenderResources& resources,
             const SwapChain& swapChain,
             const DescriptorAllocator& descriptorAllocator,
             const RenderList& list,
             const RenderTarget& target);
-        ~LitPass();
+        ~PostProcessPass();
 
         void RecreateResources() override;
         void Draw(const RenderList& list, const FrameInfo& frameInfo) const override;
@@ -26,11 +26,12 @@ namespace Kita::Pbrv
     private:
         void CreateDescriptorSetLayouts();
         void AllocateDescriptorSets(const RenderList& list);
+        void UpdateInputSet(VkDescriptorSet set) const;
         void CreatePipeline(const RenderList& list);
 
     private:
-        VkDescriptorSetLayout m_frameLayout{ VK_NULL_HANDLE };
-        std::array<VkDescriptorSet, kMaxFramesInFlight> m_frameSets{};
+        VkDescriptorSetLayout m_inputLayout{ VK_NULL_HANDLE };
+        VkDescriptorSet m_inputSet{ VK_NULL_HANDLE };
 
         VkPipeline m_pipeline{ VK_NULL_HANDLE };
         VkPipelineLayout m_pipelineLayout{ VK_NULL_HANDLE };

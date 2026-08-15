@@ -100,6 +100,7 @@ add_executable(VkPbrViewer
 
     #render passes
     src/render/passes/lit_pass.cpp
+    src/render/passes/post_process_pass.cpp
 
     # scene
     src/scene/asset_loader.cpp
@@ -145,13 +146,18 @@ endif()
 set(SHADER_SOURCES
     assets/shaders/lit.vert
     assets/shaders/lit.frag
+    assets/shaders/post_process.vert
+    assets/shaders/post_process.frag
 )
 set(SHADER_OUTPUTS
     assets/shaders/lit_vert.spv
     assets/shaders/lit_frag.spv
+    assets/shaders/post_process_vert.spv
+    assets/shaders/post_process_frag.spv
 )
 
 set(SHADER_INCLUDES
+    assets/shaders/common/material_texture_slots.glsl
     assets/shaders/common/per_frame_data.glsl
 )
 

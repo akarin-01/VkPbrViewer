@@ -76,13 +76,13 @@ namespace Kita::Pbrv
         poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         poolSizes[0].descriptorCount = kMaxFramesInFlight * 1;
         poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        poolSizes[1].descriptorCount = kMaxFramesInFlight * kMaterialTextureCount;
+        poolSizes[1].descriptorCount = kMaxFramesInFlight * kMaterialTextureCount + 1;
 
         VkDescriptorPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
         poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
         poolInfo.pPoolSizes = poolSizes.data();
-        poolInfo.maxSets = kMaxFramesInFlight * 2;
+        poolInfo.maxSets = kMaxFramesInFlight * 2 + 1;
 
         return std::make_unique<DescriptorAllocator>(context, poolInfo);
     }
