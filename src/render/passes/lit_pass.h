@@ -6,9 +6,9 @@
 
 namespace Kita::Pbrv
 {
-    class FrameData;
-    class MaterialCache;
-    class MeshCache;
+    class RenderFrameData;
+    class RenderMaterialData;
+    class RenderMeshData;
 
     class LitPass : public RenderPassBase
     {
@@ -17,9 +17,9 @@ namespace Kita::Pbrv
             RenderResources& resources,
             const SwapChain& swapChain,
             const DescriptorAllocator& descriptorAllocator,
-            const FrameData& frameData,
-            const MaterialCache& materialCache,
-            const MeshCache& meshCache,
+            const RenderFrameData& frameData,
+            const RenderMaterialData& materialCache,
+            const RenderMeshData& meshCache,
             const RenderTarget& target);
         ~LitPass();
 
@@ -30,9 +30,9 @@ namespace Kita::Pbrv
         void CreatePipeline();
 
     private:
-        const FrameData& m_frameData;
-        const MaterialCache& m_materialCache;
-        const MeshCache& m_meshCache;
+        const RenderFrameData& m_frameData;
+        const RenderMaterialData& m_materialData;
+        const RenderMeshData& m_meshData;
 
         VkPipeline m_pipeline{ VK_NULL_HANDLE };
         VkPipelineLayout m_pipelineLayout{ VK_NULL_HANDLE };

@@ -6,9 +6,9 @@
 #include "render/render_resources.h"
 #include "render/swap_chain.h"
 #include "render/descriptor_allocator.h"
-#include "render/frame_data.h"
-#include "render/material_cache.h"
-#include "render/mesh_cache.h"
+#include "render/data/render_frame_data.h"
+#include "render/data/render_material_data.h"
+#include "render/data/render_mesh_data.h"
 
 #include "scene/vertex.h"
 
@@ -22,14 +22,14 @@ namespace Kita::Pbrv
         RenderResources& resources,
         const SwapChain& swapChain,
         const DescriptorAllocator& descriptorAllocator,
-        const FrameData& frameData,
-        const MaterialCache& materialCache,
-        const MeshCache& meshCache,
+        const RenderFrameData& frameData,
+        const RenderMaterialData& materialCache,
+        const RenderMeshData& meshCache,
         const RenderTarget& target)
         : RenderPassBase(context, resources, swapChain, descriptorAllocator, target),
         m_frameData(frameData),
-        m_materialCache(materialCache),
-        m_meshCache(meshCache)
+        m_materialData(materialCache),
+        m_meshData(meshCache)
     {
         CreatePipeline();
     }
@@ -147,26 +147,26 @@ namespace Kita::Pbrv
             0, 1, &m_frameData.GetSet(frameIndex), 0, nullptr);
         {
             vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout,
-                1, 1, &m_materialCache.GetSet(frameIndex), 0, nullptr);
+                1, 1, &m_materialData.GetSet(frameIndex), 0, nullptr);
 
-            auto& pushConstant = m_materialCache.GetPushConstant();
+            auto& pushConstant = m_materialData.GetPushConstant();
             vkCmdPushConstants(commandBuffer, m_pipelineLayout,
                 VK_SHADER_STAGE_FRAGMENT_BIT,
                 0, sizeof(pushConstant), &pushConstant);
 
-            if (m_meshCache.GetIndexCount() != 0)
+            if (m_meshData.GetIndexCount() != 0)
             {
-                RenderBuffer* vertexBuffer = m_resources.GetBuffer(m_meshCache.GetVertexBufferHandle());
+                RenderBuffer* vertexBuffer = m_resources.GetBuffer(m_meshData.GetVertexBufferHandle());
                 assert(vertexBuffer && "Vertex buffer handle is invalid");
                 VkBuffer buffers[]{ vertexBuffer->m_buffer };
                 VkDeviceSize offsets[]{ 0 };
                 vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
 
-                RenderBuffer* indexBuffer = m_resources.GetBuffer(m_meshCache.GetIndexBufferHandle());
+                RenderBuffer* indexBuffer = m_resources.GetBuffer(m_meshData.GetIndexBufferHandle());
                 assert(indexBuffer && "Index buffer handle is invalid");
                 vkCmdBindIndexBuffer(commandBuffer, indexBuffer->m_buffer, 0, VK_INDEX_TYPE_UINT32);
 
-                vkCmdDrawIndexed(commandBuffer, m_meshCache.GetIndexCount(), 1, 0, 0, 0);
+                vkCmdDrawIndexed(commandBuffer, m_meshData.GetIndexCount(), 1, 0, 0, 0);
             }
         }
 
@@ -294,7 +294,7 @@ namespace Kita::Pbrv
         std::vector<VkDescriptorSetLayout> setLayouts
         {
             m_frameData.GetSetLayout(),
-            m_materialCache.GetSetLayout(),
+            m_materialData.GetSetLayout(),
         };
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;

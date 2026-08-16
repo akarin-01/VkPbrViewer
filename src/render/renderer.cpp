@@ -71,10 +71,10 @@ namespace Kita::Pbrv
     std::unique_ptr<DescriptorAllocator> Renderer::CreateDescriptorAllocator(const RenderContext& context)
     {
         /*         Owner        | UBO count / set |    Sampler count / set    |     Set count
-         *       FrameData      |        1        |              0            | kMaxFramesInFlight
-         *     MaterialCache    |        0        |    kMaterialTextureCount  | kMaxFramesInFlight
-         *   SkyboxEnvironment  |        0        |              1            | kMaxFramesInFlight
-         *    PostProcessPass   |        0        |              1            |         1
+         *    RenderFrameData   |        1        |              0            | kMaxFramesInFlight
+         *   RenderMaterialData |        0        |    kMaterialTextureCount  | kMaxFramesInFlight
+         *   RenderSkyboxData   |        0        |              1            | kMaxFramesInFlight
+         *   PostProcessPass    |        0        |              1            |         1
         */
         std::vector<VkDescriptorPoolSize> poolSizes(2);
         poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;

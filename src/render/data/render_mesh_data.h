@@ -9,11 +9,11 @@ namespace Kita::Pbrv
 
     /// GPU resources for a mesh (vertex/index buffers).
     /// Rebuilds the buffers when the CPU-side Mesh data changes (dirty).
-    class MeshCache
+    class RenderMeshData
     {
     public:
-        explicit MeshCache(RenderResources& resources);
-        ~MeshCache();
+        explicit RenderMeshData(RenderResources& resources);
+        ~RenderMeshData();
 
         void Update(const Mesh& sceneMesh);
 

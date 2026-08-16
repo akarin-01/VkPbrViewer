@@ -1,4 +1,4 @@
-#include "frame_data.h"
+#include "render_frame_data.h"
 
 #include "scene/camera.h"
 #include "scene/light.h"
@@ -14,7 +14,7 @@
 
 namespace Kita::Pbrv
 {
-    FrameData::FrameData(const RenderContext& context,
+    RenderFrameData::RenderFrameData(const RenderContext& context,
         RenderResources& resources,
         const SwapChain& swapChain,
         const DescriptorAllocator& descriptorAllocator)
@@ -25,14 +25,14 @@ namespace Kita::Pbrv
     {
         // Ubo
         {
-            VkBufferCreateInfo bufferInfo{};
-            bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-            bufferInfo.size = sizeof(FrameUbo);
-            bufferInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-            bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+            VkBufferCreateInfo createInfo{};
+            createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+            createInfo.size = sizeof(FrameUbo);
+            createInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+            createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
             for (auto& handle : m_uboHandles)
             {
-                handle = m_resources.CreateBuffer(bufferInfo, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, true);
+                handle = m_resources.CreateBuffer(createInfo, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, true);
             }
         }
 
@@ -81,7 +81,7 @@ namespace Kita::Pbrv
         }
     }
 
-    FrameData::~FrameData()
+    RenderFrameData::~RenderFrameData()
     {
         // Sets will be released automatically
 
@@ -93,7 +93,7 @@ namespace Kita::Pbrv
         }
     }
 
-    void FrameData::Update(uint32_t frameIndex, const Camera& camera, const Light& light)
+    void RenderFrameData::Update(uint32_t frameIndex, const Camera& camera, const Light& light)
     {
         FrameUbo ubo{};
         glm::mat4 view = camera.GetViewMatrix();

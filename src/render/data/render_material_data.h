@@ -15,13 +15,13 @@ namespace Kita::Pbrv
 
     /// GPU resources for a material: textures (with fallbacks), push constant, and descriptor sets.
     /// Rebuilds textures and refreshes descriptors when the CPU-side Material textures change (dirty).
-    class MaterialCache
+    class RenderMaterialData
     {
     public:
-        MaterialCache(const RenderContext& context,
+        RenderMaterialData(const RenderContext& context,
             RenderResources& resources,
             const DescriptorAllocator& descriptorAllocator);
-        ~MaterialCache();
+        ~RenderMaterialData();
 
         void Update(uint32_t frameIndex, const Material& sceneMat);
 

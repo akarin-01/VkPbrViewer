@@ -6,8 +6,8 @@
 #include "render/render_resources.h"
 #include "render/swap_chain.h"
 #include "render/descriptor_allocator.h"
-#include "render/frame_data.h"
-#include "render/skybox_environment.h"
+#include "render/data/render_frame_data.h"
+#include "render/data/render_skybox_data.h"
 
 #include <stdexcept>
 #include <array>
@@ -19,8 +19,8 @@ namespace Kita::Pbrv
         RenderResources& resources,
         const SwapChain& swapChain,
         const DescriptorAllocator& descriptorAllocator,
-        const FrameData& frameData,
-        const SkyboxEnvironment& skybox,
+        const RenderFrameData& frameData,
+        const RenderSkyboxData& skybox,
         const RenderTarget& target)
         : RenderPassBase(context, resources, swapChain, descriptorAllocator, target),
         m_frameData(frameData),
@@ -49,7 +49,7 @@ namespace Kita::Pbrv
         VkExtent2D extent = m_swapChain.Extent();
 
         RenderImageView* colorImageView = m_resources.GetImageView(m_target.m_colorTex.m_imageViewHandle);
-        assert(colorImageView && "LitPass: Color image view handle is invalid");
+        assert(colorImageView && "SkyboxPass: Color image view handle is invalid");
         VkRenderingAttachmentInfo colorAttachment{};
         colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
         colorAttachment.imageView = colorImageView->m_imageView;
@@ -58,7 +58,7 @@ namespace Kita::Pbrv
         colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
         RenderImageView* depthImageView = m_resources.GetImageView(m_target.m_depthTex.m_imageViewHandle);
-        assert(depthImageView && "LitPass: Depth image view handle is invalid");
+        assert(depthImageView && "SkyboxPass: Depth image view handle is invalid");
         VkRenderingAttachmentInfo depthAttachment{};
         depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
         depthAttachment.imageView = depthImageView->m_imageView;

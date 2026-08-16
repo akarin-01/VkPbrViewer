@@ -1,43 +1,42 @@
 #pragma once
 
 #include "render/render_resource_types.h"
+#include "render/render_constants.h"
 
-#include <array>
 #include <vulkan/vulkan.h>
+#include <array>
 
 namespace Kita::Pbrv
 {
+    class Camera;
+    class Light;
     class RenderContext;
     class RenderResources;
+    class SwapChain;
     class DescriptorAllocator;
-    class Skybox;
 
-    /// GPU resources and descriptor management for the skybox.
-    /// Marks the descriptor sets for refresh when the CPU-side Skybox data changes (dirty);
-    /// the equirect -> cubemap conversion and texture upload are not implemented yet (see WriteSet).
-    class SkyboxEnvironment
+    class RenderFrameData
     {
     public:
-        SkyboxEnvironment(const RenderContext& context,
+        RenderFrameData(const RenderContext& context,
             RenderResources& resources,
+            const SwapChain& swapChain,
             const DescriptorAllocator& descriptorAllocator);
-        ~SkyboxEnvironment();
+        ~RenderFrameData();
 
-        void Update(uint32_t frameIndex, const Skybox& sceneSkybox);
+        void Update(uint32_t frameIndex, const Camera& camera, const Light& light);
 
         VkDescriptorSetLayout GetSetLayout() const { return m_setLayout; }
         const VkDescriptorSet& GetSet(uint32_t frameIndex) const { return m_sets[frameIndex]; }
 
     private:
-        void WriteSet(VkDescriptorSet set);
-
         const RenderContext& m_context;
         RenderResources& m_resources;
+        const SwapChain& m_swapChain;
         const DescriptorAllocator& m_descriptorAllocator;
 
-        RenderTexture m_texture{};
+        std::array<RenderBufferHandle, kMaxFramesInFlight> m_uboHandles{};
         VkDescriptorSetLayout m_setLayout{ VK_NULL_HANDLE };
         std::array<VkDescriptorSet, kMaxFramesInFlight> m_sets{};
-        uint32_t m_setRefreshCount{ 0 };
     };
 }

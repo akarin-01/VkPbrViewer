@@ -1,4 +1,4 @@
-#include "skybox_environment.h"
+#include "render_skybox_data.h"
 
 #include "core/log.h"
 #include "render/render_context.h"
@@ -11,7 +11,7 @@
 
 namespace Kita::Pbrv
 {
-    SkyboxEnvironment::SkyboxEnvironment(const RenderContext& context,
+    RenderSkyboxData::RenderSkyboxData(const RenderContext& context,
         RenderResources& resources,
         const DescriptorAllocator& descriptorAllocator)
         : m_context(context),
@@ -41,7 +41,7 @@ namespace Kita::Pbrv
         }
     }
 
-    SkyboxEnvironment::~SkyboxEnvironment()
+    RenderSkyboxData::~RenderSkyboxData()
     {
         // Sets will be destroyed automatically
 
@@ -53,7 +53,7 @@ namespace Kita::Pbrv
         vkDestroyDescriptorSetLayout(m_context.Device(), m_setLayout, nullptr);
     }
 
-    void SkyboxEnvironment::Update(uint32_t frameIndex, const Skybox& sceneSkybox)
+    void RenderSkyboxData::Update(uint32_t frameIndex, const Skybox& sceneSkybox)
     {
         if (sceneSkybox.IsDirty())
         {
@@ -75,7 +75,7 @@ namespace Kita::Pbrv
         }
     }
 
-    void SkyboxEnvironment::WriteSet(VkDescriptorSet /*set*/)
+    void RenderSkyboxData::WriteSet(VkDescriptorSet /*set*/)
     {
         // TODO: bind the cubemap's imageView + sampler
         // (to be implemented together with the equirect -> cubemap conversion)

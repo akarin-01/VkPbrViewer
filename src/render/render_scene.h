@@ -1,9 +1,9 @@
 #pragma once
 
-#include "render/frame_data.h"
-#include "render/material_cache.h"
-#include "render/mesh_cache.h"
-#include "render/skybox_environment.h"
+#include "render/data/render_frame_data.h"
+#include "render/data/render_material_data.h"
+#include "render/data/render_mesh_data.h"
+#include "render/data/render_skybox_data.h"
 
 #include <vulkan/vulkan.h>
 
@@ -28,15 +28,15 @@ namespace Kita::Pbrv
 
         void Update(const Scene& scene, const FrameInfo& frameInfo);
 
-        const FrameData& GetFrameData() const { return m_frameData; }
-        const MaterialCache& GetMaterialCache() const { return m_materialCache; }
-        const MeshCache& GetMeshCache() const { return m_meshCache; }
-        const SkyboxEnvironment& GetSkyboxEnvironment() const { return m_skyboxEnvironment; }
+        const RenderFrameData& GetRenderFrameData() const { return m_frameData; }
+        const RenderMaterialData& GetRenderMaterialData() const { return m_materialData; }
+        const RenderMeshData& GetRenderMeshData() const { return m_meshData; }
+        const RenderSkyboxData& GetRenderSkyboxData() const { return m_skyboxData; }
 
     private:
-        FrameData m_frameData;
-        MaterialCache m_materialCache;
-        MeshCache m_meshCache;
-        SkyboxEnvironment m_skyboxEnvironment;
+        RenderFrameData m_frameData;
+        RenderMaterialData m_materialData;
+        RenderMeshData m_meshData;
+        RenderSkyboxData m_skyboxData;
     };
 }

@@ -1,4 +1,4 @@
-#include "mesh_cache.h"
+#include "render_mesh_data.h"
 
 #include "core/log.h"
 #include "render/render_resources.h"
@@ -9,17 +9,17 @@
 
 namespace Kita::Pbrv
 {
-    MeshCache::MeshCache(RenderResources& resources)
+    RenderMeshData::RenderMeshData(RenderResources& resources)
         : m_resources(resources)
     {
     }
 
-    MeshCache::~MeshCache()
+    RenderMeshData::~RenderMeshData()
     {
         Destroy();
     }
 
-    void MeshCache::Update(const Mesh& sceneMesh)
+    void RenderMeshData::Update(const Mesh& sceneMesh)
     {
         if (sceneMesh.IsDirty())
         {
@@ -39,9 +39,9 @@ namespace Kita::Pbrv
         }
     }
 
-    void MeshCache::Create(const Mesh& sceneMesh)
+    void RenderMeshData::Create(const Mesh& sceneMesh)
     {
-        assert(!sceneMesh.IsEmpty() && "MeshCache::Create requires non-empty mesh");
+        assert(!sceneMesh.IsEmpty() && "RenderMeshData::Create requires non-empty mesh");
 
         auto& vertices = sceneMesh.GetVertices();
         auto& indices = sceneMesh.GetIndices();
@@ -75,7 +75,7 @@ namespace Kita::Pbrv
         m_indexCount = static_cast<uint32_t>(indices.size());
     }
 
-    void MeshCache::Destroy()
+    void RenderMeshData::Destroy()
     {
         m_resources.DestroyBuffer(m_vertexBufferHandle);
         m_resources.DestroyBuffer(m_indexBufferHandle);

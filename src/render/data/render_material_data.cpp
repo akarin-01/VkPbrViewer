@@ -1,4 +1,4 @@
-#include "material_cache.h"
+#include "render_material_data.h"
 
 #include "core/log.h"
 #include "render/render_context.h"
@@ -53,7 +53,7 @@ namespace Kita::Pbrv
         }
     }
 
-    MaterialCache::MaterialCache(const RenderContext& context,
+    RenderMaterialData::RenderMaterialData(const RenderContext& context,
         RenderResources& resources,
         const DescriptorAllocator& descriptorAllocator)
         : m_context(context),
@@ -91,7 +91,7 @@ namespace Kita::Pbrv
         }
     }
 
-    MaterialCache::~MaterialCache()
+    RenderMaterialData::~RenderMaterialData()
     {
         // Sets will be destroyed automatically
 
@@ -110,7 +110,7 @@ namespace Kita::Pbrv
         DestroyFallbacks();
     }
 
-    void MaterialCache::Update(uint32_t frameIndex, const Material& sceneMat)
+    void RenderMaterialData::Update(uint32_t frameIndex, const Material& sceneMat)
     {
         m_pushConstant.m_albedo = sceneMat.GetAlbedo();
         m_pushConstant.m_params = glm::vec4(sceneMat.GetMetallic(),
@@ -139,7 +139,7 @@ namespace Kita::Pbrv
         }
     }
 
-    void MaterialCache::CreateFallbacks()
+    void RenderMaterialData::CreateFallbacks()
     {
         uint8_t white[] = { 255, 255, 255, 255 };
         uint8_t flat[] = { 128, 128, 255, 255 };
@@ -169,7 +169,7 @@ namespace Kita::Pbrv
         }
     }
 
-    void MaterialCache::DestroyFallbacks()
+    void RenderMaterialData::DestroyFallbacks()
     {
         for (auto& texture : m_fallbackTextures)
         {
@@ -177,7 +177,7 @@ namespace Kita::Pbrv
         }
     }
 
-    bool MaterialCache::UpdateTextureSlot(uint32_t slot, const Texture& sceneTex)
+    bool RenderMaterialData::UpdateTextureSlot(uint32_t slot, const Texture& sceneTex)
     {
         if (sceneTex.IsDirty())
         {
@@ -211,7 +211,7 @@ namespace Kita::Pbrv
         return false;
     }
 
-    RenderTexture MaterialCache::CreateTexture(const Texture& sceneTex) const
+    RenderTexture RenderMaterialData::CreateTexture(const Texture& sceneTex) const
     {
         auto& pixels = sceneTex.GetPixels();
         auto width = sceneTex.GetWidth();
@@ -271,7 +271,7 @@ namespace Kita::Pbrv
         return { imageHandle, imageViewHandle, samplerHandle };
     }
 
-    void MaterialCache::DestroyTexture(RenderTexture& texture) const
+    void RenderMaterialData::DestroyTexture(RenderTexture& texture) const
     {
         m_resources.DestroySampler(texture.m_samplerHandle);
         m_resources.DestroyImageView(texture.m_imageViewHandle);
@@ -280,7 +280,7 @@ namespace Kita::Pbrv
         texture = {};
     }
 
-    void MaterialCache::WriteSet(VkDescriptorSet set)
+    void RenderMaterialData::WriteSet(VkDescriptorSet set)
     {
         std::array<VkDescriptorImageInfo, kMaterialTextureCount> imageInfos{};
         for (uint32_t i = 0; i < kMaterialTextureCount; ++i)

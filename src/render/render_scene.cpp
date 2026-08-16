@@ -13,9 +13,9 @@ namespace Kita::Pbrv
         const SwapChain& swapChain,
         const DescriptorAllocator& descriptorAllocator)
         : m_frameData(context, resources, swapChain, descriptorAllocator),
-        m_materialCache(context, resources, descriptorAllocator),
-        m_meshCache(resources),
-        m_skyboxEnvironment(context, resources, descriptorAllocator)
+        m_materialData(context, resources, descriptorAllocator),
+        m_meshData(resources),
+        m_skyboxData(context, resources, descriptorAllocator)
     {
     }
 
@@ -26,8 +26,8 @@ namespace Kita::Pbrv
         auto& frameIndex = frameInfo.m_frameIndex;
 
         m_frameData.Update(frameIndex, scene.GetCamera(), scene.GetLight());
-        m_materialCache.Update(frameIndex, scene.GetMaterial());
-        m_meshCache.Update(scene.GetMesh());
-        m_skyboxEnvironment.Update(frameIndex, scene.GetSkybox());
+        m_materialData.Update(frameIndex, scene.GetMaterial());
+        m_meshData.Update(scene.GetMesh());
+        m_skyboxData.Update(frameIndex, scene.GetSkybox());
     }
 }

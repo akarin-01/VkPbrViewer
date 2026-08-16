@@ -157,10 +157,10 @@ namespace Kita::Pbrv
     {
         m_passes.push_back(std::make_unique<LitPass>(
             context, resources, swapChain, descriptorAllocator,
-            scene.GetFrameData(), scene.GetMaterialCache(), scene.GetMeshCache(), m_target));
+            scene.GetRenderFrameData(), scene.GetRenderMaterialData(), scene.GetRenderMeshData(), m_target));
         m_passes.push_back(std::make_unique<SkyboxPass>(
             context, resources, swapChain, descriptorAllocator,
-            scene.GetFrameData(), scene.GetSkyboxEnvironment(), m_target));
+            scene.GetRenderFrameData(), scene.GetRenderSkyboxData(), m_target));
         m_passes.push_back(std::make_unique<PostProcessPass>(
             context, resources, swapChain, descriptorAllocator, m_target));
     }
