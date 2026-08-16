@@ -15,11 +15,12 @@ namespace Kita::Pbrv
     struct FrameUbo
     {
         alignas(16) glm::mat4 m_viewProj;
+        alignas(16) glm::mat4 m_skyboxViewProj;
         alignas(16) glm::vec4 m_viewPos;            // xyz - pos, w - 1 always
         alignas(16) glm::vec4 m_lightDir;           // xyz - dir, w - 0(directional light)
         alignas(16) glm::vec4 m_lightColor;         // xyz - rgb, w - intensity
     };
-    STD140_ASSERT(FrameUbo, 112);
+    STD140_ASSERT(FrameUbo, 176);
 
     struct MaterialPC
     {
@@ -99,6 +100,7 @@ namespace Kita::Pbrv
         std::array<RenderTexture, kMaterialTextureCount> m_textures{};
         VkDescriptorSetLayout m_setLayout{ VK_NULL_HANDLE };
         std::array<VkDescriptorSet, kMaxFramesInFlight> m_sets{};
+        uint32_t m_setRefreshCount{ 0 };
     };
 
     struct RenderMesh
@@ -108,10 +110,19 @@ namespace Kita::Pbrv
         uint32_t m_indexCount{ 0 };
     };
 
+    struct RenderSkybox
+    {
+        RenderTexture m_texture{};
+        VkDescriptorSetLayout m_setLayout{ VK_NULL_HANDLE };
+        std::array<VkDescriptorSet, kMaxFramesInFlight> m_sets{};
+        uint32_t m_setRefreshCount{ 0 };
+    };
+
     struct RenderList
     {
         RenderPerFrame m_frame{};
         RenderMaterial m_material{};
         RenderMesh m_mesh{};
+        RenderSkybox m_skybox{};
     };
 }

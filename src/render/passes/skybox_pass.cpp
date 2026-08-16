@@ -1,5 +1,6 @@
-#include "post_process_pass.h"
+#include "skybox_pass.h"
 
+#include "core/log.h"
 #include "render/render_context.h"
 #include "render/render_utils.h"
 #include "render/render_resources.h"
@@ -7,68 +8,63 @@
 #include "render/descriptor_allocator.h"
 
 #include <stdexcept>
+#include <array>
+#include <cassert>
 
 namespace Kita::Pbrv
 {
-    PostProcessPass::PostProcessPass(const RenderContext& context, RenderResources& resources, const SwapChain& swapChain, const DescriptorAllocator& descriptorAllocator, const RenderList& list, const RenderTarget& target)
-        :RenderPassBase(context, resources, swapChain, descriptorAllocator, target)
+    SkyboxPass::SkyboxPass(const RenderContext& context,
+        RenderResources& resources,
+        const SwapChain& swapChain,
+        const DescriptorAllocator& descriptorAllocator,
+        const RenderList& list,
+        const RenderTarget& target)
+        : RenderPassBase(context, resources, swapChain, descriptorAllocator, target)
     {
         CreateDescriptorSetLayouts();
-        AllocateDescriptorSets(list);
         CreatePipeline(list);
+
+        AllocateDescriptorSets(list);
     }
 
-    PostProcessPass::~PostProcessPass()
+    SkyboxPass::~SkyboxPass()
     {
         vkDestroyPipeline(m_context.Device(), m_pipeline, nullptr);
         vkDestroyPipelineLayout(m_context.Device(), m_pipelineLayout, nullptr);
-        vkDestroyDescriptorSetLayout(m_context.Device(), m_inputLayout, nullptr);
+        vkDestroyDescriptorSetLayout(m_context.Device(), m_frameLayout, nullptr);
     }
 
-    void PostProcessPass::RecreateResources()
+    void SkyboxPass::RecreateResources()
     {
-        UpdateInputSet(m_inputSet);
+        /* Empty */
     }
 
-    void PostProcessPass::Draw(const RenderList& /*list*/, const FrameInfo& frameInfo) const
+    void SkyboxPass::Draw(const RenderList& list, const FrameInfo& frameInfo) const
     {
         auto& commandBuffer = frameInfo.m_commandBuffer;
-        auto& imageIndex = frameInfo.m_imageIndex;
-
-        VkImageSubresourceRange colorRange{};
-        colorRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        colorRange.baseMipLevel = 0;
-        colorRange.levelCount = 1;
-        colorRange.baseArrayLayer = 0;
-        colorRange.layerCount = 1;
-
-        // Color image: COLOR_ATTACHMENT_OPTIMAL -> SHADER_READ_ONLY_OPTIMAL
-        RenderImage* colorImage = m_resources.GetImage(m_target.m_colorTex.m_imageHandle);
-        assert(colorImage && "PostProcessPass: Color image handle is invalid");
-        TransitionImageLayout(commandBuffer,
-            colorImage->m_image,
-            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-            VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT,
-            colorRange);
-
-        // Swap chain image: UNDEFINED -> COLOR_ATTACHMENT_OPTIMAL
-        TransitionImageLayout(commandBuffer,
-            m_swapChain.Image(imageIndex),
-            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-            VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
-            VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-            colorRange);
+        auto& frameIndex = frameInfo.m_frameIndex;
 
         // Begin rendering
+        VkExtent2D extent = m_swapChain.Extent();
+
+        RenderImageView* colorImageView = m_resources.GetImageView(m_target.m_colorTex.m_imageViewHandle);
+        assert(colorImageView && "LitPass: Color image view handle is invalid");
         VkRenderingAttachmentInfo colorAttachment{};
         colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-        colorAttachment.imageView = m_swapChain.ImageView(imageIndex);
+        colorAttachment.imageView = colorImageView->m_imageView;
         colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
         colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
-        VkExtent2D extent = m_swapChain.Extent();
+        RenderImageView* depthImageView = m_resources.GetImageView(m_target.m_depthTex.m_imageViewHandle);
+        assert(depthImageView && "LitPass: Depth image view handle is invalid");
+        VkRenderingAttachmentInfo depthAttachment{};
+        depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+        depthAttachment.imageView = depthImageView->m_imageView;
+        depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+        depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
         VkRenderingInfo renderingInfo{};
         renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
         renderingInfo.renderArea.offset = { 0, 0 };
@@ -76,6 +72,7 @@ namespace Kita::Pbrv
         renderingInfo.layerCount = 1;
         renderingInfo.colorAttachmentCount = 1;
         renderingInfo.pColorAttachments = &colorAttachment;
+        renderingInfo.pDepthAttachment = &depthAttachment;
 
         vkCmdBeginRendering(commandBuffer, &renderingInfo);
 
@@ -99,87 +96,80 @@ namespace Kita::Pbrv
 
         // Draw
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout,
-            0, 1, &m_inputSet, 0, nullptr);
-        vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+            0, 1, &m_frameSets[frameIndex], 0, nullptr);
+        auto& skybox = list.m_skybox;
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout,
+            1, 1, &skybox.m_sets[frameIndex], 0, nullptr);
+        vkCmdDraw(commandBuffer, 36, 1, 0, 0);
 
         // End rendering
         vkCmdEndRendering(commandBuffer);
-
-        // Transition the image layout to present
-        TransitionImageLayout(commandBuffer,
-            m_swapChain.Image(imageIndex),
-            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-            VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-            VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, VK_ACCESS_2_NONE,
-            colorRange);
     }
 
-    void PostProcessPass::CreateDescriptorSetLayouts()
+    void SkyboxPass::CreateDescriptorSetLayouts()
     {
-        // Input layout
+        // Frame layout
         {
             std::vector<VkDescriptorSetLayoutBinding> bindings(1);
             bindings[0].binding = 0;
-            bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
             bindings[0].descriptorCount = 1;
-            bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+            bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
             VkDescriptorSetLayoutCreateInfo createInfo{};
             createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
             createInfo.bindingCount = static_cast<uint32_t>(bindings.size());
             createInfo.pBindings = bindings.data();
 
-            m_inputLayout = CreateDescriptorSetLayout(m_context.Device(), createInfo);
+            m_frameLayout = CreateDescriptorSetLayout(m_context.Device(), createInfo);
         }
     }
 
-    void PostProcessPass::AllocateDescriptorSets(const RenderList& /*list*/)
+    void SkyboxPass::AllocateDescriptorSets(const RenderList& list)
     {
-        // Input set
+        // Frame set
         {
             // Allocate
-            m_inputSet = m_descriptorAllocator.Allocate(m_inputLayout, "PostProcess input set");
+            for (auto& set : m_frameSets)
+            {
+                set = m_descriptorAllocator.Allocate(m_frameLayout, "SkyboxPass frame set");
+            }
 
             // Setup
-            UpdateInputSet(m_inputSet);
+            for (size_t i = 0; i < m_frameSets.size(); ++i)
+            {
+                auto& set = m_frameSets[i];
+
+                VkDescriptorBufferInfo bufferInfo{};
+                {
+                    RenderBuffer* buffer = m_resources.GetBuffer(list.m_frame.m_uboHandles[i]);
+                    assert(buffer && "Frame buffer handle is invalid");
+                    bufferInfo.buffer = buffer->m_buffer;
+                    bufferInfo.offset = 0;
+                    bufferInfo.range = sizeof(FrameUbo);
+                }
+
+                std::vector<VkWriteDescriptorSet> writes(1);
+                writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                writes[0].dstSet = set;
+                writes[0].dstBinding = 0;
+                writes[0].dstArrayElement = 0;
+                writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                writes[0].descriptorCount = 1;
+                writes[0].pBufferInfo = &bufferInfo;
+
+                vkUpdateDescriptorSets(m_context.Device(),
+                    static_cast<uint32_t>(writes.size()), writes.data()
+                    , 0, nullptr);
+            }
         }
     }
 
-    void PostProcessPass::UpdateInputSet(VkDescriptorSet set) const
-    {
-        VkDescriptorImageInfo imageInfo{};
-        {
-            auto& texture = m_target.m_colorTex;
-
-            RenderImageView* imageView = m_resources.GetImageView(texture.m_imageViewHandle);
-            assert(imageView && "Image view handle is invalid");
-            RenderSampler* sampler = m_resources.GetSampler(texture.m_samplerHandle);
-            assert(sampler && "Sampler handle is invalid");
-
-            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            imageInfo.imageView = imageView->m_imageView;
-            imageInfo.sampler = sampler->m_sampler;
-        }
-
-        std::vector<VkWriteDescriptorSet> writes(1);
-        writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writes[0].dstSet = set;
-        writes[0].dstBinding = 0;
-        writes[0].dstArrayElement = 0;
-        writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        writes[0].descriptorCount = 1;
-        writes[0].pImageInfo = &imageInfo;
-
-        vkUpdateDescriptorSets(m_context.Device(),
-            static_cast<uint32_t>(writes.size()), writes.data()
-            , 0, nullptr);
-    }
-
-    void PostProcessPass::CreatePipeline(const RenderList& /*list*/)
+    void SkyboxPass::CreatePipeline(const RenderList& list)
     {
         // Shaders
-        VkShaderModule vertShaderModule = CreateShaderModule(m_context.Device(), "assets/shaders/post_process_vert.spv");
-        VkShaderModule fragShaderModule = CreateShaderModule(m_context.Device(), "assets/shaders/post_process_frag.spv");
+        VkShaderModule vertShaderModule = CreateShaderModule(m_context.Device(), "assets/shaders/skybox_vert.spv");
+        VkShaderModule fragShaderModule = CreateShaderModule(m_context.Device(), "assets/shaders/skybox_frag.spv");
 
         VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
         vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -238,9 +228,9 @@ namespace Kita::Pbrv
         // Depth and stencil
         VkPipelineDepthStencilStateCreateInfo depthStencil{};
         depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-        depthStencil.depthTestEnable = VK_FALSE;
+        depthStencil.depthTestEnable = VK_TRUE;
         depthStencil.depthWriteEnable = VK_FALSE;
-        depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+        depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
         depthStencil.depthBoundsTestEnable = VK_FALSE;
         depthStencil.minDepthBounds = 0.0f;
         depthStencil.maxDepthBounds = 1.0f;
@@ -284,7 +274,8 @@ namespace Kita::Pbrv
         // Pipeline layout
         std::vector<VkDescriptorSetLayout> setLayouts
         {
-            m_inputLayout
+            m_frameLayout,
+            list.m_skybox.m_setLayout,
         };
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -300,12 +291,13 @@ namespace Kita::Pbrv
         // Dynamic rendering
         std::vector<VkFormat> colorAttachmentFormats
         {
-            m_swapChain.Format()
+            m_target.m_colorFormat
         };
         VkPipelineRenderingCreateInfo renderingInfo{};
         renderingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
         renderingInfo.colorAttachmentCount = static_cast<uint32_t>(colorAttachmentFormats.size());
         renderingInfo.pColorAttachmentFormats = colorAttachmentFormats.data();
+        renderingInfo.depthAttachmentFormat = m_target.m_depthFormat;
 
         // Pipeline
         std::vector<VkPipelineShaderStageCreateInfo> shaderStages

@@ -52,6 +52,11 @@ namespace Kita::Pbrv
         void DestroyRenderTexture(RenderTexture& texture) const;
         bool UpdateRenderTexture(RenderTexture& texture, uint32_t slot, const Texture& sceneTex) const;
 
+        RenderSkybox CreateRenderSkybox(const Skybox& sceneSkybox) const;
+        void DestroyRenderSkybox(RenderSkybox& skybox) const;
+        bool UpdateRenderSkybox(RenderSkybox& skybox, uint32_t frameIndex, const Skybox& sceneSkybox) const;
+        void WriteSkyboxSet(VkDescriptorSet set, const RenderTexture& texture) const;
+
     private:
         const RenderContext& m_context;
         RenderResources& m_resources;
@@ -61,7 +66,5 @@ namespace Kita::Pbrv
         RenderList m_list{};
 
         std::array<RenderTexture, kMaterialTextureCount> m_fallbackTextures{ 0 };
-
-        uint32_t m_matSetRefreshCount{ 0 };
     };
 }

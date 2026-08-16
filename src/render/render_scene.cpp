@@ -83,12 +83,9 @@ namespace Kita::Pbrv
         auto& frameIndex = frameInfo.m_frameIndex;
 
         UpdateRenderPerFrame(m_list.m_frame, frameIndex, scene.GetCamera(), scene.GetLight());
-
-        // Material
         UpdateRenderMaterial(m_list.m_material, frameIndex, scene.GetMaterial());
-
-        // Mesh
         UpdateRenderMesh(m_list.m_mesh, scene.GetMesh());
+        UpdateRenderSkybox(m_list.m_skybox, frameIndex, scene.GetSkybox());
     }
 
     const RenderList& RenderScene::GetRenderList() const
@@ -165,8 +162,10 @@ namespace Kita::Pbrv
     void RenderScene::UpdateRenderPerFrame(RenderPerFrame& frame, uint32_t frameIndex, const Camera& sceneCamera, const Light& sceneLight) const
     {
         FrameUbo ubo{};
-        ubo.m_viewProj = sceneCamera.GetProjectMatrix(m_swapChain.Aspect())
-            * sceneCamera.GetViewMatrix();
+        glm::mat4 view = sceneCamera.GetViewMatrix();
+        glm::mat4 proj = sceneCamera.GetProjectMatrix(m_swapChain.Aspect());
+        ubo.m_viewProj = proj * view;
+        ubo.m_skyboxViewProj = proj * glm::mat4(glm::mat3(view));
         ubo.m_viewPos = glm::vec4(sceneCamera.GetPosition(), 1.0f);
         ubo.m_lightDir = glm::vec4(sceneLight.GetDirection(), 0.0f);
         ubo.m_lightColor = glm::vec4(sceneLight.GetColor(), sceneLight.GetIntensity());
@@ -250,16 +249,16 @@ namespace Kita::Pbrv
 
         if (anyTexUpdated)
         {
-            m_matSetRefreshCount = kMaxFramesInFlight;
+            material.m_setRefreshCount = kMaxFramesInFlight;
 
             KITA_LOG_DEBUG("[Renderer] Update material descriptor set: textures changed");
         }
 
-        bool setRefreshed = m_matSetRefreshCount > 0;
+        bool setRefreshed = material.m_setRefreshCount > 0;
         if (setRefreshed)
         {
             WriteMaterialSet(material.m_sets[frameIndex], material.m_textures);
-            --m_matSetRefreshCount;
+            --material.m_setRefreshCount;
         }
     }
 
@@ -467,5 +466,82 @@ namespace Kita::Pbrv
         }
 
         return false;
+    }
+
+    RenderSkybox RenderScene::CreateRenderSkybox(const Skybox& sceneSkybox) const
+    {
+        RenderSkybox skybox{};
+
+        // Textures
+        // m_resources.CreateCubemapFromEquirectData
+
+        // Set layout
+        {
+            std::array<VkDescriptorSetLayoutBinding, 1> bindings{};
+            bindings[0].binding = 0;
+            bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            bindings[0].descriptorCount = 1;
+            bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+            VkDescriptorSetLayoutCreateInfo createInfo{};
+            createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+            createInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+            createInfo.pBindings = bindings.data();
+
+            skybox.m_setLayout = CreateDescriptorSetLayout(m_context.Device(), createInfo);
+        }
+
+        // Sets
+        {
+            for (auto& set : skybox.m_sets)
+            {
+                set = m_descriptorAllocator.Allocate(skybox.m_setLayout, "Skybox set");
+                WriteSkyboxSet(set, skybox.m_texture);
+            }
+        }
+
+        return skybox;
+    }
+
+    void RenderScene::DestroyRenderSkybox(RenderSkybox& skybox) const
+    {
+        // Sets will be destroyed automatically
+
+        // Set layout
+        vkDestroyDescriptorSetLayout(m_context.Device(), skybox.m_setLayout, nullptr);
+
+        // Textures
+        DestroyRenderTexture(skybox.m_texture);
+
+        skybox = {};
+    }
+
+    bool RenderScene::UpdateRenderSkybox(RenderSkybox& skybox, uint32_t frameIndex, const Skybox& sceneSkybox) const
+    {
+        if (sceneSkybox.IsDirty())
+        {
+            sceneSkybox.ClearDirty();
+
+            // Update texture
+
+            skybox.m_setRefreshCount = kMaxFramesInFlight;
+
+            KITA_LOG_DEBUG("[Renderer] Update skybox descriptor set: textures changed");
+
+            return true;
+        }
+
+        bool setRefreshed = skybox.m_setRefreshCount > 0;
+        if (setRefreshed)
+        {
+            WriteSkyboxSet(skybox.m_sets[frameIndex], skybox.m_texture);
+            --skybox.m_setRefreshCount;
+        }
+
+        return false;
+    }
+
+    void RenderScene::WriteSkyboxSet(VkDescriptorSet set, const RenderTexture& texture) const
+    {
     }
 }

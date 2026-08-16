@@ -4,6 +4,7 @@
 #include "scene/light.h"
 #include "scene/material.h"
 #include "scene/mesh.h"
+#include "scene/skybox.h"
 
 namespace Kita::Pbrv
 {
@@ -26,10 +27,14 @@ namespace Kita::Pbrv
         const Mesh& GetMesh() const { return m_mesh; }
         Mesh& GetMesh() { return m_mesh; }
 
+        const Skybox& GetSkybox() const { return m_skybox; }
+        Skybox& GetSkybox() { return m_skybox; }
+
     private:
-        Camera m_camera;
-        Light m_light;
-        Material m_material;
-        Mesh m_mesh;
+        Camera m_camera{};
+        Light m_light{};
+        Material m_material{};
+        Mesh m_mesh{};
+        Skybox m_skybox{};
     };
 }

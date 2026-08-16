@@ -3,6 +3,7 @@
 #include "render/render_resources.h"
 #include "render/swap_chain.h"
 #include "render/passes/lit_pass.h"
+#include "render/passes/skybox_pass.h"
 #include "render/passes/post_process_pass.h"
 
 #include <cassert>
@@ -155,9 +156,10 @@ namespace Kita::Pbrv
     {
         m_passes.push_back(std::make_unique<LitPass>(
             context, resources, swapChain, descriptorAllocator, list, m_target));
+        m_passes.push_back(std::make_unique<SkyboxPass>(
+            context, resources, swapChain, descriptorAllocator, list, m_target));
         m_passes.push_back(std::make_unique<PostProcessPass>(
             context, resources, swapChain, descriptorAllocator, list, m_target));
-
     }
 
     void RenderPipeline::DestroyRenderPasses()
