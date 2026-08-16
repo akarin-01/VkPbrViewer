@@ -97,6 +97,7 @@ add_executable(VkPbrViewer
     src/render/render_scene.cpp
     src/render/render_utils.cpp
     src/render/renderer.cpp
+    src/render/rendering_scope.cpp
     src/render/shader_module.cpp
     src/render/swap_chain.cpp
 

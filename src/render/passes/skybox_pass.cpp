@@ -9,6 +9,7 @@
 #include "render/data/render_frame_data.h"
 #include "render/data/render_skybox_data.h"
 #include "render/graphics_pipeline.h"
+#include "render/rendering_scope.h"
 
 #include <stdexcept>
 #include <array>
@@ -49,60 +50,36 @@ namespace Kita::Pbrv
 
         RenderImageView* colorImageView = m_resources.GetImageView(m_target.m_colorTex.m_imageViewHandle);
         assert(colorImageView && "SkyboxPass: Color image view handle is invalid");
-        VkRenderingAttachmentInfo colorAttachment{};
-        colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-        colorAttachment.imageView = colorImageView->m_imageView;
-        colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-        colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-
         RenderImageView* depthImageView = m_resources.GetImageView(m_target.m_depthTex.m_imageViewHandle);
         assert(depthImageView && "SkyboxPass: Depth image view handle is invalid");
-        VkRenderingAttachmentInfo depthAttachment{};
-        depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-        depthAttachment.imageView = depthImageView->m_imageView;
-        depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-        depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
-        VkRenderingInfo renderingInfo{};
-        renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
-        renderingInfo.renderArea.offset = { 0, 0 };
-        renderingInfo.renderArea.extent = extent;
-        renderingInfo.layerCount = 1;
-        renderingInfo.colorAttachmentCount = 1;
-        renderingInfo.pColorAttachments = &colorAttachment;
-        renderingInfo.pDepthAttachment = &depthAttachment;
+        // Begin rendering
+        {
+            RenderingAttachmentDesc colorDesc{};
+            colorDesc.m_imageView = colorImageView->m_imageView;
+            colorDesc.m_imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            colorDesc.m_loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+            colorDesc.m_storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
-        vkCmdBeginRendering(commandBuffer, &renderingInfo);
+            RenderingAttachmentDesc depthDesc{};
+            depthDesc.m_imageView = depthImageView->m_imageView;
+            depthDesc.m_imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            depthDesc.m_loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+            depthDesc.m_storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
-        // Viewport and scissor
-        VkViewport viewport{};
-        viewport.x = 0.0f;
-        viewport.y = 0.0f;
-        viewport.width = static_cast<float>(extent.width);
-        viewport.height = static_cast<float>(extent.height);
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
-        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+            RenderingScope scope(commandBuffer, extent, { colorDesc }, &depthDesc);
 
-        VkRect2D scissor{};
-        scissor.offset = { 0, 0 };
-        scissor.extent = extent;
-        vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+            // Bind pipeline
+            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Handle());
 
-        // Bind pipeline
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Handle());
-
-        // Draw
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-            0, 1, &m_frameData.GetSet(frameIndex), 0, nullptr);
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-            1, 1, &m_skybox.GetSet(frameIndex), 0, nullptr);
-        vkCmdDraw(commandBuffer, 36, 1, 0, 0);
-
+            // Draw
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
+                0, 1, &m_frameData.GetSet(frameIndex), 0, nullptr);
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
+                1, 1, &m_skybox.GetSet(frameIndex), 0, nullptr);
+            vkCmdDraw(commandBuffer, 36, 1, 0, 0);
+        }
         // End rendering
-        vkCmdEndRendering(commandBuffer);
     }
 
     void SkyboxPass::CreatePipeline()

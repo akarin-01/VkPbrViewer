@@ -6,6 +6,7 @@
 #include "render/swap_chain.h"
 #include "render/descriptor_allocator.h"
 #include "render/graphics_pipeline.h"
+#include "render/rendering_scope.h"
 
 #include <stdexcept>
 
@@ -62,50 +63,27 @@ namespace Kita::Pbrv
             VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
             colorRange);
 
-        // Begin rendering
-        VkRenderingAttachmentInfo colorAttachment{};
-        colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-        colorAttachment.imageView = m_swapChain.ImageView(imageIndex);
-        colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-
         VkExtent2D extent = m_swapChain.Extent();
-        VkRenderingInfo renderingInfo{};
-        renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
-        renderingInfo.renderArea.offset = { 0, 0 };
-        renderingInfo.renderArea.extent = extent;
-        renderingInfo.layerCount = 1;
-        renderingInfo.colorAttachmentCount = 1;
-        renderingInfo.pColorAttachments = &colorAttachment;
 
-        vkCmdBeginRendering(commandBuffer, &renderingInfo);
+        // Begin rendering
+        {
+            RenderingAttachmentDesc colorDesc{};
+            colorDesc.m_imageView = m_swapChain.ImageView(imageIndex);
+            colorDesc.m_imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            colorDesc.m_loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+            colorDesc.m_storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
-        // Viewport and scissor
-        VkViewport viewport{};
-        viewport.x = 0.0f;
-        viewport.y = 0.0f;
-        viewport.width = static_cast<float>(extent.width);
-        viewport.height = static_cast<float>(extent.height);
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
-        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+            RenderingScope scope(commandBuffer, extent, { colorDesc });
 
-        VkRect2D scissor{};
-        scissor.offset = { 0, 0 };
-        scissor.extent = extent;
-        vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+            // Bind pipeline
+            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Handle());
 
-        // Bind pipeline
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Handle());
-
-        // Draw
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-            0, 1, &m_inputSet, 0, nullptr);
-        vkCmdDraw(commandBuffer, 3, 1, 0, 0);
-
+            // Draw
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
+                0, 1, &m_inputSet, 0, nullptr);
+            vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+        }
         // End rendering
-        vkCmdEndRendering(commandBuffer);
 
         // Transition the image layout to present
         TransitionImageLayout(commandBuffer,
