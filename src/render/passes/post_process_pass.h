@@ -2,10 +2,12 @@
 
 #include "render/render_pass_base.h"
 
-#include <vulkan/vulkan.h>
+#include <memory>
 
 namespace Kita::Pbrv
 {
+    class GraphicsPipeline;
+
     class PostProcessPass : public RenderPassBase
     {
     public:
@@ -29,7 +31,6 @@ namespace Kita::Pbrv
         VkDescriptorSetLayout m_inputLayout{ VK_NULL_HANDLE };
         VkDescriptorSet m_inputSet{ VK_NULL_HANDLE };
 
-        VkPipeline m_pipeline{ VK_NULL_HANDLE };
-        VkPipelineLayout m_pipelineLayout{ VK_NULL_HANDLE };
+        std::unique_ptr<GraphicsPipeline> m_pipeline;
     };
 }

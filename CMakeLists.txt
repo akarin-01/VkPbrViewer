@@ -90,12 +90,14 @@ add_executable(VkPbrViewer
     # render
     src/render/descriptor_allocator.cpp
     src/render/frame_sync.cpp
+    src/render/graphics_pipeline.cpp
     src/render/render_context.cpp
     src/render/render_pipeline.cpp
     src/render/render_resources.cpp
     src/render/render_scene.cpp
     src/render/render_utils.cpp
     src/render/renderer.cpp
+    src/render/shader_module.cpp
     src/render/swap_chain.cpp
 
     #render data

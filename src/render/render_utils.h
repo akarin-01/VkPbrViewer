@@ -59,7 +59,4 @@ namespace Kita::Pbrv
     void CopyBufferToImage(VkCommandBuffer commandBuffer, VkBuffer src, VkImage dst, const VkBufferImageCopy& region);
 
     VkDescriptorSetLayout CreateDescriptorSetLayout(VkDevice device, const VkDescriptorSetLayoutCreateInfo& createInfo);
-
-    VkShaderModule CreateShaderModule(VkDevice device, const std::string& filePath);
-    std::vector<char> ReadFile(const std::string& path);
 }

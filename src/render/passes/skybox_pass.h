@@ -2,12 +2,13 @@
 
 #include "render/render_pass_base.h"
 
-#include <vulkan/vulkan.h>
+#include <memory>
 
 namespace Kita::Pbrv
 {
     class RenderFrameData;
     class RenderSkyboxData;
+    class GraphicsPipeline;
 
     class SkyboxPass : public RenderPassBase
     {
@@ -31,7 +32,6 @@ namespace Kita::Pbrv
         const RenderFrameData& m_frameData;
         const RenderSkyboxData& m_skybox;
 
-        VkPipeline m_pipeline{ VK_NULL_HANDLE };
-        VkPipelineLayout m_pipelineLayout{ VK_NULL_HANDLE };
+        std::unique_ptr<GraphicsPipeline> m_pipeline;
     };
 }

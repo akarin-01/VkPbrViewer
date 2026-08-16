@@ -2,13 +2,14 @@
 
 #include "render/render_pass_base.h"
 
-#include <vulkan/vulkan.h>
+#include <memory>
 
 namespace Kita::Pbrv
 {
     class RenderFrameData;
     class RenderMaterialData;
     class RenderMeshData;
+    class GraphicsPipeline;
 
     class LitPass : public RenderPassBase
     {
@@ -34,7 +35,6 @@ namespace Kita::Pbrv
         const RenderMaterialData& m_materialData;
         const RenderMeshData& m_meshData;
 
-        VkPipeline m_pipeline{ VK_NULL_HANDLE };
-        VkPipelineLayout m_pipelineLayout{ VK_NULL_HANDLE };
+        std::unique_ptr<GraphicsPipeline> m_pipeline;
     };
 }

@@ -246,43 +246,4 @@ namespace Kita::Pbrv
 
         return layout;
     }
-
-    VkShaderModule CreateShaderModule(VkDevice device, const std::string& filePath)
-    {
-        auto code = ReadFile(filePath);
-
-        VkShaderModule shaderModule;
-
-        VkShaderModuleCreateInfo shaderInfo{};
-        shaderInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-        shaderInfo.codeSize = code.size();
-        shaderInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
-
-        if (vkCreateShaderModule(device, &shaderInfo, nullptr, &shaderModule) != VK_SUCCESS)
-        {
-            throw std::runtime_error("Failed to create shader module!");
-        }
-
-        return shaderModule;
-    }
-
-    std::vector<char> ReadFile(const std::string& path)
-    {
-        std::ifstream file(path, std::ios::ate | std::ios::binary);
-
-        if (!file.is_open())
-        {
-            throw std::runtime_error("Failed to open file " + path + "!");
-        }
-
-        size_t filesize = static_cast<size_t>(file.tellg());
-        std::vector<char> buffer(filesize);
-
-        file.seekg(0);
-        file.read(buffer.data(), filesize);
-
-        file.close();
-
-        return buffer;
-    }
 }
