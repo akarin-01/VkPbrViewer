@@ -109,6 +109,7 @@ add_executable(VkPbrViewer
     src/scene/light.cpp
     src/scene/material.cpp
     src/scene/mesh.cpp
+    src/scene/skybox.cpp
     src/scene/texture.cpp
 )
 

@@ -6,18 +6,16 @@ namespace Kita::Pbrv
 {
     namespace
     {
-        std::string TypeToString(Texture::Type type)
+        const char* ToString(TextureType type)
         {
             switch (type)
             {
-            case Texture::Type::Albedo:
+            case TextureType::Albedo:
                 return "Albedo";
-            case Texture::Type::Normal:
+            case TextureType::Normal:
                 return "Normal";
-            case Texture::Type::Linear:
+            case TextureType::Linear:
                 return "Linear";
-            case Texture::Type::Hdr:
-                return "Hdr";
             default:
                 return "Unknown";
             }
@@ -28,7 +26,7 @@ namespace Kita::Pbrv
 
     Texture::~Texture() = default;
 
-    void Texture::SetData(const std::string& name, std::vector<uint8_t>&& pixels, uint32_t width, uint32_t height, Type type)
+    void Texture::SetData(const std::string& name, std::vector<uint8_t>&& pixels, uint32_t width, uint32_t height, TextureType type)
     {
         bool unchanged = m_name == name
             && m_pixels == pixels
@@ -51,11 +49,11 @@ namespace Kita::Pbrv
         KITA_LOG_DEBUG("[Scene] Set texture data: ", m_name, ", ",
             m_pixels.size(), " pixels, ",
             m_width, " * ", m_height, " ",
-            TypeToString(m_type), " type");
+            ToString(m_type), " type");
     }
 
     void Texture::SetEmpty()
     {
-        SetData("empty", {}, 0, 0, Type::None);
+        SetData("empty", {}, 0, 0, TextureType::None);
     }
 }

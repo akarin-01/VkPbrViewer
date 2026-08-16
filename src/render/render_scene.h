@@ -32,8 +32,6 @@ namespace Kita::Pbrv
         const RenderList& GetRenderList() const;
 
     private:
-        void CreateSamplers();
-        void DestroySamplers();
         void CreateFallbackTextures();
         void DestroyFallbackTextures();
 
@@ -50,7 +48,7 @@ namespace Kita::Pbrv
         void DestroyRenderMesh(RenderMesh& mesh) const;
         bool UpdateRenderMesh(RenderMesh& mesh, const Mesh& sceneMesh) const;
 
-        RenderTexture CreateRenderTexture(const Texture& sceneTex, RenderSamplerHandle samplerHandle) const;
+        RenderTexture CreateRenderTexture(const Texture& sceneTex) const;
         void DestroyRenderTexture(RenderTexture& texture) const;
         bool UpdateRenderTexture(RenderTexture& texture, uint32_t slot, const Texture& sceneTex) const;
 
@@ -62,7 +60,6 @@ namespace Kita::Pbrv
 
         RenderList m_list{};
 
-        RenderSamplerHandle m_linearRepeatSamplerHandle{ 0 };
         std::array<RenderTexture, kMaterialTextureCount> m_fallbackTextures{ 0 };
 
         uint32_t m_matSetRefreshCount{ 0 };

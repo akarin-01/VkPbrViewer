@@ -111,6 +111,14 @@ namespace Kita::Pbrv
         KITA_LOG_DEBUG("[Resources] Defer destroy buffer(", handle, ") -> frame ", m_frameIndex);
     }
 
+    void RenderResources::WriteBuffer(RenderBufferHandle handle, const void* data, size_t size, size_t offset)
+    {
+        RenderBuffer* buffer = GetBuffer(handle);
+
+        assert(buffer && "Invalid buffer handle to write");
+        WriteBufferHelper(*buffer, data, size, offset);
+    }
+
     RenderImageHandle RenderResources::CreateImage(VkImageCreateInfo imageInfo, VkMemoryPropertyFlags properties)
     {
         auto renderImage = CreateImageHelper(imageInfo, properties);
@@ -228,6 +236,74 @@ namespace Kita::Pbrv
         RenderSamplerHandle handle = m_samplers.Add(std::move(sampler));
         KITA_LOG_DEBUG("[Resources] Create sampler(", handle, ")");
         return handle;
+    }
+
+    RenderSamplerHandle RenderResources::CreateSamplerLinearRepeatMip()
+    {
+        VkSamplerCreateInfo samplerInfo{};
+        samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        samplerInfo.magFilter = VK_FILTER_LINEAR;
+        samplerInfo.minFilter = VK_FILTER_LINEAR;
+        samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        // Todo: Enable Anisotropy
+        samplerInfo.anisotropyEnable = VK_FALSE;
+        samplerInfo.unnormalizedCoordinates = VK_FALSE;
+        samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+        samplerInfo.compareEnable = VK_FALSE;
+        samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+        samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        samplerInfo.mipLodBias = 0.0f;
+        samplerInfo.minLod = 0.0f;
+        samplerInfo.maxLod = VK_LOD_CLAMP_NONE;
+
+        return CreateSampler(samplerInfo);
+    }
+
+    RenderSamplerHandle RenderResources::CreateSamplerLinearClampNoMip()
+    {
+        VkSamplerCreateInfo samplerInfo{};
+        samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        samplerInfo.magFilter = VK_FILTER_LINEAR;
+        samplerInfo.minFilter = VK_FILTER_LINEAR;
+        samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        // Todo: Enable Anisotropy
+        samplerInfo.anisotropyEnable = VK_FALSE;
+        samplerInfo.unnormalizedCoordinates = VK_FALSE;
+        samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+        samplerInfo.compareEnable = VK_FALSE;
+        samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+        samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        samplerInfo.mipLodBias = 0.0f;
+        samplerInfo.minLod = 0.0f;
+        samplerInfo.maxLod = 0.0f;
+
+        return CreateSampler(samplerInfo);
+    }
+
+    RenderSamplerHandle RenderResources::CreateSamplerNearestClampNoMip()
+    {
+        VkSamplerCreateInfo samplerInfo{};
+        samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        samplerInfo.magFilter = VK_FILTER_NEAREST;
+        samplerInfo.minFilter = VK_FILTER_NEAREST;
+        samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerInfo.anisotropyEnable = VK_FALSE;
+        samplerInfo.unnormalizedCoordinates = VK_FALSE;
+        samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+        samplerInfo.compareEnable = VK_FALSE;
+        samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+        samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        samplerInfo.mipLodBias = 0.0f;
+        samplerInfo.minLod = 0.0f;
+        samplerInfo.maxLod = 0.0f;
+
+        return CreateSampler(samplerInfo);
     }
 
     RenderSampler* RenderResources::GetSampler(RenderSamplerHandle handle) const
@@ -371,13 +447,5 @@ namespace Kita::Pbrv
     void RenderResources::DestroySamplerHelper(const RenderSampler& sampler) const
     {
         vkDestroySampler(m_context.Device(), sampler.m_sampler, nullptr);
-    }
-
-    void RenderResources::WriteBuffer(RenderBufferHandle handle, const void* data, size_t size, size_t offset)
-    {
-        RenderBuffer* buffer = GetBuffer(handle);
-
-        assert(buffer && "Invalid buffer handle to write");
-        WriteBufferHelper(*buffer, data, size, offset);
     }
 }

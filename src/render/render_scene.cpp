@@ -19,18 +19,16 @@ namespace Kita::Pbrv
 {
     namespace
     {
-        VkFormat TypeToFormat(Texture::Type type)
+        VkFormat ToFormat(TextureType type)
         {
             switch (type)
             {
-            case Texture::Type::Albedo:
+            case TextureType::Albedo:
                 return VK_FORMAT_R8G8B8A8_SRGB;
-            case Texture::Type::Normal:
+            case TextureType::Normal:
                 return VK_FORMAT_R8G8B8A8_UNORM;
-            case Texture::Type::Linear:
+            case TextureType::Linear:
                 return VK_FORMAT_R8_UNORM;
-            case Texture::Type::Hdr:
-                return VK_FORMAT_R16G16B16A16_SFLOAT;
             default:
                 throw std::runtime_error("Invalid texture type!");
             }
@@ -65,7 +63,6 @@ namespace Kita::Pbrv
         m_swapChain(swapChain),
         m_descriptorAllocator(descriptorAllocator)
     {
-        CreateSamplers();
         CreateFallbackTextures();
 
         m_list.m_frame = CreateRenderPerFrame();
@@ -79,7 +76,6 @@ namespace Kita::Pbrv
         DestroyRenderMesh(m_list.m_mesh);
         DestroyRenderPerFrame(m_list.m_frame);
         DestroyFallbackTextures();
-        DestroySamplers();
     }
 
     void RenderScene::Update(const Scene& scene, const FrameInfo& frameInfo)
@@ -100,40 +96,6 @@ namespace Kita::Pbrv
         return m_list;
     }
 
-    void RenderScene::CreateSamplers()
-    {
-        // Linear repeat
-        {
-            VkSamplerCreateInfo createInfo{};
-            createInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-            createInfo.magFilter = VK_FILTER_LINEAR;
-            createInfo.minFilter = VK_FILTER_LINEAR;
-            createInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            createInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            createInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            // Todo: Enable Anisotropy
-            createInfo.anisotropyEnable = VK_FALSE;
-            createInfo.unnormalizedCoordinates = VK_FALSE;
-            createInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-            createInfo.compareEnable = VK_FALSE;
-            createInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-            createInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-            createInfo.mipLodBias = 0.0f;
-            createInfo.minLod = 0.0f;
-            createInfo.maxLod = VK_LOD_CLAMP_NONE;
-
-            m_linearRepeatSamplerHandle = m_resources.CreateSampler(createInfo);
-        }
-    }
-
-    void RenderScene::DestroySamplers()
-    {
-        // Linear repeat
-        {
-            m_resources.DestroySampler(m_linearRepeatSamplerHandle);
-        }
-    }
-
     void RenderScene::CreateFallbackTextures()
     {
         uint8_t white[] = { 255, 255, 255, 255 };
@@ -144,20 +106,20 @@ namespace Kita::Pbrv
         // Albedo
         {
             Texture tex{};
-            tex.SetData("fallback", std::vector<uint8_t>(white, white + 4), width, height, Texture::Type::Albedo);
-            m_fallbackTextures[Albedo] = CreateRenderTexture(tex, m_linearRepeatSamplerHandle);
+            tex.SetData("fallback", std::vector<uint8_t>(white, white + 4), width, height, TextureType::Albedo);
+            m_fallbackTextures[Albedo] = CreateRenderTexture(tex);
         }
         // Normal
         {
             Texture tex{};
-            tex.SetData("fallback", std::vector<uint8_t>(flat, flat + 4), width, height, Texture::Type::Normal);
-            m_fallbackTextures[Normal] = CreateRenderTexture(tex, m_linearRepeatSamplerHandle);
+            tex.SetData("fallback", std::vector<uint8_t>(flat, flat + 4), width, height, TextureType::Normal);
+            m_fallbackTextures[Normal] = CreateRenderTexture(tex);
         }
         // Linear
         {
             Texture tex{};
-            tex.SetData("fallback", std::vector<uint8_t>(white, white + 1), width, height, Texture::Type::Linear);
-            RenderTexture linearFallback = CreateRenderTexture(tex, m_linearRepeatSamplerHandle);
+            tex.SetData("fallback", std::vector<uint8_t>(white, white + 1), width, height, TextureType::Linear);
+            RenderTexture linearFallback = CreateRenderTexture(tex);
             m_fallbackTextures[Metallic] = linearFallback;
             m_fallbackTextures[Roughness] = linearFallback;
             m_fallbackTextures[AO] = linearFallback;
@@ -404,20 +366,20 @@ namespace Kita::Pbrv
         return false;
     }
 
-    RenderTexture RenderScene::CreateRenderTexture(const Texture& sceneTex, RenderSamplerHandle samplerHandle) const
+    RenderTexture RenderScene::CreateRenderTexture(const Texture& sceneTex) const
     {
         auto& pixels = sceneTex.GetPixels();
         auto width = sceneTex.GetWidth();
         auto height = sceneTex.GetHeight();
         auto type = sceneTex.GetType();
 
-        VkFormat format = TypeToFormat(type);
+        VkFormat format = ToFormat(type);
         auto mipLevels = static_cast<uint32_t>(
             std::floor(std::log2(std::max(width, height))) + 1
             );
 
         // Image
-        RenderImageHandle imageHandle;
+        RenderImageHandle imageHandle{ 0 };
         {
             VkImageCreateInfo imageInfo{};
             imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -439,7 +401,7 @@ namespace Kita::Pbrv
         }
 
         // Image view
-        RenderImageViewHandle imageViewHandle;
+        RenderImageViewHandle imageViewHandle{ 0 };
         {
             RenderImage* image = m_resources.GetImage(imageHandle);
             assert(image && "Image handle is invalid");
@@ -458,11 +420,15 @@ namespace Kita::Pbrv
             imageViewHandle = m_resources.CreateImageView(imageViewInfo);
         }
 
+        // Sampler
+        RenderSamplerHandle samplerHandle = m_resources.CreateSamplerLinearRepeatMip();
+
         return { imageHandle, imageViewHandle, samplerHandle };
     }
 
     void RenderScene::DestroyRenderTexture(RenderTexture& texture) const
     {
+        m_resources.DestroySampler(texture.m_samplerHandle);
         m_resources.DestroyImageView(texture.m_imageViewHandle);
         m_resources.DestroyImage(texture.m_imageHandle);
 
@@ -490,7 +456,7 @@ namespace Kita::Pbrv
             else
             {
                 // New texture is not empty, create new texture
-                newTex = CreateRenderTexture(sceneTex, m_linearRepeatSamplerHandle);
+                newTex = CreateRenderTexture(sceneTex);
 
                 Log::Info("[Renderer] Upload ", ToString(MaterialTextureSlot(slot)), " texture: ",
                     sceneTex.GetName(), ", ", sceneTex.GetPixelCount(), " bytes");

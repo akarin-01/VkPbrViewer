@@ -144,6 +144,9 @@ namespace Kita::Pbrv
         void DestroyImageView(RenderImageViewHandle handle);
 
         RenderSamplerHandle CreateSampler(const VkSamplerCreateInfo& createInfo);
+        RenderSamplerHandle CreateSamplerLinearRepeatMip();
+        RenderSamplerHandle CreateSamplerLinearClampNoMip();
+        RenderSamplerHandle CreateSamplerNearestClampNoMip();
         RenderSampler* GetSampler(RenderSamplerHandle handle) const;
         void DestroySampler(RenderSamplerHandle handle);
 

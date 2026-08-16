@@ -183,42 +183,61 @@ namespace Kita::Pbrv
         mesh.SetData(name, std::move(vertices), std::move(indices));
     }
 
-    void AssetLoader::LoadTexture(const std::string& path, Texture::Type type, Texture& texture)
+    void AssetLoader::LoadTexture(const std::string& path, TextureType type, Texture& texture)
     {
         Log::Info("[Scene] Load texture: ", path);
 
         std::vector<uint8_t> pixels;
         uint32_t width, height;
         {
-            bool isHdr = (type == Texture::Type::Hdr);
-            if (isHdr)
-            {
-                // Todo: Load hdr texture
-                throw std::runtime_error("Hdr not implemented");
-            }
-            else
-            {
-                int desiredChannels = (type == Texture::Type::Linear) ? 1 : 4;
+            int desiredChannels = (type == TextureType::Linear) ? 1 : 4;
 
-                int texWidth, texHeight, texChannels;
-                stbi_uc* data = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, desiredChannels);
-                if (!data)
-                {
-                    throw std::runtime_error("Failed to load texture image");
-                }
-                size_t byteSize = static_cast<size_t>(texWidth)
-                    * static_cast<size_t>(texHeight)
-                    * static_cast<size_t>(desiredChannels);
-                pixels.assign(data, data + byteSize);
-                width = static_cast<uint32_t>(texWidth);
-                height = static_cast<uint32_t>(texHeight);
-
-                stbi_image_free(data);
+            int texWidth, texHeight, texChannels;
+            stbi_uc* data = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, desiredChannels);
+            if (!data)
+            {
+                throw std::runtime_error("Failed to load texture image");
             }
+            size_t byteSize = static_cast<size_t>(texWidth)
+                * static_cast<size_t>(texHeight)
+                * static_cast<size_t>(desiredChannels);
+            pixels.assign(data, data + byteSize);
+            width = static_cast<uint32_t>(texWidth);
+            height = static_cast<uint32_t>(texHeight);
+
+            stbi_image_free(data);
         }
 
         std::string name = std::filesystem::path(path).stem().string();
 
         texture.SetData(name, std::move(pixels), width, height, type);
+    }
+
+    void AssetLoader::LoadSkybox(const std::string& path, Skybox& skybox)
+    {
+        Log::Info("[Scene] Load skybox: ", path);
+
+        std::vector<float> pixels;
+        uint32_t width, height;
+        {
+            int texWidth, texHeight, texChannels;
+            float* data = stbi_loadf(path.c_str(), &texWidth, &texHeight, &texChannels, 0);
+            if (!data)
+            {
+                throw std::runtime_error("Failed to load skybox image");
+            }
+            size_t byteSize = static_cast<size_t>(texWidth)
+                * static_cast<size_t>(texHeight)
+                * static_cast<size_t>(texChannels);
+            pixels.assign(data, data + byteSize);
+            width = static_cast<uint32_t>(texWidth);
+            height = static_cast<uint32_t>(texHeight);
+
+            stbi_image_free(data);
+        }
+
+        std::string name = std::filesystem::path(path).stem().string();
+
+        skybox.SetData(name, std::move(pixels), width, height);
     }
 }

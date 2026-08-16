@@ -10,7 +10,7 @@
 #include "scene/asset_loader.h"
 #include "scene/camera_controller.h"
 
-using TextureType = Kita::Pbrv::Texture::Type;
+using TextureType = Kita::Pbrv::TextureType;
 using Key = Kita::Pbrv::Key;
 using MouseButton = Kita::Pbrv::MouseButton;
 

@@ -81,25 +81,7 @@ namespace Kita::Pbrv
             imageViewInfo.subresourceRange.layerCount = 1;
             tex.m_imageViewHandle = m_resources.CreateImageView(imageViewInfo);
 
-            VkSamplerCreateInfo samplerInfo{};
-            samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-            samplerInfo.magFilter = VK_FILTER_LINEAR;
-            samplerInfo.minFilter = VK_FILTER_LINEAR;
-            samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-            samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-            samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-            // Todo: Enable Anisotropy
-            samplerInfo.anisotropyEnable = VK_FALSE;
-            samplerInfo.unnormalizedCoordinates = VK_FALSE;
-            samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-            samplerInfo.compareEnable = VK_FALSE;
-            samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-            samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-            samplerInfo.mipLodBias = 0.0f;
-            samplerInfo.minLod = 0.0f;
-            samplerInfo.maxLod = 0.0f;
-
-            tex.m_samplerHandle = m_resources.CreateSampler(samplerInfo);
+            tex.m_samplerHandle = m_resources.CreateSamplerLinearClampNoMip();
         }
 
         m_target.m_depthFormat = VK_FORMAT_D32_SFLOAT;      // m_context.GetDepthFormat()
@@ -135,24 +117,7 @@ namespace Kita::Pbrv
             imageViewInfo.subresourceRange.layerCount = 1;
             tex.m_imageViewHandle = m_resources.CreateImageView(imageViewInfo);
 
-            VkSamplerCreateInfo samplerInfo{};
-            samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-            samplerInfo.magFilter = VK_FILTER_NEAREST;
-            samplerInfo.minFilter = VK_FILTER_NEAREST;
-            samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-            samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-            samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-            samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-            samplerInfo.mipLodBias = 0.0f;
-            samplerInfo.anisotropyEnable = VK_FALSE;
-            samplerInfo.maxAnisotropy = 1.0f;
-            samplerInfo.compareEnable = VK_FALSE;
-            samplerInfo.compareOp = VK_COMPARE_OP_NEVER;
-            samplerInfo.minLod = 0.0f;
-            samplerInfo.maxLod = 0.0f;
-            samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
-            samplerInfo.unnormalizedCoordinates = VK_FALSE;
-            tex.m_samplerHandle = m_resources.CreateSampler(samplerInfo);
+            tex.m_samplerHandle = m_resources.CreateSamplerNearestClampNoMip();
         }
     }
 
