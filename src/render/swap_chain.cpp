@@ -110,8 +110,15 @@ namespace Kita::Pbrv
         return false;
     }
 
+    VkImage SwapChain::Image(uint32_t index) const
+    {
+        assert(index < m_images.size() && "Swap chain image index out of range");
+        return m_images[index];
+    }
+
     VkImageView SwapChain::ImageView(uint32_t index) const
     {
+        assert(index < m_imageViewHandles.size() && "Swap chain image view index out of range");
         RenderImageView* imageView = m_resources.GetImageView(m_imageViewHandles[index]);
         assert(imageView && "Swap chain image view handle is invalid");
 

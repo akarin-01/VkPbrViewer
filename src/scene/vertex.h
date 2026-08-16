@@ -50,7 +50,6 @@ namespace Kita::Pbrv
             return attributeDescriptions;
         }
 
-        /// 用于 Mesh::SetData 的防重比较（顶点内容未变则跳过）。
         bool operator==(const Vertex& other) const
         {
             return position == other.position

@@ -3,7 +3,6 @@
 #include "core/log.h"
 #include "scene/vertex.h"
 
-// TINYGLTF_NO_STB_IMAGE_WRITE: 渲染器只需读取模型，禁掉 WriteImageData（保存图片）的 stbi_write 依赖
 #define TINYGLTF_IMPLEMENTATION
 #define TINYGLTF_NO_STB_IMAGE_WRITE
 #include <tiny_gltf.h>
@@ -137,9 +136,9 @@ namespace Kita::Pbrv
             bool hasTexCoord = (texCoordIt != primitive.attributes.end());
             const tinygltf::Accessor* texCoordAccessor = hasTexCoord ? &model.accessors[texCoordIt->second] : nullptr;
 
-            auto tagentIt = primitive.attributes.find("TANGENT");
-            bool hasTangent = (tagentIt != primitive.attributes.end());
-            const tinygltf::Accessor* tangentAccessor = hasTangent ? &model.accessors[tagentIt->second] : nullptr;
+            auto tangentIt = primitive.attributes.find("TANGENT");
+            bool hasTangent = (tangentIt != primitive.attributes.end());
+            const tinygltf::Accessor* tangentAccessor = hasTangent ? &model.accessors[tangentIt->second] : nullptr;
 
             const uint32_t baseVertexIdx = static_cast<uint32_t>(vertices.size());
             vertices.resize(vertices.size() + positionAccessor.count);

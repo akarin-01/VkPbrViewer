@@ -22,7 +22,7 @@ namespace Kita::Pbrv
 
         VkSwapchainKHR Handle() const { return m_swapChain; }
         size_t ImageCount() const { return m_images.size(); }
-        VkImage Image(uint32_t index) const { return m_images[index]; }
+        VkImage Image(uint32_t index) const;
         VkImageView ImageView(uint32_t index) const;
         VkFormat Format() const { return m_format; }
         VkExtent2D Extent() const { return m_extent; }
