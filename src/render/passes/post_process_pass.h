@@ -1,11 +1,8 @@
 #pragma once
 
 #include "render/render_pass_base.h"
-#include "render/render_resource_types.h"
-#include "render/render_constants.h"
 
 #include <vulkan/vulkan.h>
-#include <array>
 
 namespace Kita::Pbrv
 {
@@ -16,18 +13,17 @@ namespace Kita::Pbrv
             RenderResources& resources,
             const SwapChain& swapChain,
             const DescriptorAllocator& descriptorAllocator,
-            const RenderList& list,
             const RenderTarget& target);
         ~PostProcessPass();
 
         void RecreateResources() override;
-        void Draw(const RenderList& list, const FrameInfo& frameInfo) const override;
+        void Draw(const FrameInfo& frameInfo) const override;
 
     private:
         void CreateDescriptorSetLayouts();
-        void AllocateDescriptorSets(const RenderList& list);
+        void AllocateDescriptorSets();
         void UpdateInputSet(VkDescriptorSet set) const;
-        void CreatePipeline(const RenderList& list);
+        void CreatePipeline();
 
     private:
         VkDescriptorSetLayout m_inputLayout{ VK_NULL_HANDLE };

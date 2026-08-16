@@ -1,0 +1,313 @@
+#include "material_cache.h"
+
+#include "core/log.h"
+#include "render/render_context.h"
+#include "render/render_utils.h"
+#include "render/render_resources.h"
+#include "render/descriptor_allocator.h"
+#include "scene/material.h"
+#include "scene/texture.h"
+
+#include <glm/glm.hpp>
+#include <cassert>
+#include <stdexcept>
+#include <algorithm>
+#include <cmath>
+
+namespace Kita::Pbrv
+{
+    namespace
+    {
+        VkFormat ToFormat(TextureType type)
+        {
+            switch (type)
+            {
+            case TextureType::Albedo:
+                return VK_FORMAT_R8G8B8A8_SRGB;
+            case TextureType::Normal:
+                return VK_FORMAT_R8G8B8A8_UNORM;
+            case TextureType::Linear:
+                return VK_FORMAT_R8_UNORM;
+            default:
+                throw std::runtime_error("Invalid texture type!");
+            }
+        }
+
+        const Texture& GetTexture(const Material& mat, uint32_t slot)
+        {
+            switch (slot)
+            {
+            case Albedo:
+                return mat.GetAlbedoTex();
+            case Normal:
+                return mat.GetNormalTex();
+            case Metallic:
+                return mat.GetMetallicTex();
+            case Roughness:
+                return mat.GetRoughnessTex();
+            case AO:
+                return mat.GetAOTex();
+            default:
+                throw std::runtime_error("Invalid texture slot!");
+            }
+        }
+    }
+
+    MaterialCache::MaterialCache(const RenderContext& context,
+        RenderResources& resources,
+        const DescriptorAllocator& descriptorAllocator)
+        : m_context(context),
+        m_resources(resources),
+        m_descriptorAllocator(descriptorAllocator)
+    {
+        CreateFallbacks();
+
+        // Textures
+        m_textures = m_fallbackTextures;
+
+        // Set layout
+        {
+            std::array<VkDescriptorSetLayoutBinding, 1> bindings{};
+            bindings[0].binding = 0;
+            bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            bindings[0].descriptorCount = kMaterialTextureCount;
+            bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+            VkDescriptorSetLayoutCreateInfo createInfo{};
+            createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+            createInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+            createInfo.pBindings = bindings.data();
+
+            m_setLayout = CreateDescriptorSetLayout(m_context.Device(), createInfo);
+        }
+
+        // Sets
+        {
+            for (auto& set : m_sets)
+            {
+                set = m_descriptorAllocator.Allocate(m_setLayout, "Material set");
+                WriteSet(set);
+            }
+        }
+    }
+
+    MaterialCache::~MaterialCache()
+    {
+        // Sets will be destroyed automatically
+
+        // Textures (skip fallbacks; they are destroyed together below)
+        for (size_t i = 0; i < m_textures.size(); ++i)
+        {
+            if (m_textures[i] != m_fallbackTextures[i])
+            {
+                DestroyTexture(m_textures[i]);
+            }
+        }
+
+        // Set layout
+        vkDestroyDescriptorSetLayout(m_context.Device(), m_setLayout, nullptr);
+
+        DestroyFallbacks();
+    }
+
+    void MaterialCache::Update(uint32_t frameIndex, const Material& sceneMat)
+    {
+        m_pushConstant.m_albedo = sceneMat.GetAlbedo();
+        m_pushConstant.m_params = glm::vec4(sceneMat.GetMetallic(),
+            sceneMat.GetRoughness(),
+            sceneMat.GetAO(),
+            0.0f);
+
+        bool anyTexUpdated = false;
+        for (uint32_t i = 0; i < kMaterialTextureCount; ++i)
+        {
+            anyTexUpdated |= UpdateTextureSlot(i, GetTexture(sceneMat, i));
+        }
+
+        if (anyTexUpdated)
+        {
+            m_setRefreshCount = kMaxFramesInFlight;
+
+            KITA_LOG_DEBUG("[Renderer] Update material descriptor set: textures changed");
+        }
+
+        bool setRefreshed = m_setRefreshCount > 0;
+        if (setRefreshed)
+        {
+            WriteSet(m_sets[frameIndex]);
+            --m_setRefreshCount;
+        }
+    }
+
+    void MaterialCache::CreateFallbacks()
+    {
+        uint8_t white[] = { 255, 255, 255, 255 };
+        uint8_t flat[] = { 128, 128, 255, 255 };
+        uint32_t width = 1;
+        uint32_t height = 1;
+
+        // Albedo
+        {
+            Texture tex{};
+            tex.SetData("fallback", std::vector<uint8_t>(white, white + 4), width, height, TextureType::Albedo);
+            m_fallbackTextures[Albedo] = CreateTexture(tex);
+        }
+        // Normal
+        {
+            Texture tex{};
+            tex.SetData("fallback", std::vector<uint8_t>(flat, flat + 4), width, height, TextureType::Normal);
+            m_fallbackTextures[Normal] = CreateTexture(tex);
+        }
+        // Linear
+        {
+            Texture tex{};
+            tex.SetData("fallback", std::vector<uint8_t>(white, white + 1), width, height, TextureType::Linear);
+            RenderTexture linearFallback = CreateTexture(tex);
+            m_fallbackTextures[Metallic] = linearFallback;
+            m_fallbackTextures[Roughness] = linearFallback;
+            m_fallbackTextures[AO] = linearFallback;
+        }
+    }
+
+    void MaterialCache::DestroyFallbacks()
+    {
+        for (auto& texture : m_fallbackTextures)
+        {
+            DestroyTexture(texture);
+        }
+    }
+
+    bool MaterialCache::UpdateTextureSlot(uint32_t slot, const Texture& sceneTex)
+    {
+        if (sceneTex.IsDirty())
+        {
+            sceneTex.ClearDirty();
+
+            bool isOldFallback = m_textures[slot] == m_fallbackTextures[slot];
+            if (!isOldFallback)
+            {
+                DestroyTexture(m_textures[slot]);
+            }
+
+            RenderTexture newTex{};
+            if (sceneTex.IsEmpty())
+            {
+                // New texture is empty, use fallback
+                newTex = m_fallbackTextures[slot];
+            }
+            else
+            {
+                // New texture is not empty, create new texture
+                newTex = CreateTexture(sceneTex);
+
+                Log::Info("[Renderer] Upload ", ToString(MaterialTextureSlot(slot)), " texture: ",
+                    sceneTex.GetName(), ", ", sceneTex.GetPixelCount(), " bytes");
+            }
+            m_textures[slot] = newTex;
+
+            return true;
+        }
+
+        return false;
+    }
+
+    RenderTexture MaterialCache::CreateTexture(const Texture& sceneTex) const
+    {
+        auto& pixels = sceneTex.GetPixels();
+        auto width = sceneTex.GetWidth();
+        auto height = sceneTex.GetHeight();
+        auto type = sceneTex.GetType();
+
+        VkFormat format = ToFormat(type);
+        auto mipLevels = static_cast<uint32_t>(
+            std::floor(std::log2(std::max(width, height))) + 1
+            );
+
+        // Image
+        RenderImageHandle imageHandle{ 0 };
+        {
+            VkImageCreateInfo imageInfo{};
+            imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+            imageInfo.imageType = VK_IMAGE_TYPE_2D;
+            imageInfo.extent.width = width;
+            imageInfo.extent.height = height;
+            imageInfo.extent.depth = 1;
+            imageInfo.mipLevels = mipLevels;
+            imageInfo.arrayLayers = 1;
+            imageInfo.format = format;
+            imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+            imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+            imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+            imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+            imageHandle = m_resources.CreateImageWithData(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                pixels.data(), pixels.size());
+        }
+
+        // Image view
+        RenderImageViewHandle imageViewHandle{ 0 };
+        {
+            RenderImage* image = m_resources.GetImage(imageHandle);
+            assert(image && "Image handle is invalid");
+
+            VkImageViewCreateInfo imageViewInfo{};
+            imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            imageViewInfo.image = image->m_image;
+            imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            imageViewInfo.format = format;
+            imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            imageViewInfo.subresourceRange.baseMipLevel = 0;
+            imageViewInfo.subresourceRange.levelCount = mipLevels;
+            imageViewInfo.subresourceRange.baseArrayLayer = 0;
+            imageViewInfo.subresourceRange.layerCount = 1;
+
+            imageViewHandle = m_resources.CreateImageView(imageViewInfo);
+        }
+
+        // Sampler
+        RenderSamplerHandle samplerHandle = m_resources.CreateSamplerLinearRepeatMip();
+
+        return { imageHandle, imageViewHandle, samplerHandle };
+    }
+
+    void MaterialCache::DestroyTexture(RenderTexture& texture) const
+    {
+        m_resources.DestroySampler(texture.m_samplerHandle);
+        m_resources.DestroyImageView(texture.m_imageViewHandle);
+        m_resources.DestroyImage(texture.m_imageHandle);
+
+        texture = {};
+    }
+
+    void MaterialCache::WriteSet(VkDescriptorSet set)
+    {
+        std::array<VkDescriptorImageInfo, kMaterialTextureCount> imageInfos{};
+        for (uint32_t i = 0; i < kMaterialTextureCount; ++i)
+        {
+            auto& texture = m_textures[i];
+
+            RenderImageView* imageView = m_resources.GetImageView(texture.m_imageViewHandle);
+            assert(imageView && "Image view handle is invalid");
+            RenderSampler* sampler = m_resources.GetSampler(texture.m_samplerHandle);
+            assert(sampler && "Sampler handle is invalid");
+
+            auto& imageInfo = imageInfos[i];
+            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            imageInfo.imageView = imageView->m_imageView;
+            imageInfo.sampler = sampler->m_sampler;
+        }
+
+        std::array<VkWriteDescriptorSet, 1> writes{};
+        writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writes[0].dstSet = set;
+        writes[0].dstBinding = 0;
+        writes[0].dstArrayElement = 0;
+        writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        writes[0].descriptorCount = static_cast<uint32_t>(imageInfos.size());
+        writes[0].pImageInfo = imageInfos.data();
+
+        vkUpdateDescriptorSets(m_context.Device(),
+            static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
+    }
+}

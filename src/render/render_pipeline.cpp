@@ -2,6 +2,7 @@
 
 #include "render/render_resources.h"
 #include "render/swap_chain.h"
+#include "render/render_scene.h"
 #include "render/passes/lit_pass.h"
 #include "render/passes/skybox_pass.h"
 #include "render/passes/post_process_pass.h"
@@ -14,12 +15,12 @@ namespace Kita::Pbrv
         RenderResources& resources,
         const SwapChain& swapChain,
         const DescriptorAllocator& descriptorAllocator,
-        const RenderList& list)
+        const RenderScene& scene)
         : m_resources(resources),
         m_swapChain(swapChain)
     {
         CreateRenderTarget();
-        CreateRenderPasses(context, resources, swapChain, descriptorAllocator, list);
+        CreateRenderPasses(context, resources, swapChain, descriptorAllocator, scene);
     }
 
     RenderPipeline::~RenderPipeline()
@@ -38,11 +39,11 @@ namespace Kita::Pbrv
         }
     }
 
-    void RenderPipeline::Draw(const RenderList& list, const FrameInfo& frameInfo) const
+    void RenderPipeline::Draw(const FrameInfo& frameInfo) const
     {
         for (auto& pass : m_passes)
         {
-            pass->Draw(list, frameInfo);
+            pass->Draw(frameInfo);
         }
     }
 
@@ -152,14 +153,16 @@ namespace Kita::Pbrv
         RenderResources& resources,
         const SwapChain& swapChain,
         const DescriptorAllocator& descriptorAllocator,
-        const RenderList& list)
+        const RenderScene& scene)
     {
         m_passes.push_back(std::make_unique<LitPass>(
-            context, resources, swapChain, descriptorAllocator, list, m_target));
+            context, resources, swapChain, descriptorAllocator,
+            scene.GetFrameData(), scene.GetMaterialCache(), scene.GetMeshCache(), m_target));
         m_passes.push_back(std::make_unique<SkyboxPass>(
-            context, resources, swapChain, descriptorAllocator, list, m_target));
+            context, resources, swapChain, descriptorAllocator,
+            scene.GetFrameData(), scene.GetSkyboxEnvironment(), m_target));
         m_passes.push_back(std::make_unique<PostProcessPass>(
-            context, resources, swapChain, descriptorAllocator, list, m_target));
+            context, resources, swapChain, descriptorAllocator, m_target));
     }
 
     void RenderPipeline::DestroyRenderPasses()

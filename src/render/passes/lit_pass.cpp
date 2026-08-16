@@ -6,6 +6,9 @@
 #include "render/render_resources.h"
 #include "render/swap_chain.h"
 #include "render/descriptor_allocator.h"
+#include "render/frame_data.h"
+#include "render/material_cache.h"
+#include "render/mesh_cache.h"
 
 #include "scene/vertex.h"
 
@@ -19,21 +22,22 @@ namespace Kita::Pbrv
         RenderResources& resources,
         const SwapChain& swapChain,
         const DescriptorAllocator& descriptorAllocator,
-        const RenderList& list,
+        const FrameData& frameData,
+        const MaterialCache& materialCache,
+        const MeshCache& meshCache,
         const RenderTarget& target)
-        : RenderPassBase(context, resources, swapChain, descriptorAllocator, target)
+        : RenderPassBase(context, resources, swapChain, descriptorAllocator, target),
+        m_frameData(frameData),
+        m_materialCache(materialCache),
+        m_meshCache(meshCache)
     {
-        CreateDescriptorSetLayouts();
-        CreatePipeline(list);
-
-        AllocateDescriptorSets(list);
+        CreatePipeline();
     }
 
     LitPass::~LitPass()
     {
         vkDestroyPipeline(m_context.Device(), m_pipeline, nullptr);
         vkDestroyPipelineLayout(m_context.Device(), m_pipelineLayout, nullptr);
-        vkDestroyDescriptorSetLayout(m_context.Device(), m_frameLayout, nullptr);
     }
 
     void LitPass::RecreateResources()
@@ -41,7 +45,7 @@ namespace Kita::Pbrv
         /* Empty */
     }
 
-    void LitPass::Draw(const RenderList& list, const FrameInfo& frameInfo) const
+    void LitPass::Draw(const FrameInfo& frameInfo) const
     {
         auto& commandBuffer = frameInfo.m_commandBuffer;
         auto& frameIndex = frameInfo.m_frameIndex;
@@ -140,31 +144,29 @@ namespace Kita::Pbrv
 
         // Draw
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout,
-            0, 1, &m_frameSets[frameIndex], 0, nullptr);
+            0, 1, &m_frameData.GetSet(frameIndex), 0, nullptr);
         {
-            auto& material = list.m_material;
             vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout,
-                1, 1, &material.m_sets[frameIndex], 0, nullptr);
+                1, 1, &m_materialCache.GetSet(frameIndex), 0, nullptr);
 
-            auto& pushConstant = material.m_pushConstant;
+            auto& pushConstant = m_materialCache.GetPushConstant();
             vkCmdPushConstants(commandBuffer, m_pipelineLayout,
                 VK_SHADER_STAGE_FRAGMENT_BIT,
                 0, sizeof(pushConstant), &pushConstant);
 
-            auto& mesh = list.m_mesh;
-            if (mesh.m_indexCount != 0)
+            if (m_meshCache.GetIndexCount() != 0)
             {
-                RenderBuffer* vertexBuffer = m_resources.GetBuffer(mesh.m_vertexBufferHandle);
+                RenderBuffer* vertexBuffer = m_resources.GetBuffer(m_meshCache.GetVertexBufferHandle());
                 assert(vertexBuffer && "Vertex buffer handle is invalid");
                 VkBuffer buffers[]{ vertexBuffer->m_buffer };
                 VkDeviceSize offsets[]{ 0 };
                 vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
 
-                RenderBuffer* indexBuffer = m_resources.GetBuffer(mesh.m_indexBufferHandle);
+                RenderBuffer* indexBuffer = m_resources.GetBuffer(m_meshCache.GetIndexBufferHandle());
                 assert(indexBuffer && "Index buffer handle is invalid");
                 vkCmdBindIndexBuffer(commandBuffer, indexBuffer->m_buffer, 0, VK_INDEX_TYPE_UINT32);
 
-                vkCmdDrawIndexed(commandBuffer, mesh.m_indexCount, 1, 0, 0, 0);
+                vkCmdDrawIndexed(commandBuffer, m_meshCache.GetIndexCount(), 1, 0, 0, 0);
             }
         }
 
@@ -172,66 +174,7 @@ namespace Kita::Pbrv
         vkCmdEndRendering(commandBuffer);
     }
 
-    void LitPass::CreateDescriptorSetLayouts()
-    {
-        // Frame layout
-        {
-            std::vector<VkDescriptorSetLayoutBinding> bindings(1);
-            bindings[0].binding = 0;
-            bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            bindings[0].descriptorCount = 1;
-            bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-
-            VkDescriptorSetLayoutCreateInfo createInfo{};
-            createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-            createInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-            createInfo.pBindings = bindings.data();
-
-            m_frameLayout = CreateDescriptorSetLayout(m_context.Device(), createInfo);
-        }
-    }
-
-    void LitPass::AllocateDescriptorSets(const RenderList& list)
-    {
-        // Frame set
-        {
-            // Allocate
-            for (auto& set : m_frameSets)
-            {
-                set = m_descriptorAllocator.Allocate(m_frameLayout, "LitPass frame set");
-            }
-
-            // Setup
-            for (size_t i = 0; i < m_frameSets.size(); ++i)
-            {
-                auto& set = m_frameSets[i];
-
-                VkDescriptorBufferInfo bufferInfo{};
-                {
-                    RenderBuffer* buffer = m_resources.GetBuffer(list.m_frame.m_uboHandles[i]);
-                    assert(buffer && "Frame buffer handle is invalid");
-                    bufferInfo.buffer = buffer->m_buffer;
-                    bufferInfo.offset = 0;
-                    bufferInfo.range = sizeof(FrameUbo);
-                }
-
-                std::vector<VkWriteDescriptorSet> writes(1);
-                writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                writes[0].dstSet = set;
-                writes[0].dstBinding = 0;
-                writes[0].dstArrayElement = 0;
-                writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-                writes[0].descriptorCount = 1;
-                writes[0].pBufferInfo = &bufferInfo;
-
-                vkUpdateDescriptorSets(m_context.Device(),
-                    static_cast<uint32_t>(writes.size()), writes.data()
-                    , 0, nullptr);
-            }
-        }
-    }
-
-    void LitPass::CreatePipeline(const RenderList& list)
+    void LitPass::CreatePipeline()
     {
         // Shaders
         VkShaderModule vertShaderModule = CreateShaderModule(m_context.Device(), "assets/shaders/lit_vert.spv");
@@ -350,8 +293,8 @@ namespace Kita::Pbrv
         // Pipeline layout
         std::vector<VkDescriptorSetLayout> setLayouts
         {
-            m_frameLayout,
-            list.m_material.m_setLayout,
+            m_frameData.GetSetLayout(),
+            m_materialCache.GetSetLayout(),
         };
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;

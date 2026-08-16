@@ -69,11 +69,6 @@ namespace Kita::Pbrv
         uint32_t m_imageIndex{ 0 };
     };
 
-    struct RenderPerFrame
-    {
-        std::vector<RenderBufferHandle> m_uboHandles;
-    };
-
     struct RenderTexture
     {
         RenderImageHandle m_imageHandle{ 0 };
@@ -93,36 +88,4 @@ namespace Kita::Pbrv
         }
     };
 
-    struct RenderMaterial
-    {
-        MaterialPC m_pushConstant{ {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f} };
-
-        std::array<RenderTexture, kMaterialTextureCount> m_textures{};
-        VkDescriptorSetLayout m_setLayout{ VK_NULL_HANDLE };
-        std::array<VkDescriptorSet, kMaxFramesInFlight> m_sets{};
-        uint32_t m_setRefreshCount{ 0 };
-    };
-
-    struct RenderMesh
-    {
-        RenderBufferHandle m_vertexBufferHandle{ 0 };
-        RenderBufferHandle m_indexBufferHandle{ 0 };
-        uint32_t m_indexCount{ 0 };
-    };
-
-    struct RenderSkybox
-    {
-        RenderTexture m_texture{};
-        VkDescriptorSetLayout m_setLayout{ VK_NULL_HANDLE };
-        std::array<VkDescriptorSet, kMaxFramesInFlight> m_sets{};
-        uint32_t m_setRefreshCount{ 0 };
-    };
-
-    struct RenderList
-    {
-        RenderPerFrame m_frame{};
-        RenderMaterial m_material{};
-        RenderMesh m_mesh{};
-        RenderSkybox m_skybox{};
-    };
 }

@@ -98,6 +98,12 @@ add_executable(VkPbrViewer
     src/render/renderer.cpp
     src/render/swap_chain.cpp
 
+    #render datas
+    src/render/frame_data.cpp
+    src/render/material_cache.cpp
+    src/render/mesh_cache.cpp
+    src/render/skybox_environment.cpp
+
     #render passes
     src/render/passes/lit_pass.cpp
     src/render/passes/skybox_pass.cpp

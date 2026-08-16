@@ -1,13 +1,11 @@
 #pragma once
 
-#include "render/render_resource_types.h"
-#include "render/render_constants.h"
-
-#include "scene/scene.h"
+#include "render/frame_data.h"
+#include "render/material_cache.h"
+#include "render/mesh_cache.h"
+#include "render/skybox_environment.h"
 
 #include <vulkan/vulkan.h>
-#include <array>
-#include <vector>
 
 namespace Kita::Pbrv
 {
@@ -17,8 +15,8 @@ namespace Kita::Pbrv
     class DescriptorAllocator;
     class Scene;
 
-    struct Vertex;
-
+    /// Owns the GPU-side render objects for the scene and syncs the CPU scene data each frame.
+    /// Each render object manages its own lifetime; passes get their dependencies injected via GetXxx.
     class RenderScene
     {
     public:
@@ -29,42 +27,16 @@ namespace Kita::Pbrv
         ~RenderScene();
 
         void Update(const Scene& scene, const FrameInfo& frameInfo);
-        const RenderList& GetRenderList() const;
+
+        const FrameData& GetFrameData() const { return m_frameData; }
+        const MaterialCache& GetMaterialCache() const { return m_materialCache; }
+        const MeshCache& GetMeshCache() const { return m_meshCache; }
+        const SkyboxEnvironment& GetSkyboxEnvironment() const { return m_skyboxEnvironment; }
 
     private:
-        void CreateFallbackTextures();
-        void DestroyFallbackTextures();
-
-        RenderPerFrame CreateRenderPerFrame() const;
-        void DestroyRenderPerFrame(RenderPerFrame& frame);
-        void UpdateRenderPerFrame(RenderPerFrame& frame, uint32_t frameIndex, const Camera& sceneCamera, const Light& sceneLight) const;
-
-        RenderMaterial CreateRenderMaterial() const;
-        void DestroyRenderMaterial(RenderMaterial& material);
-        void UpdateRenderMaterial(RenderMaterial& material, uint32_t frameIndex, const Material& sceneMat);
-        void WriteMaterialSet(VkDescriptorSet set, const std::array<RenderTexture, kMaterialTextureCount>& textures) const;
-
-        RenderMesh CreateRenderMesh(const Mesh& sceneMesh) const;
-        void DestroyRenderMesh(RenderMesh& mesh) const;
-        bool UpdateRenderMesh(RenderMesh& mesh, const Mesh& sceneMesh) const;
-
-        RenderTexture CreateRenderTexture(const Texture& sceneTex) const;
-        void DestroyRenderTexture(RenderTexture& texture) const;
-        bool UpdateRenderTexture(RenderTexture& texture, uint32_t slot, const Texture& sceneTex) const;
-
-        RenderSkybox CreateRenderSkybox(const Skybox& sceneSkybox) const;
-        void DestroyRenderSkybox(RenderSkybox& skybox) const;
-        bool UpdateRenderSkybox(RenderSkybox& skybox, uint32_t frameIndex, const Skybox& sceneSkybox) const;
-        void WriteSkyboxSet(VkDescriptorSet set, const RenderTexture& texture) const;
-
-    private:
-        const RenderContext& m_context;
-        RenderResources& m_resources;
-        const SwapChain& m_swapChain;
-        const DescriptorAllocator& m_descriptorAllocator;
-
-        RenderList m_list{};
-
-        std::array<RenderTexture, kMaterialTextureCount> m_fallbackTextures{ 0 };
+        FrameData m_frameData;
+        MaterialCache m_materialCache;
+        MeshCache m_meshCache;
+        SkyboxEnvironment m_skyboxEnvironment;
     };
 }

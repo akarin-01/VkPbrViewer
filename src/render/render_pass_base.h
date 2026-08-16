@@ -35,7 +35,7 @@ namespace Kita::Pbrv
         virtual ~RenderPassBase() = default;
 
         virtual void RecreateResources() = 0;
-        virtual void Draw(const RenderList& list, const FrameInfo& frameInfo) const = 0;
+        virtual void Draw(const FrameInfo& frameInfo) const = 0;
 
     protected:
         const RenderContext& m_context;

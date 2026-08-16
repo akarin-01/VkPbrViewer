@@ -6,6 +6,8 @@
 #include "render/render_resources.h"
 #include "render/swap_chain.h"
 #include "render/descriptor_allocator.h"
+#include "render/frame_data.h"
+#include "render/skybox_environment.h"
 
 #include <stdexcept>
 #include <array>
@@ -17,21 +19,20 @@ namespace Kita::Pbrv
         RenderResources& resources,
         const SwapChain& swapChain,
         const DescriptorAllocator& descriptorAllocator,
-        const RenderList& list,
+        const FrameData& frameData,
+        const SkyboxEnvironment& skybox,
         const RenderTarget& target)
-        : RenderPassBase(context, resources, swapChain, descriptorAllocator, target)
+        : RenderPassBase(context, resources, swapChain, descriptorAllocator, target),
+        m_frameData(frameData),
+        m_skybox(skybox)
     {
-        CreateDescriptorSetLayouts();
-        CreatePipeline(list);
-
-        AllocateDescriptorSets(list);
+        CreatePipeline();
     }
 
     SkyboxPass::~SkyboxPass()
     {
         vkDestroyPipeline(m_context.Device(), m_pipeline, nullptr);
         vkDestroyPipelineLayout(m_context.Device(), m_pipelineLayout, nullptr);
-        vkDestroyDescriptorSetLayout(m_context.Device(), m_frameLayout, nullptr);
     }
 
     void SkyboxPass::RecreateResources()
@@ -39,7 +40,7 @@ namespace Kita::Pbrv
         /* Empty */
     }
 
-    void SkyboxPass::Draw(const RenderList& list, const FrameInfo& frameInfo) const
+    void SkyboxPass::Draw(const FrameInfo& frameInfo) const
     {
         auto& commandBuffer = frameInfo.m_commandBuffer;
         auto& frameIndex = frameInfo.m_frameIndex;
@@ -96,76 +97,16 @@ namespace Kita::Pbrv
 
         // Draw
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout,
-            0, 1, &m_frameSets[frameIndex], 0, nullptr);
-        auto& skybox = list.m_skybox;
+            0, 1, &m_frameData.GetSet(frameIndex), 0, nullptr);
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout,
-            1, 1, &skybox.m_sets[frameIndex], 0, nullptr);
+            1, 1, &m_skybox.GetSet(frameIndex), 0, nullptr);
         vkCmdDraw(commandBuffer, 36, 1, 0, 0);
 
         // End rendering
         vkCmdEndRendering(commandBuffer);
     }
 
-    void SkyboxPass::CreateDescriptorSetLayouts()
-    {
-        // Frame layout
-        {
-            std::vector<VkDescriptorSetLayoutBinding> bindings(1);
-            bindings[0].binding = 0;
-            bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            bindings[0].descriptorCount = 1;
-            bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-
-            VkDescriptorSetLayoutCreateInfo createInfo{};
-            createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-            createInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-            createInfo.pBindings = bindings.data();
-
-            m_frameLayout = CreateDescriptorSetLayout(m_context.Device(), createInfo);
-        }
-    }
-
-    void SkyboxPass::AllocateDescriptorSets(const RenderList& list)
-    {
-        // Frame set
-        {
-            // Allocate
-            for (auto& set : m_frameSets)
-            {
-                set = m_descriptorAllocator.Allocate(m_frameLayout, "SkyboxPass frame set");
-            }
-
-            // Setup
-            for (size_t i = 0; i < m_frameSets.size(); ++i)
-            {
-                auto& set = m_frameSets[i];
-
-                VkDescriptorBufferInfo bufferInfo{};
-                {
-                    RenderBuffer* buffer = m_resources.GetBuffer(list.m_frame.m_uboHandles[i]);
-                    assert(buffer && "Frame buffer handle is invalid");
-                    bufferInfo.buffer = buffer->m_buffer;
-                    bufferInfo.offset = 0;
-                    bufferInfo.range = sizeof(FrameUbo);
-                }
-
-                std::vector<VkWriteDescriptorSet> writes(1);
-                writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                writes[0].dstSet = set;
-                writes[0].dstBinding = 0;
-                writes[0].dstArrayElement = 0;
-                writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-                writes[0].descriptorCount = 1;
-                writes[0].pBufferInfo = &bufferInfo;
-
-                vkUpdateDescriptorSets(m_context.Device(),
-                    static_cast<uint32_t>(writes.size()), writes.data()
-                    , 0, nullptr);
-            }
-        }
-    }
-
-    void SkyboxPass::CreatePipeline(const RenderList& list)
+    void SkyboxPass::CreatePipeline()
     {
         // Shaders
         VkShaderModule vertShaderModule = CreateShaderModule(m_context.Device(), "assets/shaders/skybox_vert.spv");
@@ -274,8 +215,8 @@ namespace Kita::Pbrv
         // Pipeline layout
         std::vector<VkDescriptorSetLayout> setLayouts
         {
-            m_frameLayout,
-            list.m_skybox.m_setLayout,
+            m_frameData.GetSetLayout(),
+            m_skybox.GetSetLayout(),
         };
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;

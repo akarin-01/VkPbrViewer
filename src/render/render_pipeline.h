@@ -12,6 +12,8 @@ namespace Kita::Pbrv
     class RenderResources;
     class SwapChain;
     class DescriptorAllocator;
+    class RenderScene;
+
     class RenderPipeline
     {
     public:
@@ -19,11 +21,11 @@ namespace Kita::Pbrv
             RenderResources& resources,
             const SwapChain& swapChain,
             const DescriptorAllocator& descriptorAllocator,
-            const RenderList& list);
+            const RenderScene& scene);
         ~RenderPipeline();
 
         void RecreateResources();
-        void Draw(const RenderList& list, const FrameInfo& frameInfo) const;
+        void Draw(const FrameInfo& frameInfo) const;
 
     private:
         void CreateRenderTarget();
@@ -33,7 +35,7 @@ namespace Kita::Pbrv
             RenderResources& resources,
             const SwapChain& swapChain,
             const DescriptorAllocator& descriptorAllocator,
-            const RenderList& list);
+            const RenderScene& scene);
         void DestroyRenderPasses();
 
     private:

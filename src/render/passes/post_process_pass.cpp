@@ -10,12 +10,12 @@
 
 namespace Kita::Pbrv
 {
-    PostProcessPass::PostProcessPass(const RenderContext& context, RenderResources& resources, const SwapChain& swapChain, const DescriptorAllocator& descriptorAllocator, const RenderList& list, const RenderTarget& target)
+    PostProcessPass::PostProcessPass(const RenderContext& context, RenderResources& resources, const SwapChain& swapChain, const DescriptorAllocator& descriptorAllocator, const RenderTarget& target)
         :RenderPassBase(context, resources, swapChain, descriptorAllocator, target)
     {
         CreateDescriptorSetLayouts();
-        AllocateDescriptorSets(list);
-        CreatePipeline(list);
+        AllocateDescriptorSets();
+        CreatePipeline();
     }
 
     PostProcessPass::~PostProcessPass()
@@ -30,7 +30,7 @@ namespace Kita::Pbrv
         UpdateInputSet(m_inputSet);
     }
 
-    void PostProcessPass::Draw(const RenderList& /*list*/, const FrameInfo& frameInfo) const
+    void PostProcessPass::Draw(const FrameInfo& frameInfo) const
     {
         auto& commandBuffer = frameInfo.m_commandBuffer;
         auto& imageIndex = frameInfo.m_imageIndex;
@@ -133,7 +133,7 @@ namespace Kita::Pbrv
         }
     }
 
-    void PostProcessPass::AllocateDescriptorSets(const RenderList& /*list*/)
+    void PostProcessPass::AllocateDescriptorSets()
     {
         // Input set
         {
@@ -175,7 +175,7 @@ namespace Kita::Pbrv
             , 0, nullptr);
     }
 
-    void PostProcessPass::CreatePipeline(const RenderList& /*list*/)
+    void PostProcessPass::CreatePipeline()
     {
         // Shaders
         VkShaderModule vertShaderModule = CreateShaderModule(m_context.Device(), "assets/shaders/post_process_vert.spv");
