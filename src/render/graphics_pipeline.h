@@ -40,8 +40,8 @@ namespace Kita::Pbrv
         GraphicsPipeline(VkDevice device, const GraphicsPipelineConfig& config);
         ~GraphicsPipeline();
 
-        GraphicsPipeline(const GraphicsPipeline& other) = delete;
-        GraphicsPipeline& operator=(const GraphicsPipeline& other) = delete;
+        GraphicsPipeline(const GraphicsPipeline&) = delete;
+        GraphicsPipeline& operator=(const GraphicsPipeline&) = delete;
 
         VkPipeline Handle() const { return m_pipeline; }
         VkPipelineLayout Layout() const { return m_layout; }

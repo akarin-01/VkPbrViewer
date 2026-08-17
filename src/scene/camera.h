@@ -27,7 +27,7 @@ namespace Kita::Pbrv
         glm::mat4 GetProjectMatrix(float aspect) const;
 
     private:
-        /// Calculate the vec from target to camera 
+        /// Calculate the vec from target to camera
         glm::vec3 GetOrbitDirection() const;
 
     private:

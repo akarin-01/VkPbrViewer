@@ -23,10 +23,10 @@ namespace Kita::Pbrv
             const RenderingAttachmentDesc* depthDesc = nullptr);
         ~RenderingScope();
 
-        RenderingScope(const RenderingScope& other) = delete;
-        RenderingScope& operator=(const RenderingScope& other) = delete;
-        RenderingScope(RenderingScope&& other) = delete;
-        RenderingScope& operator=(RenderingScope&& other) = delete;
+        RenderingScope(const RenderingScope&) = delete;
+        RenderingScope& operator=(const RenderingScope&) = delete;
+        RenderingScope(RenderingScope&&) = delete;
+        RenderingScope& operator=(RenderingScope&&) = delete;
 
     private:
         VkCommandBuffer m_commandBuffer{ VK_NULL_HANDLE };

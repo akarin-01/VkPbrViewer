@@ -23,7 +23,7 @@ namespace Kita::Pbrv
         m_swapChain(swapChain),
         m_descriptorAllocator(descriptorAllocator)
     {
-        // Ubo
+        // UBO
         {
             VkBufferCreateInfo createInfo{};
             createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;

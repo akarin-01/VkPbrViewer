@@ -7,8 +7,6 @@ namespace Kita::Pbrv
     class RenderResources;
     class Mesh;
 
-    /// GPU resources for a mesh (vertex/index buffers).
-    /// Rebuilds the buffers when the CPU-side Mesh data changes (dirty).
     class RenderMeshData
     {
     public:
@@ -25,6 +23,7 @@ namespace Kita::Pbrv
         void Create(const Mesh& sceneMesh);
         void Destroy();
 
+    private:
         RenderResources& m_resources;
 
         RenderBufferHandle m_vertexBufferHandle{ 0 };

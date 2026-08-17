@@ -11,8 +11,8 @@ namespace Kita::Pbrv
         ShaderModule(VkDevice device, const std::string& filePath);
         ~ShaderModule();
 
-        ShaderModule(const ShaderModule& other) = delete;
-        ShaderModule& operator=(const ShaderModule& other) = delete;
+        ShaderModule(const ShaderModule&) = delete;
+        ShaderModule& operator=(const ShaderModule&) = delete;
 
         VkShaderModule Handle() const { return m_shaderModule; }
 

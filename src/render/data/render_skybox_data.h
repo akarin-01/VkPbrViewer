@@ -12,9 +12,6 @@ namespace Kita::Pbrv
     class DescriptorAllocator;
     class Skybox;
 
-    /// GPU resources and descriptor management for the skybox.
-    /// Marks the descriptor sets for refresh when the CPU-side Skybox data changes (dirty);
-    /// the equirect -> cubemap conversion and texture upload are not implemented yet (see WriteSet).
     class RenderSkyboxData
     {
     public:

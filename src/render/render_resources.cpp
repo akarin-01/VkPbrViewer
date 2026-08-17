@@ -247,7 +247,7 @@ namespace Kita::Pbrv
         samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
         samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
         samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        // Todo: Enable Anisotropy
+        // TODO: Enable Anisotropy
         samplerInfo.anisotropyEnable = VK_FALSE;
         samplerInfo.unnormalizedCoordinates = VK_FALSE;
         samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
@@ -270,7 +270,7 @@ namespace Kita::Pbrv
         samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
         samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
         samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        // Todo: Enable Anisotropy
+        // TODO: Enable Anisotropy
         samplerInfo.anisotropyEnable = VK_FALSE;
         samplerInfo.unnormalizedCoordinates = VK_FALSE;
         samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;

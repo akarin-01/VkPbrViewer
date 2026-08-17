@@ -87,5 +87,4 @@ namespace Kita::Pbrv
             return !(*this == other);
         }
     };
-
 }

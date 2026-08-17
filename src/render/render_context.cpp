@@ -193,7 +193,7 @@ namespace Kita::Pbrv
             if (IsDeviceSuitable(device, m_surface))
             {
                 m_physicalDevice = device;
-                // Todo: Cache physical device properties
+                // TODO: Cache physical device properties
                 break;
             }
         }

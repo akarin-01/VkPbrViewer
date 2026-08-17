@@ -13,8 +13,6 @@ namespace Kita::Pbrv
     class Material;
     class Texture;
 
-    /// GPU resources for a material: textures (with fallbacks), push constant, and descriptor sets.
-    /// Rebuilds textures and refreshes descriptors when the CPU-side Material textures change (dirty).
     class RenderMaterialData
     {
     public:
@@ -38,6 +36,7 @@ namespace Kita::Pbrv
         void DestroyTexture(RenderTexture& texture) const;
         void WriteSet(VkDescriptorSet set);
 
+    private:
         const RenderContext& m_context;
         RenderResources& m_resources;
         const DescriptorAllocator& m_descriptorAllocator;

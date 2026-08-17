@@ -152,7 +152,6 @@ namespace Kita::Pbrv
                 vertex.texCoord = hasTexCoord ?
                     ReadAccessorElement(model, *texCoordAccessor, i) :
                     glm::vec2(0.0f);
-                // Todo: Calculate tangent if nessesary
                 vertex.tangent = hasTangent ?
                     ReadAccessorElement(model, *tangentAccessor, i) :
                     glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
