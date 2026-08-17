@@ -6,6 +6,7 @@
 
 namespace Kita::Pbrv
 {
+    class RenderTargetData;
     class GraphicsPipeline;
 
     class PostProcessPass : public RenderPassBase
@@ -14,22 +15,17 @@ namespace Kita::Pbrv
         PostProcessPass(const RenderContext& context,
             RenderResources& resources,
             const SwapChain& swapChain,
-            const DescriptorAllocator& descriptorAllocator,
-            const RenderTarget& target);
+            RenderTargetData& targetData);
         ~PostProcessPass();
 
         void RecreateResources() override;
         void Draw(const FrameInfo& frameInfo) const override;
 
     private:
-        void CreateDescriptorSetLayouts();
-        void AllocateDescriptorSets();
-        void UpdateInputSet(VkDescriptorSet set) const;
         void CreatePipeline();
 
     private:
-        VkDescriptorSetLayout m_inputLayout{ VK_NULL_HANDLE };
-        VkDescriptorSet m_inputSet{ VK_NULL_HANDLE };
+        RenderTargetData& m_targetData;
 
         std::unique_ptr<GraphicsPipeline> m_pipeline;
     };

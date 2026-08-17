@@ -5,18 +5,18 @@
 #include "scene/vertex.h"
 
 #include "render/render_context.h"
-#include "render/render_utils.h"
 #include "render/render_resources.h"
 #include "render/swap_chain.h"
 #include "render/descriptor_allocator.h"
+
+#include "render/data/render_target_data.h"
 #include "render/data/render_frame_data.h"
 #include "render/data/render_material_data.h"
 #include "render/data/render_mesh_data.h"
+
 #include "render/graphics_pipeline.h"
 #include "render/rendering_scope.h"
 
-#include <stdexcept>
-#include <array>
 #include <cassert>
 
 namespace Kita::Pbrv
@@ -24,15 +24,15 @@ namespace Kita::Pbrv
     LitPass::LitPass(const RenderContext& context,
         RenderResources& resources,
         const SwapChain& swapChain,
-        const DescriptorAllocator& descriptorAllocator,
+        RenderTargetData& targetData,
         const RenderFrameData& frameData,
-        const RenderMaterialData& materialCache,
-        const RenderMeshData& meshCache,
-        const RenderTarget& target)
-        : RenderPassBase(context, resources, swapChain, descriptorAllocator, target),
+        const RenderMaterialData& materialData,
+        const RenderMeshData& meshData)
+        : RenderPassBase(context, resources, swapChain),
+        m_targetData(targetData),
         m_frameData(frameData),
-        m_materialData(materialCache),
-        m_meshData(meshCache)
+        m_materialData(materialData),
+        m_meshData(meshData)
     {
         CreatePipeline();
     }
@@ -51,62 +51,32 @@ namespace Kita::Pbrv
         auto& commandBuffer = frameInfo.m_commandBuffer;
         auto& frameIndex = frameInfo.m_frameIndex;
 
-        VkImageSubresourceRange colorRange{};
-        colorRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        colorRange.baseMipLevel = 0;
-        colorRange.levelCount = 1;
-        colorRange.baseArrayLayer = 0;
-        colorRange.layerCount = 1;
-
-        // Color image: UNDEFINED -> COLOR_ATTACHMENT_OPTIMAL
-        RenderImage* colorImage = m_resources.GetImage(m_target.m_colorTex.m_imageHandle);
-        assert(colorImage && "LitPass: Color image handle is invalid");
-        TransitionImageLayout(commandBuffer,
-            colorImage->m_image,
-            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        // Color image -> COLOR_ATTACHMENT_OPTIMAL
+        m_targetData.TransitionColorImageLayout(commandBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
             VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
-            VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-            colorRange);
+            VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
 
-        VkImageSubresourceRange depthRange{};
-        depthRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-        depthRange.baseMipLevel = 0;
-        depthRange.levelCount = 1;
-        depthRange.baseArrayLayer = 0;
-        depthRange.layerCount = 1;
-
-        // Depth image: UNDEFINED -> DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-        auto depthImage = m_resources.GetImage(m_target.m_depthTex.m_imageHandle);
-        assert(depthImage && "LitPass: Depth image handle is invalid");
-        TransitionImageLayout(commandBuffer,
-            depthImage->m_image,
-            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        // Depth image -> DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+        m_targetData.TransitionDepthImageLayout(commandBuffer, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
             VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
-            VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-            depthRange);
-
-        // Begin rendering
-        std::array<VkClearValue, 2> clearValues{};
-        clearValues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
-        clearValues[1].depthStencil = { 1.0f, 0 };
-        VkExtent2D extent = m_swapChain.Extent();
-
-        RenderImageView* colorImageView = m_resources.GetImageView(m_target.m_colorTex.m_imageViewHandle);
-        assert(colorImageView && "LitPass: Color image view handle is invalid");
-        RenderImageView* depthImageView = m_resources.GetImageView(m_target.m_depthTex.m_imageViewHandle);
-        assert(depthImageView && "LitPass: Depth image view handle is invalid");
+            VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT);
 
         // Begin rendering
         {
+            std::array<VkClearValue, 2> clearValues{};
+            clearValues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
+            clearValues[1].depthStencil = { 1.0f, 0 };
+            VkExtent2D extent = m_swapChain.Extent();
+
             RenderingAttachmentDesc colorDesc{};
-            colorDesc.m_imageView = colorImageView->m_imageView;
+            colorDesc.m_imageView = m_targetData.GetColorImageView();
             colorDesc.m_imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
             colorDesc.m_loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
             colorDesc.m_storeOp = VK_ATTACHMENT_STORE_OP_STORE;
             colorDesc.m_clearValue = clearValues[0];
 
             RenderingAttachmentDesc depthDesc{};
-            depthDesc.m_imageView = depthImageView->m_imageView;
+            depthDesc.m_imageView = m_targetData.GetDepthImageView();
             depthDesc.m_imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             depthDesc.m_loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
             depthDesc.m_storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -162,7 +132,7 @@ namespace Kita::Pbrv
             .SetDepth(true, true, VK_COMPARE_OP_LESS)
             .SetDescriptorSetLayouts({ m_frameData.GetSetLayout(), m_materialData.GetSetLayout(), })
             .SetPushConstants({ pushConstant })
-            .SetDynamicRendering({ m_target.m_colorFormat }, m_target.m_depthFormat);
+            .SetDynamicRendering({ m_targetData.GetColorFormat() }, m_targetData.GetDepthFormat());
         m_pipeline = builder.Build();
     }
 }

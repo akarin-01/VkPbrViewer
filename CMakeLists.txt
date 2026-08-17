@@ -106,6 +106,7 @@ add_executable(VkPbrViewer
     src/render/data/render_material_data.cpp
     src/render/data/render_mesh_data.cpp
     src/render/data/render_skybox_data.cpp
+    src/render/data/render_target_data.cpp
 
     #render passes
     src/render/passes/lit_pass.cpp

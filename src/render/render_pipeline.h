@@ -1,7 +1,7 @@
 #pragma once
 
 #include "render/render_resource_types.h"
-#include "render/render_pass_base.h"
+#include "render/data/render_target_data.h"
 
 #include <vector>
 #include <memory>
@@ -11,8 +11,9 @@ namespace Kita::Pbrv
     class RenderContext;
     class RenderResources;
     class SwapChain;
-    class DescriptorAllocator;
     class RenderScene;
+    class RenderPassBase;
+    class RenderTargetData;
 
     class RenderPipeline
     {
@@ -28,21 +29,16 @@ namespace Kita::Pbrv
         void Draw(const FrameInfo& frameInfo) const;
 
     private:
-        void CreateRenderTarget();
-        void DestroyRenderTarget();
-        void RecreateRenderTarget();
         void CreateRenderPasses(const RenderContext& context,
             RenderResources& resources,
             const SwapChain& swapChain,
-            const DescriptorAllocator& descriptorAllocator,
             const RenderScene& scene);
         void DestroyRenderPasses();
 
     private:
-        RenderResources& m_resources;
         const SwapChain& m_swapChain;
 
         std::vector<std::unique_ptr<RenderPassBase>> m_passes;
-        RenderTarget m_target{};
+        RenderTargetData m_targetData;
     };
 }

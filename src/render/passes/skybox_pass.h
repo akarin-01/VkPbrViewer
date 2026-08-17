@@ -6,6 +6,7 @@
 
 namespace Kita::Pbrv
 {
+    class RenderTargetData;
     class RenderFrameData;
     class RenderSkyboxData;
     class GraphicsPipeline;
@@ -16,10 +17,9 @@ namespace Kita::Pbrv
         SkyboxPass(const RenderContext& context,
             RenderResources& resources,
             const SwapChain& swapChain,
-            const DescriptorAllocator& descriptorAllocator,
+            RenderTargetData& targetData,
             const RenderFrameData& frameData,
-            const RenderSkyboxData& skybox,
-            const RenderTarget& target);
+            const RenderSkyboxData& skybox);
         ~SkyboxPass();
 
         void RecreateResources() override;
@@ -29,6 +29,7 @@ namespace Kita::Pbrv
         void CreatePipeline();
 
     private:
+        RenderTargetData& m_targetData;
         const RenderFrameData& m_frameData;
         const RenderSkyboxData& m_skybox;
 

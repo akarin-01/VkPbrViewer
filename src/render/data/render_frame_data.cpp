@@ -76,8 +76,8 @@ namespace Kita::Pbrv
             writes[0].pBufferInfo = &bufferInfo;
 
             vkUpdateDescriptorSets(m_context.Device(),
-                static_cast<uint32_t>(writes.size()), writes.data()
-                , 0, nullptr);
+                static_cast<uint32_t>(writes.size()), writes.data(),
+                0, nullptr);
         }
     }
 
