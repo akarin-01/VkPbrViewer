@@ -31,8 +31,13 @@ namespace Kita::Pbrv
 
     private:
         RenderTexture CreateCubemap(const Skybox& sceneSkybox) const;
-        void DestroyCubemap(RenderTexture& cubemap) const;
-        void WriteSet(VkDescriptorSet set);
+        void WriteSet(VkDescriptorSet set) const;
+
+        RenderTexture CreateEquirectTexture(const Skybox& sceneSkybox, VkFormat format) const;
+        RenderTexture CreateCubemapTexture(uint32_t faceSize, VkFormat format) const;
+        void DestroyTexture(RenderTexture& texture) const;
+        void WriteConversionSet(const RenderTexture& equirect, const RenderTexture& cubemap) const;
+        void DispatchConversion(const RenderTexture& cubemap, uint32_t faceSize) const;
 
     private:
         const RenderContext& m_context;

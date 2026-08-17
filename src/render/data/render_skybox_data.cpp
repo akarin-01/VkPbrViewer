@@ -97,7 +97,7 @@ namespace Kita::Pbrv
         {
             sceneSkybox.ClearDirty();
 
-            DestroyCubemap(m_cubemap);
+            DestroyTexture(m_cubemap);
 
             if (sceneSkybox.IsEmpty())
             {
@@ -123,179 +123,17 @@ namespace Kita::Pbrv
         const uint32_t faceSize = 512;
 
         // 1. Create equirect texture
-        RenderTexture equirect{};
-        {
-            const auto& pixels = sceneSkybox.GetPixels();
-            const uint32_t width = sceneSkybox.GetWidth();
-            const uint32_t height = sceneSkybox.GetHeight();
-
-            const uint32_t channels = static_cast<uint32_t>(pixels.size() / (width * height));
-            assert(channels == 4 && "Skybox pixels must be RGBA (LoadSkybox forces 4 channels)");
-
-            auto mipLevels = static_cast<uint32_t>(
-                std::floor(std::log2(std::max(width, height))) + 1);
-
-            VkImageCreateInfo imageInfo{};
-            imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-            imageInfo.imageType = VK_IMAGE_TYPE_2D;
-            imageInfo.extent = { width, height, 1 };
-            imageInfo.mipLevels = mipLevels;
-            imageInfo.arrayLayers = 1;
-            imageInfo.format = hdrFormat;
-            imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-            imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-            imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-            imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-            equirect.m_imageHandle = m_resources.CreateImageWithData(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                pixels.data(), pixels.size() * sizeof(float));
-
-            RenderImage* image = m_resources.GetImage(equirect.m_imageHandle);
-            assert(image && "Equirect image view handle is invalid");
-
-            VkImageViewCreateInfo imageViewInfo{};
-            imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-            imageViewInfo.image = image->m_image;
-            imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-            imageViewInfo.format = hdrFormat;
-            imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            imageViewInfo.subresourceRange.baseMipLevel = 0;
-            imageViewInfo.subresourceRange.levelCount = mipLevels;
-            imageViewInfo.subresourceRange.baseArrayLayer = 0;
-            imageViewInfo.subresourceRange.layerCount = 1;
-
-            equirect.m_imageViewHandle = m_resources.CreateImageView(imageViewInfo);
-
-            equirect.m_samplerHandle = m_resources.CreateSamplerLinearRepeatMip();
-        }
+        RenderTexture equirect = CreateEquirectTexture(sceneSkybox, hdrFormat);
 
         // 2. Create cubemap (storage and sample)
-        RenderTexture cubemap{};
-        {
-            VkImageCreateInfo imageInfo{};
-            imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-            imageInfo.imageType = VK_IMAGE_TYPE_2D;
-            imageInfo.extent = { faceSize, faceSize, 1 };
-            imageInfo.mipLevels = 1;
-            imageInfo.arrayLayers = 6;
-            imageInfo.format = hdrFormat;
-            imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-            imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            imageInfo.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-            imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-            imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-            imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
-
-            cubemap.m_imageHandle = m_resources.CreateImage(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-            RenderImage* image = m_resources.GetImage(cubemap.m_imageHandle);
-            assert(image && "Cubemap image view handle is invalid");
-
-            VkImageViewCreateInfo imageViewInfo{};
-            imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-            imageViewInfo.image = image->m_image;
-            imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
-            imageViewInfo.format = hdrFormat;
-            imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            imageViewInfo.subresourceRange.baseMipLevel = 0;
-            imageViewInfo.subresourceRange.levelCount = 1;
-            imageViewInfo.subresourceRange.baseArrayLayer = 0;
-            imageViewInfo.subresourceRange.layerCount = 6;
-
-            cubemap.m_imageViewHandle = m_resources.CreateImageView(imageViewInfo);
-
-            cubemap.m_samplerHandle = m_resources.CreateSamplerLinearClampNoMip();
-        }
+        RenderTexture cubemap = CreateCubemapTexture(faceSize, hdrFormat);
 
         // 3. GPU conversion: dispatch equirect_to_cubemap compute shader
-        {
-            // 3.1 Write conversion set
-            {
-                VkDescriptorImageInfo cubemapInfo{};
-                {
-                    RenderImageView* imageView = m_resources.GetImageView(cubemap.m_imageViewHandle);
-                    assert(imageView && "Cubemap image view handle is invalid");
-
-                    cubemapInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-                    cubemapInfo.imageView = imageView->m_imageView;
-                }
-
-                VkDescriptorImageInfo equirectInfo{};
-                {
-                    RenderImageView* imageView = m_resources.GetImageView(equirect.m_imageViewHandle);
-                    assert(imageView && "Equirect image view handle is invalid");
-                    RenderSampler* sampler = m_resources.GetSampler(equirect.m_samplerHandle);
-                    assert(sampler && "Equirect sampler handle is invalid");
-
-                    equirectInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-                    equirectInfo.imageView = imageView->m_imageView;
-                    equirectInfo.sampler = sampler->m_sampler;
-                }
-
-                std::array<VkWriteDescriptorSet, 2> writes{};
-                writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                writes[0].dstSet = m_conversionSet;
-                writes[0].dstBinding = 0;
-                writes[0].dstArrayElement = 0;
-                writes[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-                writes[0].descriptorCount = 1;
-                writes[0].pImageInfo = &cubemapInfo;
-
-                writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                writes[1].dstSet = m_conversionSet;
-                writes[1].dstBinding = 1;
-                writes[1].dstArrayElement = 0;
-                writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                writes[1].descriptorCount = 1;
-                writes[1].pImageInfo = &equirectInfo;
-
-                vkUpdateDescriptorSets(m_context.Device(),
-                    static_cast<uint32_t>(writes.size()), writes.data(),
-                    0, nullptr);
-            }
-
-            // 3.2 Record commands
-            {
-                assert(m_conversionPipeline && "Conversion: pipeline is null");
-
-                VkCommandBuffer commandBuffer = BeginSingleTimeCommands(m_context.Device(), m_context.CommandPool());
-
-                VkImageSubresourceRange cubemapRange{};
-                cubemapRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-                cubemapRange.baseMipLevel = 0;
-                cubemapRange.levelCount = 1;
-                cubemapRange.baseArrayLayer = 0;
-                cubemapRange.layerCount = 6;
-
-                RenderImage* image = m_resources.GetImage(cubemap.m_imageHandle);
-                assert(image && "Cubemap image handle is invalid");
-
-                TransitionImageLayout(commandBuffer, image->m_image,
-                    VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
-                    VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
-                    VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, cubemapRange);
-
-                vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_conversionPipeline->Handle());
-                vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_conversionPipeline->Layout(),
-                    0, 1, &m_conversionSet, 0, nullptr);
-                vkCmdDispatch(commandBuffer, (faceSize + 7) / 8, (faceSize + 7) / 8, 6);
-
-                TransitionImageLayout(commandBuffer, image->m_image,
-                    VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                    VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
-                    VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT, cubemapRange);
-
-                EndSingleTimeCommands(m_context.Device(), m_context.CommandPool(), m_context.GraphicsQueue(), commandBuffer);
-            }
-        }
+        WriteConversionSet(equirect, cubemap);
+        DispatchConversion(cubemap, faceSize);
 
         // 4. Destroy equirect texture
-        {
-            m_resources.DestroySampler(equirect.m_samplerHandle);
-            m_resources.DestroyImageView(equirect.m_imageViewHandle);
-            m_resources.DestroyImage(equirect.m_imageHandle);
-        }
+        DestroyTexture(equirect);
 
         Log::Info("[Renderer] Convert skybox cubemap: ", sceneSkybox.GetName(), ", ",
             sceneSkybox.GetWidth(), "x", sceneSkybox.GetHeight(), " -> ",
@@ -304,16 +142,7 @@ namespace Kita::Pbrv
         return cubemap;
     }
 
-    void RenderSkyboxData::DestroyCubemap(RenderTexture& cubemap) const
-    {
-        m_resources.DestroySampler(cubemap.m_samplerHandle);
-        m_resources.DestroyImageView(cubemap.m_imageViewHandle);
-        m_resources.DestroyImage(cubemap.m_imageHandle);
-
-        cubemap = {};
-    }
-
-    void RenderSkyboxData::WriteSet(VkDescriptorSet set)
+    void RenderSkyboxData::WriteSet(VkDescriptorSet set) const
     {
         VkDescriptorImageInfo imageInfo{};
         {
@@ -339,5 +168,185 @@ namespace Kita::Pbrv
         vkUpdateDescriptorSets(m_context.Device(),
             static_cast<uint32_t>(writes.size()), writes.data(),
             0, nullptr);
+    }
+
+    RenderTexture RenderSkyboxData::CreateEquirectTexture(const Skybox& sceneSkybox, VkFormat format) const
+    {
+        RenderTexture equirect{};
+
+        const auto& pixels = sceneSkybox.GetPixels();
+        const uint32_t width = sceneSkybox.GetWidth();
+        const uint32_t height = sceneSkybox.GetHeight();
+
+        const uint32_t channels = static_cast<uint32_t>(pixels.size() / (width * height));
+        assert(channels == 4 && "Skybox pixels must be RGBA (LoadSkybox forces 4 channels)");
+
+        auto mipLevels = static_cast<uint32_t>(
+            std::floor(std::log2(std::max(width, height))) + 1);
+
+        VkImageCreateInfo imageInfo{};
+        imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        imageInfo.imageType = VK_IMAGE_TYPE_2D;
+        imageInfo.extent = { width, height, 1 };
+        imageInfo.mipLevels = mipLevels;
+        imageInfo.arrayLayers = 1;
+        imageInfo.format = format;
+        imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+        imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        equirect.m_imageHandle = m_resources.CreateImageWithData(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+            pixels.data(), pixels.size() * sizeof(float));
+
+        RenderImage* image = m_resources.GetImage(equirect.m_imageHandle);
+        assert(image && "Equirect image view handle is invalid");
+
+        VkImageViewCreateInfo imageViewInfo{};
+        imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        imageViewInfo.image = image->m_image;
+        imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        imageViewInfo.format = format;
+        imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        imageViewInfo.subresourceRange.baseMipLevel = 0;
+        imageViewInfo.subresourceRange.levelCount = mipLevels;
+        imageViewInfo.subresourceRange.baseArrayLayer = 0;
+        imageViewInfo.subresourceRange.layerCount = 1;
+
+        equirect.m_imageViewHandle = m_resources.CreateImageView(imageViewInfo);
+
+        equirect.m_samplerHandle = m_resources.CreateSamplerLinearRepeatMip();
+
+        return equirect;
+    }
+
+    RenderTexture RenderSkyboxData::CreateCubemapTexture(uint32_t faceSize, VkFormat format) const
+    {
+        RenderTexture cubemap{};
+
+        VkImageCreateInfo imageInfo{};
+        imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        imageInfo.imageType = VK_IMAGE_TYPE_2D;
+        imageInfo.extent = { faceSize, faceSize, 1 };
+        imageInfo.mipLevels = 1;
+        imageInfo.arrayLayers = 6;
+        imageInfo.format = format;
+        imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+        imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        imageInfo.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+
+        cubemap.m_imageHandle = m_resources.CreateImage(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        RenderImage* image = m_resources.GetImage(cubemap.m_imageHandle);
+        assert(image && "Cubemap image view handle is invalid");
+
+        VkImageViewCreateInfo imageViewInfo{};
+        imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        imageViewInfo.image = image->m_image;
+        imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
+        imageViewInfo.format = format;
+        imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        imageViewInfo.subresourceRange.baseMipLevel = 0;
+        imageViewInfo.subresourceRange.levelCount = 1;
+        imageViewInfo.subresourceRange.baseArrayLayer = 0;
+        imageViewInfo.subresourceRange.layerCount = 6;
+
+        cubemap.m_imageViewHandle = m_resources.CreateImageView(imageViewInfo);
+
+        cubemap.m_samplerHandle = m_resources.CreateSamplerLinearClampNoMip();
+
+        return cubemap;
+    }
+
+    void RenderSkyboxData::DestroyTexture(RenderTexture& texture) const
+    {
+        m_resources.DestroySampler(texture.m_samplerHandle);
+        m_resources.DestroyImageView(texture.m_imageViewHandle);
+        m_resources.DestroyImage(texture.m_imageHandle);
+
+        texture = {};
+    }
+
+    void RenderSkyboxData::WriteConversionSet(const RenderTexture& equirect, const RenderTexture& cubemap) const
+    {
+        VkDescriptorImageInfo cubemapInfo{};
+        {
+            RenderImageView* imageView = m_resources.GetImageView(cubemap.m_imageViewHandle);
+            assert(imageView && "Cubemap image view handle is invalid");
+
+            cubemapInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+            cubemapInfo.imageView = imageView->m_imageView;
+        }
+
+        VkDescriptorImageInfo equirectInfo{};
+        {
+            RenderImageView* imageView = m_resources.GetImageView(equirect.m_imageViewHandle);
+            assert(imageView && "Equirect image view handle is invalid");
+            RenderSampler* sampler = m_resources.GetSampler(equirect.m_samplerHandle);
+            assert(sampler && "Equirect sampler handle is invalid");
+
+            equirectInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            equirectInfo.imageView = imageView->m_imageView;
+            equirectInfo.sampler = sampler->m_sampler;
+        }
+
+        std::array<VkWriteDescriptorSet, 2> writes{};
+        writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writes[0].dstSet = m_conversionSet;
+        writes[0].dstBinding = 0;
+        writes[0].dstArrayElement = 0;
+        writes[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        writes[0].descriptorCount = 1;
+        writes[0].pImageInfo = &cubemapInfo;
+
+        writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writes[1].dstSet = m_conversionSet;
+        writes[1].dstBinding = 1;
+        writes[1].dstArrayElement = 0;
+        writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        writes[1].descriptorCount = 1;
+        writes[1].pImageInfo = &equirectInfo;
+
+        vkUpdateDescriptorSets(m_context.Device(),
+            static_cast<uint32_t>(writes.size()), writes.data(),
+            0, nullptr);
+    }
+
+    void RenderSkyboxData::DispatchConversion(const RenderTexture& cubemap, uint32_t faceSize) const
+    {
+        assert(m_conversionPipeline && "Conversion: pipeline is null");
+
+        VkCommandBuffer commandBuffer = BeginSingleTimeCommands(m_context.Device(), m_context.CommandPool());
+
+        VkImageSubresourceRange cubemapRange{};
+        cubemapRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        cubemapRange.baseMipLevel = 0;
+        cubemapRange.levelCount = 1;
+        cubemapRange.baseArrayLayer = 0;
+        cubemapRange.layerCount = 6;
+
+        RenderImage* image = m_resources.GetImage(cubemap.m_imageHandle);
+        assert(image && "Cubemap image handle is invalid");
+
+        TransitionImageLayout(commandBuffer, image->m_image,
+            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
+            VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
+            VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, cubemapRange);
+
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_conversionPipeline->Handle());
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_conversionPipeline->Layout(),
+            0, 1, &m_conversionSet, 0, nullptr);
+        vkCmdDispatch(commandBuffer, (faceSize + 7) / 8, (faceSize + 7) / 8, 6);
+
+        TransitionImageLayout(commandBuffer, image->m_image,
+            VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+            VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT, cubemapRange);
+
+        EndSingleTimeCommands(m_context.Device(), m_context.CommandPool(), m_context.GraphicsQueue(), commandBuffer);
     }
 }
