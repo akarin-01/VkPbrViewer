@@ -218,15 +218,16 @@ namespace Kita::Pbrv
         std::vector<float> pixels;
         uint32_t width, height;
         {
+            int desiredChannels = 4;
             int texWidth, texHeight, texChannels;
-            float* data = stbi_loadf(path.c_str(), &texWidth, &texHeight, &texChannels, 0);
+            float* data = stbi_loadf(path.c_str(), &texWidth, &texHeight, &texChannels, desiredChannels);
             if (!data)
             {
                 throw std::runtime_error("Failed to load skybox image");
             }
             size_t byteSize = static_cast<size_t>(texWidth)
                 * static_cast<size_t>(texHeight)
-                * static_cast<size_t>(texChannels);
+                * static_cast<size_t>(desiredChannels);
             pixels.assign(data, data + byteSize);
             width = static_cast<uint32_t>(texWidth);
             height = static_cast<uint32_t>(texHeight);

@@ -88,6 +88,7 @@ add_executable(VkPbrViewer
     src/core/window.cpp
 
     # render
+    src/render/compute_pipeline.cpp
     src/render/descriptor_allocator.cpp
     src/render/frame_sync.cpp
     src/render/graphics_pipeline.cpp
@@ -162,6 +163,7 @@ set(SHADER_SOURCES
     assets/shaders/skybox.frag
     assets/shaders/post_process.vert
     assets/shaders/post_process.frag
+    assets/shaders/equirect_to_cubemap.comp
 )
 set(SHADER_OUTPUTS
     assets/shaders/lit_vert.spv
@@ -170,6 +172,7 @@ set(SHADER_OUTPUTS
     assets/shaders/skybox_frag.spv
     assets/shaders/post_process_vert.spv
     assets/shaders/post_process_frag.spv
+    assets/shaders/equirect_to_cubemap_comp.spv
 )
 
 set(SHADER_INCLUDES

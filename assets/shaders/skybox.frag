@@ -2,11 +2,12 @@
 
 layout(set = 1, binding = 0) uniform samplerCube skybox;
 
-layout(location = 0) in vec3 fragPos;
+layout(location = 0) in vec3 fragDir;
 
 layout(location = 0) out vec4 outColor;
 
 void main()
 {
-    outColor = vec4(0.30, 0.45, 0.60, 1.0);
+    vec3 color = texture(skybox, fragDir).rgb;
+    outColor = vec4(color, 1.0);
 }

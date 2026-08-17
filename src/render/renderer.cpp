@@ -70,23 +70,26 @@ namespace Kita::Pbrv
 
     std::unique_ptr<DescriptorAllocator> Renderer::CreateDescriptorAllocator(const RenderContext& context)
     {
-        /*         Owner        | UBO count / set |    Sampler count / set    |     Set count
-         *    RenderFrameData   |        1        |              0            | kMaxFramesInFlight
-         *   RenderMaterialData |        0        |    kMaterialTextureCount  | kMaxFramesInFlight
-         *   RenderSkyboxData   |        0        |              1            | kMaxFramesInFlight
-         *   PostProcessPass    |        0        |              1            |         1
+        /*         Owner        | UBO count / set |    Sampler count / set    |     Set count      |   Storage count / set
+         *    RenderFrameData   |        1        |              0            | kMaxFramesInFlight |            0
+         *   RenderMaterialData |        0        |    kMaterialTextureCount  | kMaxFramesInFlight |            0
+         *   RenderSkyboxData   |        0        |              1            | kMaxFramesInFlight |            0
+         *   PostProcessPass    |        0        |              1            |         1          |            0
+         *   RenderSkyboxData   |        0        |              1            |         1          |            1
         */
-        std::vector<VkDescriptorPoolSize> poolSizes(2);
+        std::vector<VkDescriptorPoolSize> poolSizes(3);
         poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         poolSizes[0].descriptorCount = kMaxFramesInFlight;
         poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        poolSizes[1].descriptorCount = kMaxFramesInFlight * kMaterialTextureCount + kMaxFramesInFlight + 1;
+        poolSizes[1].descriptorCount = kMaxFramesInFlight * kMaterialTextureCount + kMaxFramesInFlight + 1 + 1;
+        poolSizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        poolSizes[2].descriptorCount = 1;
 
         VkDescriptorPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
         poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
         poolInfo.pPoolSizes = poolSizes.data();
-        poolInfo.maxSets = kMaxFramesInFlight * 3 + 1;
+        poolInfo.maxSets = kMaxFramesInFlight * 3 + 2;
 
         return std::make_unique<DescriptorAllocator>(context, poolInfo);
     }

@@ -2,8 +2,9 @@
 
 #include "render/render_resource_types.h"
 
-#include <array>
 #include <vulkan/vulkan.h>
+#include <memory>
+#include <array>
 
 namespace Kita::Pbrv
 {
@@ -11,6 +12,7 @@ namespace Kita::Pbrv
     class RenderResources;
     class DescriptorAllocator;
     class Skybox;
+    class ComputePipeline;
 
     class RenderSkyboxData
     {
@@ -22,19 +24,29 @@ namespace Kita::Pbrv
 
         void Update(uint32_t frameIndex, const Skybox& sceneSkybox);
 
+        bool IsReady() const { return m_cubemap.m_imageHandle != 0; }
+
         VkDescriptorSetLayout GetSetLayout() const { return m_setLayout; }
         const VkDescriptorSet& GetSet(uint32_t frameIndex) const { return m_sets[frameIndex]; }
 
     private:
+        RenderTexture CreateCubemap(const Skybox& sceneSkybox) const;
+        void DestroyCubemap(RenderTexture& cubemap) const;
         void WriteSet(VkDescriptorSet set);
 
+    private:
         const RenderContext& m_context;
         RenderResources& m_resources;
         const DescriptorAllocator& m_descriptorAllocator;
 
-        RenderTexture m_texture{};
+        RenderTexture m_cubemap{};
         VkDescriptorSetLayout m_setLayout{ VK_NULL_HANDLE };
         std::array<VkDescriptorSet, kMaxFramesInFlight> m_sets{};
         uint32_t m_setRefreshCount{ 0 };
+
+        // GPU conversion: equirect -> cubemap
+        VkDescriptorSetLayout m_conversionSetLayout{ VK_NULL_HANDLE };
+        VkDescriptorSet m_conversionSet{ VK_NULL_HANDLE };
+        std::unique_ptr<ComputePipeline> m_conversionPipeline;
     };
 }

@@ -40,6 +40,11 @@ namespace Kita::Pbrv
 
     void SkyboxPass::Draw(const FrameInfo& frameInfo) const
     {
+        if (!m_skybox.IsReady())
+        {
+            return;
+        }
+
         assert(m_pipeline && "SkyboxPass: pipeline is null");
 
         auto& commandBuffer = frameInfo.m_commandBuffer;

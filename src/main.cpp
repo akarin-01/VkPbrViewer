@@ -46,6 +46,7 @@ int main()
 
         Kita::Pbrv::Renderer renderer(window);
 
+        bool showSkybox = false;
         while (!window.ShouldClose())
         {
             window.PollEvents();
@@ -58,6 +59,19 @@ int main()
             {
                 window.RequestClose();
                 continue;
+            }
+
+            if (input.IsMouseButtonPressed(MouseButton::Left))
+            {
+                showSkybox = !showSkybox;
+                if (showSkybox)
+                {
+                    Kita::Pbrv::AssetLoader::LoadSkybox("assets/textures/newport_loft.hdr", scene.GetSkybox());
+                }
+                else
+                {
+                    scene.GetSkybox().SetEmpty();
+                }
             }
 
             cameraController.Update(deltaTime);
