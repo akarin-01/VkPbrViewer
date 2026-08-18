@@ -47,6 +47,11 @@ namespace Kita::Pbrv
         using Handle = RenderImageHandle;
         VkImage m_image{ VK_NULL_HANDLE };
         VkDeviceMemory m_memory{ VK_NULL_HANDLE };
+
+        VkFormat m_format{ VK_FORMAT_UNDEFINED };
+        VkExtent3D m_extent{ 0, 0, 1 };
+        uint32_t m_mipLevels{ 1 };
+        uint32_t m_arrayLayers{ 1 };
     };
 
     struct RenderImageView

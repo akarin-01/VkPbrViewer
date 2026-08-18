@@ -2,6 +2,9 @@
 
 #include <stdexcept>
 #include <fstream>
+#include <vector>
+#include <algorithm>
+#include <cmath>
 
 namespace Kita::Pbrv
 {
@@ -80,10 +83,21 @@ namespace Kita::Pbrv
             }
         }
 
-        throw std::runtime_error("failed to find suitable memory type!");
+        throw std::runtime_error("Failed to find suitable memory type!");
     }
 
-    void TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask, VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask, const VkImageSubresourceRange& range)
+    uint32_t CalculateMipLevels(uint32_t width, uint32_t height)
+    {
+        return static_cast<uint32_t>(
+            std::floor(std::log2(std::max(width, height))) + 1
+            );
+    }
+
+    void TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image,
+        VkImageLayout oldLayout, VkImageLayout newLayout,
+        VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
+        VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask,
+        const VkImageSubresourceRange& range)
     {
         VkImageMemoryBarrier2 barrier{};
         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
@@ -105,8 +119,16 @@ namespace Kita::Pbrv
         vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
     }
 
-    void GenerateImageMipmaps(VkPhysicalDevice physicalDevice, VkCommandBuffer commandBuffer, VkImage image, uint32_t width, uint32_t height, uint32_t mipLevels, VkFormat format, VkImageAspectFlags aspectMask)
+    void GenerateImageMipmaps(VkPhysicalDevice physicalDevice, VkCommandBuffer commandBuffer, VkImage image,
+        uint32_t width, uint32_t height, uint32_t mipLevels, uint32_t arrayLayers, VkFormat format, VkImageAspectFlags aspectMask,
+        VkImageLayout finalLayout, VkPipelineStageFlags2 finalStageMask)
     {
+        if (mipLevels == 0 || arrayLayers == 0)
+        {
+            throw std::runtime_error("Miplevels or arrayLayers argument is invalid");
+        }
+
+        // Check format support
         VkFormatProperties formatProperties;
         vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &formatProperties);
 
@@ -115,31 +137,42 @@ namespace Kita::Pbrv
             throw std::runtime_error("Texture image format does not support linear blitting!");
         }
 
-        int32_t mipWidth = width, mipHeight = height;
+        int32_t mipWidth = static_cast<int32_t>(width);
+        int32_t mipHeight = static_cast<int32_t>(height);
 
-        VkImageSubresourceRange range{};
-        range.aspectMask = aspectMask;
-        range.levelCount = 1;
-        range.baseArrayLayer = 0;
-        range.layerCount = 1;
+        const VkImageLayout srcLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        const VkImageLayout dstLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+
+        VkImageSubresourceRange levelRange{};
+        levelRange.aspectMask = aspectMask;
+        levelRange.levelCount = 1;
+        levelRange.baseArrayLayer = 0;
+        levelRange.layerCount = arrayLayers;
+
         for (uint32_t i = 1; i < mipLevels; ++i)
         {
-            range.baseMipLevel = i - 1;
+            // 1. Make sure level(i - 1) is src layout
+            levelRange.baseMipLevel = i - 1;
             TransitionImageLayout(commandBuffer, image,
-                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                dstLayout, srcLayout,
                 VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
                 VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_READ_BIT,
-                range);
+                levelRange);
 
+            // 2. Make sure level(i) is dst layout
+            // initial layout is dst layout
+
+            // 3. Blit level(i - 1) to level(i)
             VkImageBlit blit{};
             blit.srcOffsets[0] = { 0, 0, 0 };
             blit.srcOffsets[1] = { mipWidth, mipHeight, 1 };
             blit.srcSubresource.aspectMask = aspectMask;
             blit.srcSubresource.mipLevel = i - 1;
             blit.srcSubresource.baseArrayLayer = 0;
-            blit.srcSubresource.layerCount = 1;
+            blit.srcSubresource.layerCount = arrayLayers;
             blit.dstOffsets[0] = { 0, 0, 0 };
-            blit.dstOffsets[1] = {
+            blit.dstOffsets[1] =
+            {
                 (mipWidth > 1 ? mipWidth / 2 : 1),
                 (mipHeight > 1 ? mipHeight / 2 : 1),
                 1
@@ -147,19 +180,21 @@ namespace Kita::Pbrv
             blit.dstSubresource.aspectMask = aspectMask;
             blit.dstSubresource.mipLevel = i;
             blit.dstSubresource.baseArrayLayer = 0;
-            blit.dstSubresource.layerCount = 1;
+            blit.dstSubresource.layerCount = arrayLayers;
 
             vkCmdBlitImage(commandBuffer,
-                image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                image, srcLayout,
+                image, dstLayout,
                 1, &blit,
                 VK_FILTER_LINEAR);
 
+            // 4.1 Transition level(i - 1) to final layout
+            levelRange.baseMipLevel = i - 1;
             TransitionImageLayout(commandBuffer, image,
-                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                srcLayout, finalLayout,
                 VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_READ_BIT,
-                VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT,
-                range);
+                finalStageMask, VK_ACCESS_2_SHADER_READ_BIT,
+                levelRange);
 
             if (mipWidth > 1)
             {
@@ -171,12 +206,14 @@ namespace Kita::Pbrv
             }
         }
 
-        range.baseMipLevel = mipLevels - 1;
+        // 4.2 Transition last level to final layout
+        // last level is dst layout instead of src layout
+        levelRange.baseMipLevel = mipLevels - 1;
         TransitionImageLayout(commandBuffer, image,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_READ_BIT,
-            VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT,
-            range);
+            dstLayout, finalLayout,
+            VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
+            finalStageMask, VK_ACCESS_2_SHADER_READ_BIT,
+            levelRange);
     }
 
     VkCommandBuffer BeginSingleTimeCommands(VkDevice device, VkCommandPool commandPool)

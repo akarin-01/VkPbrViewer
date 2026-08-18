@@ -63,12 +63,28 @@ namespace Kita::Pbrv
         return imageView->m_imageView;
     }
 
+    VkFormat RenderTargetData::GetColorFormat() const
+    {
+        RenderImage* image = m_resources.GetImage(m_colorTex.m_imageHandle);
+        assert(image && "Color image handle is invalid");
+
+        return image->m_format;
+    }
+
     VkImageView RenderTargetData::GetDepthImageView() const
     {
         RenderImageView* imageView = m_resources.GetImageView(m_depthTex.m_imageViewHandle);
         assert(imageView && "Depth image view handle is invalid");
 
         return imageView->m_imageView;
+    }
+
+    VkFormat RenderTargetData::GetDepthFormat() const
+    {
+        RenderImage* image = m_resources.GetImage(m_depthTex.m_imageHandle);
+        assert(image && "Depth image handle is invalid");
+
+        return image->m_format;
     }
 
     void RenderTargetData::TransitionColorImageLayout(VkCommandBuffer commandBuffer,
@@ -133,13 +149,13 @@ namespace Kita::Pbrv
     {
         // Color texture
         {
-            m_colorFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
+            VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
             m_colorLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
             VkImageCreateInfo imageInfo{};
             imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
             imageInfo.imageType = VK_IMAGE_TYPE_2D;
-            imageInfo.format = m_colorFormat;
+            imageInfo.format = format;
             imageInfo.extent = { extent.width, extent.height, 1 };
             imageInfo.mipLevels = 1;
             imageInfo.arrayLayers = 1;
@@ -149,27 +165,14 @@ namespace Kita::Pbrv
             imageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
             m_colorTex.m_imageHandle = m_resources.CreateImage(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-            RenderImage* image = m_resources.GetImage(m_colorTex.m_imageHandle);
-            assert(image && "Render target color image handle is invalid");
-
-            VkImageViewCreateInfo imageViewInfo{};
-            imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-            imageViewInfo.image = image->m_image;
-            imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-            imageViewInfo.format = m_colorFormat;
-            imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            imageViewInfo.subresourceRange.baseMipLevel = 0;
-            imageViewInfo.subresourceRange.levelCount = 1;
-            imageViewInfo.subresourceRange.baseArrayLayer = 0;
-            imageViewInfo.subresourceRange.layerCount = 1;
-            m_colorTex.m_imageViewHandle = m_resources.CreateImageView(imageViewInfo);
+            m_colorTex.m_imageViewHandle = m_resources.CreateImageView(m_colorTex.m_imageHandle);
 
             m_colorTex.m_samplerHandle = m_resources.CreateSamplerLinearClampNoMip();
         }
 
         // Depth texture
         {
-            m_depthFormat = VK_FORMAT_D32_SFLOAT;      // m_context.GetDepthFormat()
+            VkFormat format = VK_FORMAT_D32_SFLOAT;     // m_context.GetDepthFormat()
             m_depthLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
             VkImageCreateInfo imageInfo{};
@@ -178,7 +181,7 @@ namespace Kita::Pbrv
             imageInfo.extent = { extent.width, extent.height, 1 };
             imageInfo.mipLevels = 1;
             imageInfo.arrayLayers = 1;
-            imageInfo.format = m_depthFormat;
+            imageInfo.format = format;
             imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
             imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
             imageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
@@ -186,20 +189,7 @@ namespace Kita::Pbrv
             imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
             m_depthTex.m_imageHandle = m_resources.CreateImage(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-            RenderImage* image = m_resources.GetImage(m_depthTex.m_imageHandle);
-            assert(image && "Render target depth image handle is invalid");
-
-            VkImageViewCreateInfo imageViewInfo{};
-            imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-            imageViewInfo.image = image->m_image;
-            imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-            imageViewInfo.format = m_depthFormat;
-            imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-            imageViewInfo.subresourceRange.baseMipLevel = 0;
-            imageViewInfo.subresourceRange.levelCount = 1;
-            imageViewInfo.subresourceRange.baseArrayLayer = 0;
-            imageViewInfo.subresourceRange.layerCount = 1;
-            m_depthTex.m_imageViewHandle = m_resources.CreateImageView(imageViewInfo);
+            m_depthTex.m_imageViewHandle = m_resources.CreateImageView(m_depthTex.m_imageHandle, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_DEPTH_BIT);
 
             m_depthTex.m_samplerHandle = m_resources.CreateSamplerNearestClampNoMip();
         }

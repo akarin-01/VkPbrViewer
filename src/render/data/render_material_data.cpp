@@ -11,8 +11,6 @@
 #include <glm/glm.hpp>
 #include <cassert>
 #include <stdexcept>
-#include <algorithm>
-#include <cmath>
 
 namespace Kita::Pbrv
 {
@@ -219,56 +217,34 @@ namespace Kita::Pbrv
         auto type = sceneTex.GetType();
 
         VkFormat format = ToFormat(type);
-        auto mipLevels = static_cast<uint32_t>(
-            std::floor(std::log2(std::max(width, height))) + 1
-            );
+        auto mipLevels = CalculateMipLevels(width, height);
 
-        // Image
-        RenderImageHandle imageHandle{ 0 };
-        {
-            VkImageCreateInfo imageInfo{};
-            imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-            imageInfo.imageType = VK_IMAGE_TYPE_2D;
-            imageInfo.extent.width = width;
-            imageInfo.extent.height = height;
-            imageInfo.extent.depth = 1;
-            imageInfo.mipLevels = mipLevels;
-            imageInfo.arrayLayers = 1;
-            imageInfo.format = format;
-            imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-            imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-            imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-            imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        RenderTexture texture{};
 
-            imageHandle = m_resources.CreateImageWithData(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                pixels.data(), pixels.size());
-        }
+        VkImageCreateInfo imageInfo{};
+        imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        imageInfo.imageType = VK_IMAGE_TYPE_2D;
+        imageInfo.extent.width = width;
+        imageInfo.extent.height = height;
+        imageInfo.extent.depth = 1;
+        imageInfo.mipLevels = mipLevels;
+        imageInfo.arrayLayers = 1;
+        imageInfo.format = format;
+        imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+        imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        // Image view
-        RenderImageViewHandle imageViewHandle{ 0 };
-        {
-            RenderImage* image = m_resources.GetImage(imageHandle);
-            assert(image && "Image handle is invalid");
+        texture.m_imageHandle = m_resources.CreateImageWithData(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+            pixels.data(), pixels.size());
+        m_resources.GenerateImageMipmaps(texture.m_imageHandle);
 
-            VkImageViewCreateInfo imageViewInfo{};
-            imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-            imageViewInfo.image = image->m_image;
-            imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-            imageViewInfo.format = format;
-            imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            imageViewInfo.subresourceRange.baseMipLevel = 0;
-            imageViewInfo.subresourceRange.levelCount = mipLevels;
-            imageViewInfo.subresourceRange.baseArrayLayer = 0;
-            imageViewInfo.subresourceRange.layerCount = 1;
+        texture.m_imageViewHandle = m_resources.CreateImageView(texture.m_imageHandle, VK_IMAGE_VIEW_TYPE_2D);
 
-            imageViewHandle = m_resources.CreateImageView(imageViewInfo);
-        }
+        texture.m_samplerHandle = m_resources.CreateSamplerLinearRepeatMip();
 
-        // Sampler
-        RenderSamplerHandle samplerHandle = m_resources.CreateSamplerLinearRepeatMip();
-
-        return { imageHandle, imageViewHandle, samplerHandle };
+        return texture;
     }
 
     void RenderMaterialData::DestroyTexture(RenderTexture& texture) const

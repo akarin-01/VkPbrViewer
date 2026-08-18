@@ -138,14 +138,26 @@ namespace Kita::Pbrv
         RenderImageHandle CreateImageWithData(VkImageCreateInfo imageInfo, VkMemoryPropertyFlags properties, const void* data, size_t size, VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT);
         RenderImage* GetImage(RenderImageHandle handle) const;
         void DestroyImage(RenderImageHandle handle);
+        void GenerateImageMipmaps(RenderImageHandle handle,
+            VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            VkImageLayout finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            VkPipelineStageFlags2 finalStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT) const;
+        void TransitionImageLayout(RenderImageHandle handle,
+            VkImageLayout oldLayout, VkImageLayout newLayout,
+            VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
+            VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask,
+            VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_COLOR_BIT);
 
         RenderImageViewHandle CreateImageView(const VkImageViewCreateInfo& createInfo);
+        RenderImageViewHandle CreateImageView(RenderImageHandle imageHandle, VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D, VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_COLOR_BIT);
+        RenderImageViewHandle CreateImageView(RenderImageHandle imageHandle, VkImageViewType viewType, const VkImageSubresourceRange& range);
         RenderImageView* GetImageView(RenderImageViewHandle handle) const;
         void DestroyImageView(RenderImageViewHandle handle);
 
         RenderSamplerHandle CreateSampler(const VkSamplerCreateInfo& createInfo);
         RenderSamplerHandle CreateSamplerLinearRepeatMip();
         RenderSamplerHandle CreateSamplerLinearClampNoMip();
+        RenderSamplerHandle CreateSamplerLinearClampMip();
         RenderSamplerHandle CreateSamplerNearestClampNoMip();
         RenderSampler* GetSampler(RenderSamplerHandle handle) const;
         void DestroySampler(RenderSamplerHandle handle);
@@ -155,7 +167,7 @@ namespace Kita::Pbrv
         void DestroyBufferHelper(const RenderBuffer& buffer) const;
         void WriteBufferHelper(const RenderBuffer& buffer, const void* data, size_t size, size_t offset = 0) const;
 
-        std::unique_ptr<RenderImage> CreateImageHelper(VkImageCreateInfo imageInfo, VkMemoryPropertyFlags properties) const;
+        std::unique_ptr<RenderImage> CreateImageHelper(const VkImageCreateInfo& imageInfo, VkMemoryPropertyFlags properties) const;
         void DestroyImageHelper(const RenderImage& image) const;
 
         std::unique_ptr<RenderImageView> CreateImageViewHelper(const VkImageViewCreateInfo& createInfo) const;

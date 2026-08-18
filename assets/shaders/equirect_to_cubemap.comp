@@ -51,10 +51,9 @@ void main()
     vec2 faceCoord = (vec2(pixelCoord) + 0.5) / vec2(size) * 2.0 - 1.0;    // Pixel coord center -> [-1, 1]
     
     // Face coord -> World dir -> Equirect uv
-    vec3 dir = GetDirection(face, faceCoord);
-    vec2 equirectUV = ToEquirectUV(dir);
-
-    vec3 color = textureLod(equirect, equirectUV, 0.0).rgb;     // Force lod 0
+    vec2 equirectUV = ToEquirectUV(GetDirection(face, faceCoord));
+    
+    vec3 color = textureLod(equirect, equirectUV, 0).rgb;
 
     // Write to cubemap
     imageStore(outCubemap, ivec3(pixelCoord, int(face)), vec4(color, 1.0));

@@ -23,10 +23,10 @@ namespace Kita::Pbrv
 
         const RenderTexture& GetColorTexture() const { return m_colorTex; }
         VkImageView GetColorImageView() const;
-        VkFormat GetColorFormat() const { return m_colorFormat; }
+        VkFormat GetColorFormat() const;
         const RenderTexture& GetDepthTexture() const { return m_depthTex; }
         VkImageView GetDepthImageView() const;
-        VkFormat GetDepthFormat() const { return m_depthFormat; }
+        VkFormat GetDepthFormat() const;
 
         void TransitionColorImageLayout(VkCommandBuffer commandBuffer,
             VkImageLayout newLayout,
@@ -52,11 +52,9 @@ namespace Kita::Pbrv
         const DescriptorAllocator& m_descriptorAllocator;
 
         RenderTexture m_colorTex{};
-        VkFormat m_colorFormat{ VK_FORMAT_UNDEFINED };
         VkImageLayout m_colorLayout{ VK_IMAGE_LAYOUT_UNDEFINED };
 
         RenderTexture m_depthTex{};
-        VkFormat m_depthFormat{ VK_FORMAT_UNDEFINED };
         VkImageLayout m_depthLayout{ VK_IMAGE_LAYOUT_UNDEFINED };
 
         VkDescriptorSetLayout m_setLayout{ VK_NULL_HANDLE };
