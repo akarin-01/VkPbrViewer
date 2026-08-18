@@ -119,10 +119,11 @@ namespace Kita::Pbrv
 
     RenderTexture RenderSkyboxData::CreateCubemap(const Skybox& sceneSkybox) const
     {
+        const VkFormat equirectFormat = VK_FORMAT_R32G32B32A32_SFLOAT;
         const uint32_t faceSize = 1024;
 
         // 1. Create equirect texture
-        RenderTexture equirect = CreateEquirectTexture(sceneSkybox, m_context.HdrFormat());
+        RenderTexture equirect = CreateEquirectTexture(sceneSkybox, equirectFormat);
 
         // 2.1 Create cubemap (sample)
         RenderTexture cubemap = CreateCubemapTexture(faceSize, m_context.HdrFormat());
