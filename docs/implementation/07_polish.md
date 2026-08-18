@@ -15,3 +15,6 @@
   - **MSAA**：Dynamic Rendering 下通过 `VkRenderingAttachmentInfo::resolveMode` + `pResolveImageView` + 多采样临时 Color Image 实现。阶段 03 已预留 `VkSampleCountFlagBits` 参数
   - 截图保存
   - glTF 材质 / 纹理读取（可选）：`AssetLoader::LoadGltf` 扩展——factor 映射（baseColor → albedo、metallic/roughness → 标量）、metallicRoughness 纹理拆双通道（R → roughness、G → metallic）、三来源纹理加载（外部 URI / data URI / GLB bufferView，需 `stbi_load_from_memory` 内存解码）；若 glTF 未提供 tangent，按 Mikktspace 计算填充
+- [ ] 已知问题（天空盒远景锯齿）：equirect 环境图**没有生成 mipmap**（blit 无法正确滤波球面，正确做法是 compute pipeline 生成），导致 equirect → cubemap 转换时只能采样单 level（无 mip 可选），转换出的 cubemap 缺少正确的高频细节滤波，远景出现锯齿 / 摩尔纹。
+  - 修复方向：① 用 compute shader 为 equirect 生成 mipmap；② equirect → cubemap 转换 shader 中**手动计算 LOD**（`textureLod`），保证采样到对应的 equirect mip level
+  - 当前状态：暂缓，不影响功能；skybox 渲染的 cubemap 本身的 mipmap 已生成（6 面均为平面，blit 正确）
