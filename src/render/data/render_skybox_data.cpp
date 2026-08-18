@@ -181,14 +181,11 @@ namespace Kita::Pbrv
         const uint32_t channels = static_cast<uint32_t>(pixels.size() / (width * height));
         assert(channels == 4 && "Skybox pixels must be RGBA (LoadSkybox forces 4 channels)");
 
-        auto mipLevels = static_cast<uint32_t>(
-            std::floor(std::log2(std::max(width, height))) + 1);
-
         VkImageCreateInfo imageInfo{};
         imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
         imageInfo.extent = { width, height, 1 };
-        imageInfo.mipLevels = mipLevels;
+        imageInfo.mipLevels = 1;
         imageInfo.arrayLayers = 1;
         imageInfo.format = format;
         imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
@@ -210,7 +207,7 @@ namespace Kita::Pbrv
         imageViewInfo.format = format;
         imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         imageViewInfo.subresourceRange.baseMipLevel = 0;
-        imageViewInfo.subresourceRange.levelCount = mipLevels;
+        imageViewInfo.subresourceRange.levelCount = 1;
         imageViewInfo.subresourceRange.baseArrayLayer = 0;
         imageViewInfo.subresourceRange.layerCount = 1;
 
