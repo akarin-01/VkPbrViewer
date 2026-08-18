@@ -95,6 +95,7 @@ namespace Kita::Pbrv
     {
         GraphicsPipelineBuilder builder(m_context.Device());
         builder.SetShaders("assets/shaders/skybox_vert.spv", "assets/shaders/skybox_frag.spv")
+            .SetRasterizationSamples(m_context.SampleCount())
             .SetDepth(true, false, VK_COMPARE_OP_LESS_OR_EQUAL)
             .SetDescriptorSetLayouts({ m_frameData.GetSetLayout(), m_skybox.GetSetLayout(), })
             .SetDynamicRendering({ m_targetData.GetColorFormat() }, m_targetData.GetDepthFormat());

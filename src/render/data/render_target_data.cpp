@@ -149,19 +149,18 @@ namespace Kita::Pbrv
     {
         // Color texture
         {
-            VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
             m_colorLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
             VkImageCreateInfo imageInfo{};
             imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
             imageInfo.imageType = VK_IMAGE_TYPE_2D;
-            imageInfo.format = format;
+            imageInfo.format = m_context.HdrFormat();
             imageInfo.extent = { extent.width, extent.height, 1 };
             imageInfo.mipLevels = 1;
             imageInfo.arrayLayers = 1;
             imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
             imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+            imageInfo.samples = m_context.SampleCount();
             imageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
             m_colorTex.m_imageHandle = m_resources.CreateImage(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
@@ -172,7 +171,6 @@ namespace Kita::Pbrv
 
         // Depth texture
         {
-            VkFormat format = VK_FORMAT_D32_SFLOAT;     // m_context.GetDepthFormat()
             m_depthLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
             VkImageCreateInfo imageInfo{};
@@ -181,11 +179,11 @@ namespace Kita::Pbrv
             imageInfo.extent = { extent.width, extent.height, 1 };
             imageInfo.mipLevels = 1;
             imageInfo.arrayLayers = 1;
-            imageInfo.format = format;
+            imageInfo.format = m_context.DepthFormat();
             imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
             imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
             imageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-            imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+            imageInfo.samples = m_context.SampleCount();
             imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
             m_depthTex.m_imageHandle = m_resources.CreateImage(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 

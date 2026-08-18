@@ -20,6 +20,9 @@ namespace Kita::Pbrv
         // Rasterization
         VkCullModeFlags m_cullMode{ VK_CULL_MODE_NONE };
 
+        // Multisample
+        VkSampleCountFlagBits m_rasterizationSamples{ VK_SAMPLE_COUNT_1_BIT };
+
         // Depth and stencil
         VkBool32 m_depthTestEnable{ VK_FALSE };
         VkBool32 m_depthWriteEnable{ VK_FALSE };
@@ -61,6 +64,7 @@ namespace Kita::Pbrv
         GraphicsPipelineBuilder& SetVertexInput(const std::vector<VkVertexInputBindingDescription>& bindings,
             const std::vector<VkVertexInputAttributeDescription>& attributes);
         GraphicsPipelineBuilder& SetCullMode(VkCullModeFlags cullMode);
+        GraphicsPipelineBuilder& SetRasterizationSamples(VkSampleCountFlagBits samples);
         GraphicsPipelineBuilder& SetDepth(bool testEnable, bool writeEnable, VkCompareOp op);
         GraphicsPipelineBuilder& SetDescriptorSetLayouts(const std::vector<VkDescriptorSetLayout>& setLayouts);
         GraphicsPipelineBuilder& SetPushConstants(const std::vector<VkPushConstantRange>& pushConstants);

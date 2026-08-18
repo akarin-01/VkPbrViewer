@@ -129,6 +129,7 @@ namespace Kita::Pbrv
         builder.SetShaders("assets/shaders/lit_vert.spv", "assets/shaders/lit_frag.spv")
             .SetVertexInput({ Vertex::GetBindingDescription() }, Vertex::GetAttributeDescriptions())
             .SetCullMode(VK_CULL_MODE_BACK_BIT)
+            .SetRasterizationSamples(m_context.SampleCount())
             .SetDepth(true, true, VK_COMPARE_OP_LESS)
             .SetDescriptorSetLayouts({ m_frameData.GetSetLayout(), m_materialData.GetSetLayout(), })
             .SetPushConstants({ pushConstant })

@@ -20,12 +20,20 @@ namespace Kita::Pbrv
         VkQueue PresentQueue() const { return m_presentQueue; }
         VkCommandPool CommandPool() const { return m_commandPool; }
 
+        VkFormat DepthFormat() const { return m_depthFormat; }
+        VkFormat HdrFormat() const { return m_hdrFormat; }
+        float MaxAnisotropy() const { return m_maxAnisotropy; }
+        VkSampleCountFlagBits MaxSampleCount() const { return m_maxSampleCount; }
+        VkSampleCountFlagBits SampleCount() const { return m_sampleCount; }
+
     private:
         void CreateInstance();
         void CreateSurface();
         void PickPhysicalDevice();
         void CreateLogicalDevice();
         void CreateCommandPool();
+
+        void CachePhysicalDeviceCaps();
 
     private:
         const Window& m_window;
@@ -37,5 +45,11 @@ namespace Kita::Pbrv
         VkQueue m_graphicsQueue{ VK_NULL_HANDLE };
         VkQueue m_presentQueue{ VK_NULL_HANDLE };
         VkCommandPool m_commandPool{ VK_NULL_HANDLE };
+
+        VkFormat m_depthFormat{ VK_FORMAT_UNDEFINED };
+        VkFormat m_hdrFormat{ VK_FORMAT_UNDEFINED };
+        float m_maxAnisotropy{ 1.0f };
+        VkSampleCountFlagBits m_maxSampleCount{ VK_SAMPLE_COUNT_1_BIT };
+        VkSampleCountFlagBits m_sampleCount{ VK_SAMPLE_COUNT_1_BIT };
     };
 }

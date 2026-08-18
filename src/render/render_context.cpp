@@ -113,6 +113,71 @@ namespace Kita::Pbrv
             return indices.IsComplete() && extensionsSupported && swapChainAdequate
                 && featuresSupported;
         }
+
+        VkFormat FindSupportedFormat(VkPhysicalDevice physicalDevice, const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features)
+        {
+            for (const auto& format : candidates)
+            {
+                VkFormatProperties properties{};
+                vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &properties);
+
+                if (tiling == VK_IMAGE_TILING_LINEAR && (properties.linearTilingFeatures & features) == features)
+                {
+                    return format;
+                }
+                else if (tiling == VK_IMAGE_TILING_OPTIMAL && (properties.optimalTilingFeatures & features) == features)
+                {
+                    return format;
+                }
+            }
+
+            throw std::runtime_error("Failed to find supported format!");
+        }
+
+        VkFormat PickDepthFormat(VkPhysicalDevice physicalDevice)
+        {
+            return FindSupportedFormat(physicalDevice,
+                { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT },
+                VK_IMAGE_TILING_OPTIMAL,
+                VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+        }
+
+        float PickMaxAnisotropy(VkPhysicalDeviceProperties properties)
+        {
+            return properties.limits.maxSamplerAnisotropy;
+        }
+
+        VkSampleCountFlagBits PickMaxSampleCount(VkPhysicalDeviceProperties properties)
+        {
+            VkSampleCountFlags count = properties.limits.framebufferColorSampleCounts &
+                properties.limits.framebufferDepthSampleCounts;
+
+            if (count & VK_SAMPLE_COUNT_64_BIT)
+            {
+                return VK_SAMPLE_COUNT_64_BIT;
+            }
+            if (count & VK_SAMPLE_COUNT_32_BIT)
+            {
+                return VK_SAMPLE_COUNT_32_BIT;
+            }
+            if (count & VK_SAMPLE_COUNT_16_BIT)
+            {
+                return VK_SAMPLE_COUNT_16_BIT;
+            }
+            if (count & VK_SAMPLE_COUNT_8_BIT)
+            {
+                return VK_SAMPLE_COUNT_8_BIT;
+            }
+            if (count & VK_SAMPLE_COUNT_4_BIT)
+            {
+                return VK_SAMPLE_COUNT_4_BIT;
+            }
+            if (count & VK_SAMPLE_COUNT_2_BIT)
+            {
+                return VK_SAMPLE_COUNT_2_BIT;
+            }
+            return VK_SAMPLE_COUNT_1_BIT;
+        }
     }
 
     RenderContext::RenderContext(const Window& window)
@@ -193,7 +258,6 @@ namespace Kita::Pbrv
             if (IsDeviceSuitable(device, m_surface))
             {
                 m_physicalDevice = device;
-                // TODO: Cache physical device properties
                 break;
             }
         }
@@ -202,6 +266,8 @@ namespace Kita::Pbrv
         {
             throw std::runtime_error("Failed to find a suitable GPU!");
         }
+
+        CachePhysicalDeviceCaps();
     }
 
     void RenderContext::CreateLogicalDevice()
@@ -263,5 +329,17 @@ namespace Kita::Pbrv
         {
             throw std::runtime_error("Failed to create command pool!");
         }
+    }
+
+    void RenderContext::CachePhysicalDeviceCaps()
+    {
+        VkPhysicalDeviceProperties properties{};
+        vkGetPhysicalDeviceProperties(m_physicalDevice, &properties);
+
+        m_depthFormat = PickDepthFormat(m_physicalDevice);
+        m_hdrFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
+        m_maxAnisotropy = PickMaxAnisotropy(properties);
+        m_maxSampleCount = PickMaxSampleCount(properties);
+        m_sampleCount = VK_SAMPLE_COUNT_1_BIT;
     }
 }
