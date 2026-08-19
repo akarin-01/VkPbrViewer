@@ -3,6 +3,7 @@
 #include "render/render_resource_types.h"
 
 #include <vector>
+#include <cstdint>
 
 namespace Kita::Pbrv
 {
@@ -34,5 +35,7 @@ namespace Kita::Pbrv
         RenderBufferHandle m_vertexBufferHandle{ 0 };
         RenderBufferHandle m_indexBufferHandle{ 0 };
         uint32_t m_indexCount{ 0 };
+
+        uint64_t m_lastSyncedRevision{ UINT64_MAX };
     };
 }

@@ -59,9 +59,9 @@ namespace Kita::Pbrv
 
     void RenderMeshData::Update(const Mesh& sceneMesh)
     {
-        if (sceneMesh.IsDirty())
+        if (sceneMesh.GetRevision() != m_lastSyncedRevision)
         {
-            sceneMesh.ClearDirty();
+            m_lastSyncedRevision = sceneMesh.GetRevision();
 
             // Destroy old mesh
             Destroy();

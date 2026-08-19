@@ -49,7 +49,7 @@ namespace Kita::Pbrv
         m_name = name;
         m_vertices = std::move(vertices);
         m_indices = std::move(indices);
-        m_isDirty = true;
+        ++m_revision;
 
         KITA_LOG_DEBUG("[Scene] Set mesh data: ", m_name, ", ",
             m_vertices.size(), " vertices, ",

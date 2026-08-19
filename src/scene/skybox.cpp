@@ -24,7 +24,7 @@ namespace Kita::Pbrv
         m_pixels = std::move(pixels);
         m_width = width;
         m_height = height;
-        m_isDirty = true;
+        ++m_revision;
 
         KITA_LOG_DEBUG("[Scene] Set skybox data: ", m_name, ", ",
             m_pixels.size(), " pixels, ",

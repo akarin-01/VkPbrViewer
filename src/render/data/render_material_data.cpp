@@ -196,9 +196,9 @@ namespace Kita::Pbrv
 
     bool RenderMaterialData::UpdateTextureSlot(uint32_t slot, const Texture& sceneTex)
     {
-        if (sceneTex.IsDirty())
+        if (sceneTex.GetRevision() != m_lastSyncedRevisions[slot])
         {
-            sceneTex.ClearDirty();
+            m_lastSyncedRevisions[slot] = sceneTex.GetRevision();
 
             bool isOldFallback = m_textures[slot] == m_fallbackTextures[slot];
             if (!isOldFallback)

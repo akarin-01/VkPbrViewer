@@ -93,9 +93,9 @@ namespace Kita::Pbrv
 
     void RenderSkyboxData::Update(uint32_t frameIndex, const Skybox& sceneSkybox)
     {
-        if (sceneSkybox.IsDirty())
+        if (sceneSkybox.GetRevision() != m_lastSyncedRevision)
         {
-            sceneSkybox.ClearDirty();
+            m_lastSyncedRevision = sceneSkybox.GetRevision();
 
             DestroyTexture(m_cubemap);
 

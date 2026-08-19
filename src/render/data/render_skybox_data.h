@@ -5,6 +5,7 @@
 #include <vulkan/vulkan.h>
 #include <memory>
 #include <array>
+#include <cstdint>
 
 namespace Kita::Pbrv
 {
@@ -47,7 +48,9 @@ namespace Kita::Pbrv
         RenderTexture m_cubemap{};
         VkDescriptorSetLayout m_setLayout{ VK_NULL_HANDLE };
         std::array<VkDescriptorSet, kMaxFramesInFlight> m_sets{};
+
         uint32_t m_setRefreshCount{ 0 };
+        uint64_t m_lastSyncedRevision{ UINT64_MAX };
 
         // GPU conversion: equirect -> cubemap
         VkDescriptorSetLayout m_conversionSetLayout{ VK_NULL_HANDLE };

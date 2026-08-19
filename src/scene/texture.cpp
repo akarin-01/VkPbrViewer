@@ -44,7 +44,7 @@ namespace Kita::Pbrv
         m_width = width;
         m_height = height;
         m_type = type;
-        m_isDirty = true;
+        ++m_revision;
 
         KITA_LOG_DEBUG("[Scene] Set texture data: ", m_name, ", ",
             m_pixels.size(), " pixels, ",

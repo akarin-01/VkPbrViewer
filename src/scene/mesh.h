@@ -20,8 +20,7 @@ namespace Kita::Pbrv
         const std::vector<uint32_t>& GetIndices() const;
         size_t GetIndexCount() const;
 
-        bool IsDirty() const { return m_isDirty; }
-        void ClearDirty() const { m_isDirty = false; }
+        uint64_t GetRevision() const { return m_revision; }
 
         bool IsEmpty() const;
 
@@ -32,6 +31,6 @@ namespace Kita::Pbrv
         std::string m_name{ "empty" };
         std::vector<Vertex> m_vertices;
         std::vector<uint32_t> m_indices;
-        mutable bool m_isDirty{ false };
+        uint64_t m_revision{ 0 };
     };
 }

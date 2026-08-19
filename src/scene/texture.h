@@ -27,8 +27,7 @@ namespace Kita::Pbrv
         uint32_t GetHeight() const { return m_height; }
         TextureType GetType() const { return m_type; }
 
-        bool IsDirty() const { return m_isDirty; }
-        void ClearDirty() const { m_isDirty = false; }
+        uint64_t GetRevision() const { return m_revision; }
 
         bool IsEmpty() const { return m_pixels.empty(); }
 
@@ -41,6 +40,6 @@ namespace Kita::Pbrv
         uint32_t m_width{ 0 };
         uint32_t m_height{ 0 };
         TextureType m_type{ TextureType::None };
-        mutable bool m_isDirty{ false };
+        uint64_t m_revision{ 0 };
     };
 }

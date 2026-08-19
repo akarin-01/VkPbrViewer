@@ -4,6 +4,7 @@
 
 #include <array>
 #include <vulkan/vulkan.h>
+#include <cstdint>
 
 namespace Kita::Pbrv
 {
@@ -46,6 +47,8 @@ namespace Kita::Pbrv
         MaterialPC m_pushConstant{ {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f} };
         VkDescriptorSetLayout m_setLayout{ VK_NULL_HANDLE };
         std::array<VkDescriptorSet, kMaxFramesInFlight> m_sets{};
+
         uint32_t m_setRefreshCount{ 0 };
+        std::array<uint64_t, kMaterialTextureCount> m_lastSyncedRevisions{};
     };
 }
