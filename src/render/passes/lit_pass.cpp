@@ -3,7 +3,6 @@
 #include "core/log.h"
 
 #include "render/render_context.h"
-#include "render/render_resources.h"
 #include "render/swap_chain.h"
 
 #include "render/data/render_target_data.h"
@@ -96,17 +95,12 @@ namespace Kita::Pbrv
                     VK_SHADER_STAGE_FRAGMENT_BIT,
                     0, sizeof(pushConstant), &pushConstant);
 
-                if (m_meshData.GetIndexCount() != 0)
+                if (!m_meshData.IsEmpty())
                 {
-                    RenderBuffer* vertexBuffer = m_resources.GetBuffer(m_meshData.GetVertexBufferHandle());
-                    assert(vertexBuffer && "Vertex buffer handle is invalid");
-                    VkBuffer buffers[]{ vertexBuffer->m_buffer };
+                    VkBuffer buffers[]{ m_meshData.GetVertexBuffer() };
                     VkDeviceSize offsets[]{ 0 };
                     vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
-
-                    RenderBuffer* indexBuffer = m_resources.GetBuffer(m_meshData.GetIndexBufferHandle());
-                    assert(indexBuffer && "Index buffer handle is invalid");
-                    vkCmdBindIndexBuffer(commandBuffer, indexBuffer->m_buffer, 0, VK_INDEX_TYPE_UINT32);
+                    vkCmdBindIndexBuffer(commandBuffer, m_meshData.GetIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
                     vkCmdDrawIndexed(commandBuffer, m_meshData.GetIndexCount(), 1, 0, 0, 0);
                 }

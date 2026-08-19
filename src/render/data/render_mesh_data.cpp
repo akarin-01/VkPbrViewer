@@ -77,6 +77,22 @@ namespace Kita::Pbrv
         }
     }
 
+    VkBuffer RenderMeshData::GetVertexBuffer() const
+    {
+        RenderBuffer* buffer = m_resources.GetBuffer(m_vertexBufferHandle);
+        assert(buffer && "Vertex buffer handle is invalid");
+
+        return buffer->m_buffer;
+    }
+
+    VkBuffer RenderMeshData::GetIndexBuffer() const
+    {
+        RenderBuffer* buffer = m_resources.GetBuffer(m_indexBufferHandle);
+        assert(buffer && "Index buffer handle is invalid");
+
+        return buffer->m_buffer;
+    }
+
     void RenderMeshData::Create(const Mesh& sceneMesh)
     {
         assert(!sceneMesh.IsEmpty() && "RenderMeshData::Create requires non-empty mesh");

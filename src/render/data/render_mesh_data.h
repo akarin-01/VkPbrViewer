@@ -21,9 +21,10 @@ namespace Kita::Pbrv
 
         void Update(const Mesh& sceneMesh);
 
-        RenderBufferHandle GetVertexBufferHandle() const { return m_vertexBufferHandle; }
-        RenderBufferHandle GetIndexBufferHandle() const { return m_indexBufferHandle; }
+        VkBuffer GetVertexBuffer() const;
+        VkBuffer GetIndexBuffer() const;
         uint32_t GetIndexCount() const { return m_indexCount; }
+        bool IsEmpty() const { return m_vertexBufferHandle == 0; }
 
     private:
         void Create(const Mesh& sceneMesh);
