@@ -31,6 +31,25 @@ namespace Kita::Pbrv
             }
         }
 
+        const char* ToString(MaterialTextureSlot tex)
+        {
+            switch (tex)
+            {
+            case Albedo:
+                return "Albedo";
+            case Normal:
+                return "Normal";
+            case Metallic:
+                return "Metallic";
+            case Roughness:
+                return "Roughness";
+            case AO:
+                return "AO";
+            default:
+                return "Unknown";
+            }
+        }
+
         const Texture& GetTexture(const Material& mat, uint32_t slot)
         {
             switch (slot)

@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <string>
 
 namespace Kita::Pbrv
 {
@@ -16,23 +15,4 @@ namespace Kita::Pbrv
         AO,
         kMaterialTextureCount
     };
-
-    inline const char* ToString(MaterialTextureSlot tex)
-    {
-        switch (tex)
-        {
-        case Albedo:
-            return "Albedo";
-        case Normal:
-            return "Normal";
-        case Metallic:
-            return "Metallic";
-        case Roughness:
-            return "Roughness";
-        case AO:
-            return "AO";
-        default:
-            return "Unknown";
-        }
-    }
 }
