@@ -2,6 +2,8 @@
 
 #include "render/render_resource_types.h"
 
+#include <vector>
+
 namespace Kita::Pbrv
 {
     class RenderResources;
@@ -10,6 +12,9 @@ namespace Kita::Pbrv
     class RenderMeshData
     {
     public:
+        static VkVertexInputBindingDescription GetVertexBinding();
+        static std::vector<VkVertexInputAttributeDescription> GetVertexAttributes();
+
         explicit RenderMeshData(RenderResources& resources);
         ~RenderMeshData();
 

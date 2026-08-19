@@ -2,8 +2,6 @@
 
 #include "core/log.h"
 
-#include "scene/vertex.h"
-
 #include "render/render_context.h"
 #include "render/render_resources.h"
 #include "render/swap_chain.h"
@@ -127,7 +125,7 @@ namespace Kita::Pbrv
 
         GraphicsPipelineBuilder builder(m_context.Device());
         builder.SetShaders("assets/shaders/lit_vert.spv", "assets/shaders/lit_frag.spv")
-            .SetVertexInput({ Vertex::GetBindingDescription() }, Vertex::GetAttributeDescriptions())
+            .SetVertexInput({ RenderMeshData::GetVertexBinding() }, RenderMeshData::GetVertexAttributes())
             .SetCullMode(VK_CULL_MODE_BACK_BIT)
             .SetRasterizationSamples(m_context.SampleCount())
             .SetDepth(true, true, VK_COMPARE_OP_LESS)
