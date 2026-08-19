@@ -18,5 +18,7 @@ namespace Kita::Pbrv
         const RenderContext& m_context;
 
         VkDescriptorPool m_pool{ VK_NULL_HANDLE };
+        uint32_t m_maxSetCount{ 0 };
+        mutable uint32_t m_usedSetCount{ 0 };
     };
 }

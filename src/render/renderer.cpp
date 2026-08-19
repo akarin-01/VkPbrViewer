@@ -70,26 +70,31 @@ namespace Kita::Pbrv
 
     std::unique_ptr<DescriptorAllocator> Renderer::CreateDescriptorAllocator(const RenderContext& context)
     {
-        /*         Owner        | UBO count / set |    Sampler count / set    |     Set count      |   Storage count / set
-         *    RenderFrameData   |        1        |              0            | kMaxFramesInFlight |            0
-         *   RenderMaterialData |        0        |    kMaterialTextureCount  | kMaxFramesInFlight |            0
-         *   RenderSkyboxData   |        0        |              1            | kMaxFramesInFlight |            0
-         *   PostProcessPass    |        0        |              1            |         1          |            0
-         *   RenderSkyboxData   |        0        |              1            |         1          |            1
+        /* Owner                |  Sets  |  UBO  |  Sampler  |  Storage  |
+         * RenderFrameData      | frames |   1   |     0     |     0     |
+         * RenderMaterialData   | frames |   0   | materials |     0     |
+         * RenderSkyboxData     | frames |   0   |     1     |     0     |
+         * PostProcessPass      |   1    |   0   |     1     |     0     |
+         * RenderSkyboxData     |   1    |   0   |     1     |     1     |
         */
-        std::vector<VkDescriptorPoolSize> poolSizes(3);
-        poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        poolSizes[0].descriptorCount = kMaxFramesInFlight;
-        poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        poolSizes[1].descriptorCount = kMaxFramesInFlight * kMaterialTextureCount + kMaxFramesInFlight + 1 + 1;
-        poolSizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        poolSizes[2].descriptorCount = 1;
+        constexpr uint32_t kMaxSets = kMaxFramesInFlight * 3 + 2;
+        constexpr uint32_t kMaxUboCount = kMaxFramesInFlight;
+        constexpr uint32_t kMaxSamplerCount = kMaxFramesInFlight * kMaterialTextureCount
+            + kMaxFramesInFlight + 2;
+        constexpr uint32_t kMaxStorageCount = 1;
+
+        std::array<VkDescriptorPoolSize, 3> poolSizes
+        {
+            VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, kMaxUboCount },
+            VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, kMaxSamplerCount },
+            VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, kMaxStorageCount },
+        };
 
         VkDescriptorPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
         poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
         poolInfo.pPoolSizes = poolSizes.data();
-        poolInfo.maxSets = kMaxFramesInFlight * 3 + 2;
+        poolInfo.maxSets = kMaxSets;
 
         return std::make_unique<DescriptorAllocator>(context, poolInfo);
     }
