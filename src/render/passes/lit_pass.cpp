@@ -5,7 +5,6 @@
 #include "render/render_context.h"
 #include "render/render_resources.h"
 #include "render/swap_chain.h"
-#include "render/descriptor_allocator.h"
 
 #include "render/data/render_target_data.h"
 #include "render/data/render_frame_data.h"

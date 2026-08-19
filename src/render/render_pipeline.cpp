@@ -7,8 +7,6 @@
 #include "render/passes/skybox_pass.h"
 #include "render/passes/post_process_pass.h"
 
-#include "render/data/render_target_data.h"
-
 #include <cassert>
 
 namespace Kita::Pbrv
