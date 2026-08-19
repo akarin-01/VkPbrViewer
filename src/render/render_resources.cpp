@@ -3,6 +3,7 @@
 #include "core/log.h"
 #include "render/render_context.h"
 #include "render/render_utils.h"
+#include "render/one_shot_command.h"
 
 #include <stdexcept>
 #include <cassert>
@@ -81,9 +82,10 @@ namespace Kita::Pbrv
         WriteBufferHelper(*stagingBuffer, data, size, 0);
 
         // Copy data
-        VkCommandBuffer commandBuffer = BeginSingleTimeCommands(m_context.Device(), m_context.CommandPool());
-        CopyBuffer(commandBuffer, stagingBuffer->m_buffer, buffer->m_buffer, size);
-        EndSingleTimeCommands(m_context.Device(), m_context.CommandPool(), m_context.GraphicsQueue(), commandBuffer);
+        {
+            OneShotCommand command(m_context);
+            CopyBuffer(command.Handle(), stagingBuffer->m_buffer, buffer->m_buffer, size);
+        }
 
         // Clean
         DestroyBufferHelper(*stagingBuffer);
@@ -141,35 +143,34 @@ namespace Kita::Pbrv
         auto stagingBuffer = CreateBufferHelper(stagingInfo, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, true);
         WriteBufferHelper(*stagingBuffer, data, size, 0);
 
-        VkCommandBuffer commandBuffer = BeginSingleTimeCommands(m_context.Device(), m_context.CommandPool());
+        {
+            OneShotCommand command(m_context);
+            // Transition the image layout to transfer dst optimal
+            VkImageSubresourceRange range{};
+            range.aspectMask = aspect;
+            range.baseMipLevel = 0;
+            range.levelCount = imageInfo.mipLevels;
+            range.baseArrayLayer = 0;
+            range.layerCount = imageInfo.arrayLayers;
+            ::Kita::Pbrv::TransitionImageLayout(command.Handle(), image->m_image,
+                VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
+                VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                range);
 
-        // Transition the image layout to transfer dst optimal
-        VkImageSubresourceRange range{};
-        range.aspectMask = aspect;
-        range.baseMipLevel = 0;
-        range.levelCount = imageInfo.mipLevels;
-        range.baseArrayLayer = 0;
-        range.layerCount = imageInfo.arrayLayers;
-        ::Kita::Pbrv::TransitionImageLayout(commandBuffer, image->m_image,
-            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
-            VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
-            range);
-
-        // Copy data
-        VkBufferImageCopy region{};
-        region.bufferOffset = 0;
-        region.bufferRowLength = 0;
-        region.bufferImageHeight = 0;
-        region.imageSubresource.aspectMask = aspect;
-        region.imageSubresource.mipLevel = 0;
-        region.imageSubresource.baseArrayLayer = 0;
-        region.imageSubresource.layerCount = 1;
-        region.imageOffset = { 0, 0, 0 };
-        region.imageExtent = imageInfo.extent;
-        CopyBufferToImage(commandBuffer, stagingBuffer->m_buffer, image->m_image, region);
-
-        EndSingleTimeCommands(m_context.Device(), m_context.CommandPool(), m_context.GraphicsQueue(), commandBuffer);
+            // Copy data
+            VkBufferImageCopy region{};
+            region.bufferOffset = 0;
+            region.bufferRowLength = 0;
+            region.bufferImageHeight = 0;
+            region.imageSubresource.aspectMask = aspect;
+            region.imageSubresource.mipLevel = 0;
+            region.imageSubresource.baseArrayLayer = 0;
+            region.imageSubresource.layerCount = 1;
+            region.imageOffset = { 0, 0, 0 };
+            region.imageExtent = imageInfo.extent;
+            CopyBufferToImage(command.Handle(), stagingBuffer->m_buffer, image->m_image, region);
+        }
 
         // Clean
         DestroyBufferHelper(*stagingBuffer);
@@ -208,13 +209,12 @@ namespace Kita::Pbrv
             return;
         }
 
-        VkCommandBuffer commandBuffer = BeginSingleTimeCommands(m_context.Device(), m_context.CommandPool());
-
-        ::Kita::Pbrv::GenerateImageMipmaps(m_context.PhysicalDevice(), commandBuffer, image->m_image,
-            image->m_extent.width, image->m_extent.height, image->m_mipLevels, image->m_arrayLayers, image->m_format, aspectMask,
-            finalLayout, finalStageMask);
-
-        EndSingleTimeCommands(m_context.Device(), m_context.CommandPool(), m_context.GraphicsQueue(), commandBuffer);
+        {
+            OneShotCommand command(m_context);
+            ::Kita::Pbrv::GenerateImageMipmaps(m_context.PhysicalDevice(), command.Handle(), image->m_image,
+                image->m_extent.width, image->m_extent.height, image->m_mipLevels, image->m_arrayLayers, image->m_format, aspectMask,
+                finalLayout, finalStageMask);
+        }
     }
 
     void RenderResources::TransitionImageLayout(RenderImageHandle handle, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask, VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask, VkImageAspectFlags aspectMask)
@@ -226,22 +226,21 @@ namespace Kita::Pbrv
             return;
         }
 
-        VkCommandBuffer commandBuffer = BeginSingleTimeCommands(m_context.Device(), m_context.CommandPool());
+        {
+            OneShotCommand command(m_context);
+            VkImageSubresourceRange range{};
+            range.aspectMask = aspectMask;
+            range.baseMipLevel = 0;
+            range.levelCount = image->m_mipLevels;
+            range.baseArrayLayer = 0;
+            range.layerCount = image->m_arrayLayers;
 
-        VkImageSubresourceRange range{};
-        range.aspectMask = aspectMask;
-        range.baseMipLevel = 0;
-        range.levelCount = image->m_mipLevels;
-        range.baseArrayLayer = 0;
-        range.layerCount = image->m_arrayLayers;
-
-        ::Kita::Pbrv::TransitionImageLayout(commandBuffer, image->m_image,
-            oldLayout, newLayout,
-            srcStageMask, srcAccessMask,
-            dstStageMask, dstAccessMask,
-            range);
-
-        EndSingleTimeCommands(m_context.Device(), m_context.CommandPool(), m_context.GraphicsQueue(), commandBuffer);
+            ::Kita::Pbrv::TransitionImageLayout(command.Handle(), image->m_image,
+                oldLayout, newLayout,
+                srcStageMask, srcAccessMask,
+                dstStageMask, dstAccessMask,
+                range);
+        }
     }
 
     RenderImageViewHandle RenderResources::CreateImageView(const VkImageViewCreateInfo& createInfo)

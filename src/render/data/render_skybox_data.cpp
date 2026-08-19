@@ -1,12 +1,13 @@
 #include "render_skybox_data.h"
 
 #include "core/log.h"
+#include "scene/skybox.h"
 #include "render/render_context.h"
 #include "render/render_utils.h"
 #include "render/render_resources.h"
 #include "render/descriptor_allocator.h"
 #include "render/compute_pipeline.h"
-#include "scene/skybox.h"
+#include "render/one_shot_command.h"
 
 #include <array>
 #include <algorithm>
@@ -305,65 +306,65 @@ namespace Kita::Pbrv
     {
         assert(m_conversionPipeline && "Conversion: pipeline is null");
 
-        VkCommandBuffer commandBuffer = BeginSingleTimeCommands(m_context.Device(), m_context.CommandPool());
+        {
+            OneShotCommand command(m_context);
 
-        RenderImage* cubemapImage = m_resources.GetImage(cubemap.m_imageHandle);
-        assert(cubemapImage && "Cubemap image handle is invalid");
-        RenderImage* equirectImage = m_resources.GetImage(equirect.m_imageHandle);
-        assert(equirectImage && "Equirect image handle is invalid");
+            RenderImage* cubemapImage = m_resources.GetImage(cubemap.m_imageHandle);
+            assert(cubemapImage && "Cubemap image handle is invalid");
+            RenderImage* equirectImage = m_resources.GetImage(equirect.m_imageHandle);
+            assert(equirectImage && "Equirect image handle is invalid");
 
-        uint32_t cubemapWidth = cubemapImage->m_extent.width;
-        uint32_t cubemapHeight = cubemapImage->m_extent.height;
+            uint32_t cubemapWidth = cubemapImage->m_extent.width;
+            uint32_t cubemapHeight = cubemapImage->m_extent.height;
 
-        VkImageSubresourceRange cubemapRange{};
-        cubemapRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        cubemapRange.baseMipLevel = 0;
-        cubemapRange.levelCount = 1;
-        cubemapRange.baseArrayLayer = 0;
-        cubemapRange.layerCount = 6;
+            VkImageSubresourceRange cubemapRange{};
+            cubemapRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            cubemapRange.baseMipLevel = 0;
+            cubemapRange.levelCount = 1;
+            cubemapRange.baseArrayLayer = 0;
+            cubemapRange.layerCount = 6;
 
-        VkImageSubresourceRange equirectRange{};
-        equirectRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        equirectRange.baseMipLevel = 0;
-        equirectRange.levelCount = 1;
-        equirectRange.baseArrayLayer = 0;
-        equirectRange.layerCount = 1;
+            VkImageSubresourceRange equirectRange{};
+            equirectRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            equirectRange.baseMipLevel = 0;
+            equirectRange.levelCount = 1;
+            equirectRange.baseArrayLayer = 0;
+            equirectRange.layerCount = 1;
 
-        // Cubemap: undefined -> general
-        TransitionImageLayout(commandBuffer, cubemapImage->m_image,
-            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
-            VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
-            VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
-            cubemapRange);
+            // Cubemap: undefined -> general
+            TransitionImageLayout(command.Handle(), cubemapImage->m_image,
+                VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
+                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
+                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+                cubemapRange);
 
-        // Equirect: transfer dst -> shader read only
-        TransitionImageLayout(commandBuffer, equirectImage->m_image,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
-            VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT,
-            equirectRange);
+            // Equirect: transfer dst -> shader read only
+            TransitionImageLayout(command.Handle(), equirectImage->m_image,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT,
+                equirectRange);
 
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_conversionPipeline->Handle());
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_conversionPipeline->Layout(),
-            0, 1, &m_conversionSet, 0, nullptr);
-        vkCmdDispatch(commandBuffer, (cubemapWidth + 7) / 8, (cubemapHeight + 7) / 8, 6);
+            vkCmdBindPipeline(command.Handle(), VK_PIPELINE_BIND_POINT_COMPUTE, m_conversionPipeline->Handle());
+            vkCmdBindDescriptorSets(command.Handle(), VK_PIPELINE_BIND_POINT_COMPUTE, m_conversionPipeline->Layout(),
+                0, 1, &m_conversionSet, 0, nullptr);
+            vkCmdDispatch(command.Handle(), (cubemapWidth + 7) / 8, (cubemapHeight + 7) / 8, 6);
 
-        // Cubemap: general(level 0) -> transfer dst
-        TransitionImageLayout(commandBuffer, cubemapImage->m_image,
-            VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
-            VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
-            cubemapRange);
+            // Cubemap: general(level 0) -> transfer dst
+            TransitionImageLayout(command.Handle(), cubemapImage->m_image,
+                VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+                VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                cubemapRange);
 
-        // Cubemap: undefined(ohter levels) -> transfer dst
-        cubemapRange.baseMipLevel = 1;
-        cubemapRange.levelCount = cubemapImage->m_mipLevels - 1;
-        TransitionImageLayout(commandBuffer, cubemapImage->m_image,
-            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
-            VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
-            cubemapRange);
-
-        EndSingleTimeCommands(m_context.Device(), m_context.CommandPool(), m_context.GraphicsQueue(), commandBuffer);
+            // Cubemap: undefined(ohter levels) -> transfer dst
+            cubemapRange.baseMipLevel = 1;
+            cubemapRange.levelCount = cubemapImage->m_mipLevels - 1;
+            TransitionImageLayout(command.Handle(), cubemapImage->m_image,
+                VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
+                VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                cubemapRange);
+        }
     }
 }
