@@ -80,6 +80,7 @@ message(STATUS "Shader compiler: glslc (${GLSLC_EXECUTABLE})")
 
 # ===== 可执行文件 =====
 add_executable(VkPbrViewer
+    src/application.cpp
     src/main.cpp
 
     # core
