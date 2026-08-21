@@ -159,6 +159,7 @@ namespace Kita::Pbrv
         RenderSamplerHandle CreateSamplerLinearClampNoMip();
         RenderSamplerHandle CreateSamplerLinearClampMip();
         RenderSamplerHandle CreateSamplerNearestClampNoMip();
+        RenderSamplerHandle CreateSamplerEquirect();
         RenderSampler* GetSampler(RenderSamplerHandle handle) const;
         void DestroySampler(RenderSamplerHandle handle);
 

@@ -31,7 +31,7 @@ namespace Kita::Pbrv
             Kita::Pbrv::AssetLoader::LoadTexture("assets/textures/Cerberus_AO.tga", TextureType::Linear, mat.GetAOTex());
 
             Kita::Pbrv::Skybox& skybox = scene.GetSkybox();
-            Kita::Pbrv::AssetLoader::LoadSkybox("assets/textures/newport_loft.hdr", skybox);
+            Kita::Pbrv::AssetLoader::LoadSkybox("assets/textures/qwantani_moon_noon_puresky_4k.hdr", skybox);
         }
     }
 
