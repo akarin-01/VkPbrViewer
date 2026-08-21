@@ -6,6 +6,7 @@
 #include "scene/scene.h"
 #include "scene/asset_loader.h"
 #include "scene/camera_controller.h"
+#include "ui/ui.h"
 #include "render/renderer.h"
 
 #include <filesystem>
@@ -53,6 +54,8 @@ namespace Kita::Pbrv
         InitScene(*m_scene);
 
         m_renderer = std::make_unique<Renderer>(*m_window);
+
+        m_ui = std::make_unique<UI>(*m_scene);
     }
 
     Application::~Application() = default;
@@ -75,8 +78,14 @@ namespace Kita::Pbrv
                 continue;
             }
 
-            cameraController.Update(deltaTime);
+            m_renderer->NewFrame();
 
+            if (!m_ui->IsMouseHovered())
+            {
+                cameraController.Update(deltaTime);
+            }
+
+            m_ui->Update(deltaTime);
             m_renderer->DrawFrame(*m_scene);
         }
     }

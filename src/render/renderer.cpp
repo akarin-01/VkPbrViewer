@@ -9,6 +9,10 @@
 #include "render/render_utils.h"
 #include "render/render_pipeline.h"
 
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_vulkan.h"
+
 #include <fstream>
 #include <cassert>
 
@@ -60,7 +64,7 @@ namespace Kita::Pbrv
 
         m_renderScene = std::make_unique<RenderScene>(*m_context, *m_resources, *m_swapChain, *m_descriptorAllocator);
 
-        m_pipeline = std::make_unique<RenderPipeline>(*m_context, *m_resources, *m_swapChain, *m_descriptorAllocator, *m_renderScene);
+        m_pipeline = std::make_unique<RenderPipeline>(window, *m_context, *m_resources, *m_swapChain, *m_descriptorAllocator, *m_renderScene);
     }
 
     Renderer::~Renderer()
@@ -74,6 +78,13 @@ namespace Kita::Pbrv
         m_swapChain.reset();
         m_resources.reset();
         m_context.reset();
+    }
+
+    void Renderer::NewFrame() const
+    {
+        ImGui_ImplVulkan_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
     }
 
     void Renderer::DrawFrame(const Scene& scene)

@@ -314,6 +314,9 @@ namespace Kita::Pbrv
 
         vkGetDeviceQueue(m_device, indices.m_graphicsFamily.value(), 0, &m_graphicsQueue);
         vkGetDeviceQueue(m_device, indices.m_presentFamily.value(), 0, &m_presentQueue);
+
+        m_graphicsFamily = indices.m_graphicsFamily.value();
+        m_presentFamily = indices.m_presentFamily.value();
     }
 
     void RenderContext::CreateCommandPool()

@@ -17,7 +17,9 @@ namespace Kita::Pbrv
         VkPhysicalDevice PhysicalDevice() const { return m_physicalDevice; }
         VkDevice Device() const { return m_device; }
         VkQueue GraphicsQueue() const { return m_graphicsQueue; }
+        uint32_t GraphicsFamily() const { return m_graphicsFamily; }
         VkQueue PresentQueue() const { return m_presentQueue; }
+        uint32_t PresentFamily() const { return m_presentFamily; }
         VkCommandPool CommandPool() const { return m_commandPool; }
 
         VkFormat DepthFormat() const { return m_depthFormat; }
@@ -43,7 +45,9 @@ namespace Kita::Pbrv
         VkPhysicalDevice m_physicalDevice{ VK_NULL_HANDLE };
         VkDevice m_device{ VK_NULL_HANDLE };
         VkQueue m_graphicsQueue{ VK_NULL_HANDLE };
+        uint32_t m_graphicsFamily{ 0 };
         VkQueue m_presentQueue{ VK_NULL_HANDLE };
+        uint32_t m_presentFamily{ 0 };
         VkCommandPool m_commandPool{ VK_NULL_HANDLE };
 
         VkFormat m_depthFormat{ VK_FORMAT_UNDEFINED };

@@ -8,6 +8,7 @@
 
 namespace Kita::Pbrv
 {
+    class Window;
     class RenderContext;
     class RenderResources;
     class SwapChain;
@@ -18,7 +19,8 @@ namespace Kita::Pbrv
     class RenderPipeline
     {
     public:
-        RenderPipeline(const RenderContext& context,
+        RenderPipeline(const Window& window,
+            const RenderContext& context,
             RenderResources& resources,
             const SwapChain& swapChain,
             const DescriptorAllocator& descriptorAllocator,
@@ -29,7 +31,8 @@ namespace Kita::Pbrv
         void Draw(const FrameInfo& frameInfo) const;
 
     private:
-        void CreateRenderPasses(const RenderContext& context,
+        void CreateRenderPasses(const Window& window,
+            const RenderContext& context,
             RenderResources& resources,
             const SwapChain& swapChain,
             const RenderScene& scene);

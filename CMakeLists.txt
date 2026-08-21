@@ -74,6 +74,29 @@ add_subdirectory(third_party/Vulkan-Headers EXCLUDE_FROM_ALL)
 # ===== Vulkan Loader（来自系统 Vulkan SDK，提供链接库）=====
 find_package(Vulkan REQUIRED)
 
+# ===== Dear ImGui（即时模式 GUI，Vulkan + GLFW 后端）=====
+# 锁定 v1.92.9b（动态渲染支持自 v1.91.0 起提供，本项目无经典 RenderPass，必须走该路径）
+# imgui 上游不提供 CMake 目标，按 tinygltf/stb 同款方式手动接入
+FetchContent_Declare(
+    imgui
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
+    GIT_TAG        v1.92.9b
+)
+FetchContent_GetProperties(imgui)
+if(NOT imgui_POPULATED)
+    FetchContent_Populate(imgui)
+endif()
+add_library(imgui STATIC
+    ${imgui_SOURCE_DIR}/imgui.cpp
+    ${imgui_SOURCE_DIR}/imgui_draw.cpp
+    ${imgui_SOURCE_DIR}/imgui_tables.cpp
+    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_vulkan.cpp
+)
+target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends)
+target_link_libraries(imgui PUBLIC glfw Vulkan::Headers Vulkan::Vulkan)
+
 # ===== Shader Compiler (glslc) =====
 find_program(GLSLC_EXECUTABLE glslc REQUIRED)
 message(STATUS "Shader compiler: glslc (${GLSLC_EXECUTABLE})")
@@ -116,6 +139,7 @@ add_executable(VkPbrViewer
     src/render/passes/lit_pass.cpp
     src/render/passes/skybox_pass.cpp
     src/render/passes/post_process_pass.cpp
+    src/render/passes/ui_pass.cpp
 
     # scene
     src/scene/asset_loader.cpp
@@ -127,6 +151,9 @@ add_executable(VkPbrViewer
     src/scene/post_process.cpp
     src/scene/skybox.cpp
     src/scene/texture.cpp
+
+    #ui
+    src/ui/ui.cpp
 )
 
 target_include_directories(VkPbrViewer PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -151,6 +178,7 @@ target_link_libraries(VkPbrViewer PRIVATE
     glm::glm
     tinygltf
     stb
+    imgui
 )
 
 if(WIN32)

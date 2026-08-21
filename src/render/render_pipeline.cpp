@@ -2,16 +2,20 @@
 
 #include "render/swap_chain.h"
 #include "render/render_scene.h"
+#include "render/render_utils.h"
 
 #include "render/passes/lit_pass.h"
 #include "render/passes/skybox_pass.h"
 #include "render/passes/post_process_pass.h"
+#include "render/passes/ui_pass.h"
 
+#include <vulkan/vulkan.h>
 #include <cassert>
 
 namespace Kita::Pbrv
 {
-    RenderPipeline::RenderPipeline(const RenderContext& context,
+    RenderPipeline::RenderPipeline(const Window& window,
+        const RenderContext& context,
         RenderResources& resources,
         const SwapChain& swapChain,
         const DescriptorAllocator& descriptorAllocator,
@@ -19,7 +23,7 @@ namespace Kita::Pbrv
         : m_swapChain(swapChain),
         m_targetData(context, resources, descriptorAllocator, m_swapChain.Extent())
     {
-        CreateRenderPasses(context, resources, swapChain, scene);
+        CreateRenderPasses(window, context, resources, swapChain, scene);
     }
 
     RenderPipeline::~RenderPipeline()
@@ -39,13 +43,40 @@ namespace Kita::Pbrv
 
     void RenderPipeline::Draw(const FrameInfo& frameInfo) const
     {
+        auto& commandBuffer = frameInfo.m_commandBuffer;
+        auto& imageIndex = frameInfo.m_imageIndex;
+
+        VkImageSubresourceRange colorRange{};
+        colorRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        colorRange.baseMipLevel = 0;
+        colorRange.levelCount = 1;
+        colorRange.baseArrayLayer = 0;
+        colorRange.layerCount = 1;
+
+        // Swap chain image: UNDEFINED -> COLOR_ATTACHMENT_OPTIMAL
+        TransitionImageLayout(commandBuffer,
+            m_swapChain.Image(imageIndex),
+            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
+            VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+            colorRange);
+
         for (auto& pass : m_passes)
         {
             pass->Draw(frameInfo);
         }
+
+        // Swap chain image: COLOR_ATTACHMENT_OPTIMAL -> PRESENT_SRC_KHR
+        TransitionImageLayout(commandBuffer,
+            m_swapChain.Image(imageIndex),
+            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+            VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+            VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, VK_ACCESS_2_NONE,
+            colorRange);
     }
 
-    void RenderPipeline::CreateRenderPasses(const RenderContext& context,
+    void RenderPipeline::CreateRenderPasses(const Window& window,
+        const RenderContext& context,
         RenderResources& resources,
         const SwapChain& swapChain,
         const RenderScene& scene)
@@ -59,6 +90,9 @@ namespace Kita::Pbrv
         m_passes.push_back(std::make_unique<PostProcessPass>(
             context, resources, swapChain,
             m_targetData, scene.GetRenderPostProcessData()));
+        m_passes.push_back(std::make_unique<UIPass>(
+            context, resources, swapChain,
+            window));
     }
 
     void RenderPipeline::DestroyRenderPasses()

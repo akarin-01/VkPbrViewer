@@ -50,21 +50,6 @@ namespace Kita::Pbrv
             VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
             VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
 
-        VkImageSubresourceRange colorRange{};
-        colorRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        colorRange.baseMipLevel = 0;
-        colorRange.levelCount = 1;
-        colorRange.baseArrayLayer = 0;
-        colorRange.layerCount = 1;
-
-        // Swap chain image: UNDEFINED -> COLOR_ATTACHMENT_OPTIMAL
-        TransitionImageLayout(commandBuffer,
-            m_swapChain.Image(imageIndex),
-            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-            VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
-            VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-            colorRange);
-
         // Begin rendering
         {
             VkExtent2D extent = m_swapChain.Extent();
@@ -89,14 +74,6 @@ namespace Kita::Pbrv
             vkCmdDraw(commandBuffer, 3, 1, 0, 0);
         }
         // End rendering
-
-        // Transition the image layout to present
-        TransitionImageLayout(commandBuffer,
-            m_swapChain.Image(imageIndex),
-            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-            VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-            VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, VK_ACCESS_2_NONE,
-            colorRange);
     }
 
     void PostProcessPass::CreatePipeline()

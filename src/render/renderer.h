@@ -24,6 +24,7 @@ namespace Kita::Pbrv
         Renderer(Window& window);
         ~Renderer();
 
+        void NewFrame() const;
         void DrawFrame(const Scene& scene);
 
     private:
