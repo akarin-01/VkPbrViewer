@@ -6,6 +6,7 @@
 
 - [x] 替换临时 Blinn-Phong 着色器，实现 Cook-Torrance BRDF（D: GGX, F: Schlick Fresnel, G: Smith GGX），保留现有 TBN / normal map 支持
 - [x] 实现 Tone Mapping（ACES Filmic），HDR → LDR 正确显示（sRGB 编码由 SRGB Swapchain 硬件承担，无需手动 Gamma 校正）
+- [x] 后处理曝光控制：新增 `Scene::PostProcess`（EV 参数，exposure = 2^EV），在 ACES 前乘入，UI 可调
 
 ### 二、天空盒
 
@@ -18,15 +19,17 @@
   - 两个 Pass 共用同一个 Depth Attachment（`VK_FORMAT_D32_SFLOAT`）
 - [x] PostProcess Pass：全屏三角形采样 HDR 目标，ACES Tone Mapping 后输出到 SRGB Swapchain（硬件完成 sRGB 编码），未来 Bloom / FXAA 等效果挂载于此
 - [x] 天空盒 cubemap 供阶段 06 的 IBL 复用（同一张环境图，无需重复加载）
+- [x] 修复天空盒模糊：改用更清晰的 4K HDR 源、cubemap 面尺寸 1024→2048、equirect 专用采样器（U: REPEAT / V: CLAMP_TO_EDGE）
 
 ### 三、UI（ImGui）
 
-- [ ] CMake：FetchContent 引入 Dear ImGui（含 Vulkan + GLFW 后端）
-- [ ] 集成 ImGui 的 Vulkan + GLFW 后端
+- [x] CMake：FetchContent 引入 Dear ImGui（含 Vulkan + GLFW 后端）
+- [x] 集成 ImGui 的 Vulkan + GLFW 后端
   - 本项目使用 `VK_KHR_dynamic_rendering`：初始化 `ImGui_ImplVulkan_InitInfo` 时**必须**将 `UseDynamicRendering` 设为 `true`，并指定 `PipelineRenderingCreateInfo`（填充 Swapchain 颜色格式）
   - 调用 `ImGui_ImplVulkan_RenderDrawData` 时包裹在 `vkCmdBeginRendering` / `vkCmdEndRendering` 之间，作为 Pass 的最后一步绘制
-- [ ] 每帧渲染：Begin → 绘制面板 → End → 录制 ImGui Draw Data
-- [ ] UI 面板：帧率 / 帧间隔（`Time`）、材质参数滑块（PBR 参数）、灯光颜色 / 强度 / 方向控制
-  - UI 修改直接作用于 `Scene::Light` / `Material` 对象，RenderScene 的 dirty 机制下帧自动同步（无需手动更新 UBO）
-- [ ] 鼠标悬停 UI 时屏蔽相机输入（面板操作不触发相机旋转 / 平移）
-- [ ] （可选）文件选择对话框（ImGuiFileDialog）：模型 / 纹理导入
+- [x] 每帧渲染：`Renderer::NewFrame()`（ImGui backend 开帧）→ `UI::Update`（绘制面板 + 修改 Scene）→ `UIPass::Draw`（渲染管线末位 Pass，录制 ImGui Draw Data）
+- [x] UI 面板：帧率 / 帧间隔（`Time`）、材质参数滑块（PBR 参数）、灯光颜色 / 强度 / 位置（原 Direction 已重构为 Position）
+  - UI 修改直接作用于 `Scene::Light` / `Material` 对象，RenderScene 的 revision 机制下帧自动同步（无需手动更新 UBO）
+- [x] 鼠标悬停 UI 时屏蔽相机输入（`WantCaptureMouse` 守卫，面板操作不触发相机旋转 / 平移）
+- [x] 文件选择对话框（Win32 `GetOpenFileNameA`，封装于 `ui_utils::OpenFileDialog`）：模型 / 天空盒 / 纹理导入
+- [x] Light 参数由 Direction 重构为 Position：`Scene::Light` 存储原始位置向量，shader 内 `normalize(frame.lightPos.xyz)`
