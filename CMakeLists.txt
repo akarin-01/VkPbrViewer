@@ -154,6 +154,7 @@ add_executable(VkPbrViewer
 
     #ui
     src/ui/ui.cpp
+    src/ui/ui_utils.cpp
 )
 
 target_include_directories(VkPbrViewer PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -182,7 +183,11 @@ target_link_libraries(VkPbrViewer PRIVATE
 )
 
 if(WIN32)
-    target_link_libraries(VkPbrViewer PRIVATE gdi32)
+    # gdi32: Vulkan/GLFW 可能需要的系统库；comdlg32: OpenFileDialog(GetOpenFileNameA)
+    target_link_libraries(VkPbrViewer PRIVATE gdi32 comdlg32)
+else()
+    # 当前文件浏览器使用 Win32 API，非 Windows 直接配置期报错，避免编译期才炸
+    message(FATAL_ERROR "[CMake] OpenFileDialog currently only supports Windows (requires comdlg32). Please build on Windows.")
 endif()
 
 # ===== Shader 编译（GLSL → SPIR-V）=====

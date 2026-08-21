@@ -18,9 +18,6 @@ namespace Kita::Pbrv
     {
         void InitScene(Scene& scene)
         {
-            scene.GetLight()
-                .SetDirection(glm::vec3(1.0f, 1.0f, 0.0f));
-
             Kita::Pbrv::Mesh& mesh = scene.GetMesh();
             Kita::Pbrv::AssetLoader::LoadGltfMesh("assets/models/Cerberus_LP.glb", mesh);
 

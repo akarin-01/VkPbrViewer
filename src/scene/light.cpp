@@ -6,9 +6,9 @@ namespace Kita::Pbrv
 
     Light::~Light() = default;
 
-    Light& Light::SetDirection(const glm::vec3& dir)
+    Light& Light::SetPosition(const glm::vec3& pos)
     {
-        m_direction = glm::normalize(dir);
+        m_position = pos;
         return *this;
     }
 

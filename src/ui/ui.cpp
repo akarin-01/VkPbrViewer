@@ -1,15 +1,48 @@
 #include "ui.h"
 
-#include <glm/glm.hpp>
-
 #include "imgui.h"
+#include "ui/ui_utils.h"
 #include "scene/scene.h"
+#include "scene/asset_loader.h"
+
+#include <glm/glm.hpp>
+#include <array>
 
 namespace Kita::Pbrv
 {
     namespace
     {
-        void UpdateStatsPanel(float deltaTime)
+        constexpr float kDragSpeed = 0.005f;
+
+        void DrawTextureRaw(const char* title, Texture& tex, TextureType type)
+        {
+            ImGui::TextUnformatted(title);
+            ImGui::SameLine();
+            ImGui::TextUnformatted(tex.GetName().c_str());
+            ImGui::SameLine();
+            ImGui::Text("(%ux%u)", tex.GetWidth(), tex.GetHeight());
+
+            ImGui::PushID(title);
+            if (ImGui::Button("Open"))
+            {
+                auto path = OpenFileDialog("Texture Files\0*.jpg;*.png;*.tga\0All Files\0*.*\0");
+                if (path)
+                {
+                    AssetLoader::LoadTexture(path.value(), type, tex);
+                }
+            }
+            ImGui::PopID();
+
+            ImGui::SameLine();
+            ImGui::PushID(title);
+            if (ImGui::Button("Delete"))
+            {
+                tex.SetEmpty();
+            }
+            ImGui::PopID();
+        }
+
+        void DrawStatsPanel(float deltaTime)
         {
             if (ImGui::CollapsingHeader("Stats"))
             {
@@ -18,67 +51,120 @@ namespace Kita::Pbrv
             }
         }
 
-        void UpdateEnvironmentPanel(Light& light)
+        void DrawEnvironmentPanel(Skybox& skybox, Light& light)
         {
             if (ImGui::CollapsingHeader("Environment"))
             {
-                ImGui::BeginChild("##LightBox", ImVec2(0, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY);
-                {
-                    ImGui::Text("Light");
-
-                    glm::vec3 dir = light.GetDirection();
-                    if (ImGui::DragFloat3("Direction", &dir.x, 0.05f, -1.0f, 1.0f))
+                DrawBox("##SkyboxBox", "Skybox", [&skybox]()
                     {
-                        light.SetDirection(dir);
-                    }
+                        ImGui::TextUnformatted(skybox.GetName().c_str());
+                        ImGui::SameLine();
+                        ImGui::Text("(%ux%u)", skybox.GetWidth(), skybox.GetHeight());
 
-                    glm::vec3 color = light.GetColor();
-                    if (ImGui::ColorEdit3("Color", &color.x))
-                    {
-                        light.SetColor(color);
-                    }
+                        if (ImGui::Button("Open##Skybox"))
+                        {
+                            auto path = OpenFileDialog("Equirect Files\0*.hdr\0All Files\0*.*\0");
+                            if (path)
+                            {
+                                AssetLoader::LoadSkybox(path.value(), skybox);
+                            }
+                        }
+                        ImGui::SameLine();
+                        if (ImGui::Button("Delete##Skybox"))
+                        {
+                            skybox.SetEmpty();
+                        }
+                    });
 
-                    float intensity = light.GetIntensity();
-                    if (ImGui::DragFloat("Intensity", &intensity, 0.05f, 0.0f, 100.0f))
+                DrawBox("##LightBox", "Light", [&light]()
                     {
-                        light.SetIntensity(intensity);
-                    }
-                }
-                ImGui::EndChild();
+                        glm::vec3 pos = light.GetPosition();
+                        if (ImGui::DragFloat3("Position", &pos.x, kDragSpeed))
+                        {
+                            light.SetPosition(pos);
+                        }
+
+                        glm::vec3 color = light.GetColor();
+                        if (ImGui::ColorEdit3("Color", &color.x))
+                        {
+                            light.SetColor(color);
+                        }
+
+                        float intensity = light.GetIntensity();
+                        if (ImGui::DragFloat("Intensity", &intensity, kDragSpeed, 0.0f, 100.0f))
+                        {
+                            light.SetIntensity(intensity);
+                        }
+                    });
             }
         }
 
-        void UpdateMaterialPanel(Material& mat)
+        void DrawObjectPanel(Mesh& mesh, Material& mat)
         {
-            if (ImGui::CollapsingHeader("Material"))
+            if (ImGui::CollapsingHeader("Object"))
             {
-                glm::vec4 albedo = mat.GetAlbedo();
-                if (ImGui::ColorEdit4("Albedo", &albedo.x))
-                {
-                    mat.SetAlbedo(albedo);
-                }
+                DrawBox("##MeshBox", "Mesh", [&mesh]()
+                    {
+                        ImGui::TextUnformatted(mesh.GetName().c_str());
+                        ImGui::Text("%zu vertices, %zu indices", mesh.GetVertexCount(), mesh.GetIndexCount());
 
-                float metallic = mat.GetMetallic();
-                if (ImGui::SliderFloat("Metallic", &metallic, 0.0f, 1.0f))
-                {
-                    mat.SetMetallic(metallic);
-                }
+                        if (ImGui::Button("Open##Mesh"))
+                        {
+                            auto path = OpenFileDialog("Mesh Files\0*.glb;*.gltf\0All Files\0*.*\0");
+                            if (path)
+                            {
+                                AssetLoader::LoadGltfMesh(path.value(), mesh);
+                            }
+                        }
+                        ImGui::SameLine();
+                        if (ImGui::Button("Delete##Mesh"))
+                        {
+                            mesh.SetEmpty();
+                        }
+                    });
 
-                float roughness = mat.GetRoughness();
-                if (ImGui::SliderFloat("Roughness", &roughness, 0.0f, 1.0f))
-                {
-                    mat.SetRoughness(roughness);
-                }
+                DrawBox("##MaterialBox", "Material", [&mat]()
+                    {
+                        DrawBox("##ParamsBox", "Params", [&mat]()
+                            {
+                                glm::vec4 albedo = mat.GetAlbedo();
+                                if (ImGui::ColorEdit4("Albedo", &albedo.x))
+                                {
+                                    mat.SetAlbedo(albedo);
+                                }
 
-                float ao = mat.GetAO();
-                if (ImGui::SliderFloat("AO", &ao, 0.0f, 1.0f))
-                {
-                    mat.SetAO(ao);
-                }
+                                float metallic = mat.GetMetallic();
+                                if (ImGui::SliderFloat("Metallic", &metallic, 0.0f, 1.0f))
+                                {
+                                    mat.SetMetallic(metallic);
+                                }
+
+                                float roughness = mat.GetRoughness();
+                                if (ImGui::SliderFloat("Roughness", &roughness, 0.0f, 1.0f))
+                                {
+                                    mat.SetRoughness(roughness);
+                                }
+
+                                float ao = mat.GetAO();
+                                if (ImGui::SliderFloat("AO", &ao, 0.0f, 1.0f))
+                                {
+                                    mat.SetAO(ao);
+                                }
+                            });
+
+                        DrawBox("##TexturesBox", "Textures", [&mat]()
+                            {
+                                DrawTextureRaw("Albedo:   ", mat.GetAlbedoTex(), TextureType::Albedo);
+                                DrawTextureRaw("Normal:   ", mat.GetNormalTex(), TextureType::Normal);
+                                DrawTextureRaw("Metallic: ", mat.GetMetallicTex(), TextureType::Linear);
+                                DrawTextureRaw("Roughness:", mat.GetRoughnessTex(), TextureType::Linear);
+                                DrawTextureRaw("AO:       ", mat.GetAOTex(), TextureType::Linear);
+                            });
+                    });
             }
         }
 
-        void UpdatePostProcessPanel(PostProcess& postProcess)
+        void DrawPostProcessPanel(PostProcess& postProcess)
         {
             if (ImGui::CollapsingHeader("Post Process"))
             {
@@ -114,10 +200,10 @@ namespace Kita::Pbrv
 
         if (ImGui::Begin("Inspector", nullptr, ImGuiWindowFlags_NoMove))
         {
-            UpdateEnvironmentPanel(m_scene.GetLight());
-            UpdateMaterialPanel(m_scene.GetMaterial());
-            UpdatePostProcessPanel(m_scene.GetPostProcess());
-            UpdateStatsPanel(deltaTime);
+            DrawEnvironmentPanel(m_scene.GetSkybox(), m_scene.GetLight());
+            DrawObjectPanel(m_scene.GetMesh(), m_scene.GetMaterial());
+            DrawPostProcessPanel(m_scene.GetPostProcess());
+            DrawStatsPanel(deltaTime);
         }
         ImGui::End();
     }

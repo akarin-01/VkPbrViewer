@@ -65,7 +65,7 @@ void main()
     vec3 nDir = normalize(TBN * normalTS);
 
     vec3 vDir = normalize(frame.viewPos.xyz - fragPos);
-    vec3 lDir = normalize(frame.lightDir.xyz);
+    vec3 lDir = normalize(frame.lightPos.xyz);              // directional light
     vec3 hDir = normalize(vDir + lDir);
 
     vec4 albedo = material.albedo * texture(textures[ALBEDO], fragTexCoord);

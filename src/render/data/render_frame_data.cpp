@@ -101,7 +101,7 @@ namespace Kita::Pbrv
         ubo.m_viewProj = proj * view;
         ubo.m_skyboxViewProj = proj * glm::mat4(glm::mat3(view));
         ubo.m_viewPos = glm::vec4(camera.GetPosition(), 1.0f);
-        ubo.m_lightDir = glm::vec4(light.GetDirection(), 0.0f);
+        ubo.m_lightPos = glm::vec4(light.GetPosition(), 0.0f);
         ubo.m_lightColor = glm::vec4(light.GetColor(), light.GetIntensity());
 
         m_resources.WriteBuffer(m_uboHandles[frameIndex], &ubo, sizeof(ubo));
