@@ -1,6 +1,10 @@
 #version 450
 
 layout(set = 0, binding = 0) uniform sampler2D offlineTex;
+layout(set = 1, binding = 0) uniform PostProcessParams
+{
+    vec4 exposure;      // x - exposure, yzw - padding
+} params;
 
 layout(location = 0) in vec2 fragTexCoord;
 
@@ -19,5 +23,6 @@ vec3 ACESFilm(vec3 x)
 void main()
 {
     vec3 offline = texture(offlineTex, fragTexCoord).rgb;
+    offline *= params.exposure.x;
     outColor = vec4(ACESFilm(offline), 1.0);
 }

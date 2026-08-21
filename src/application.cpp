@@ -32,6 +32,8 @@ namespace Kita::Pbrv
 
             Kita::Pbrv::Skybox& skybox = scene.GetSkybox();
             Kita::Pbrv::AssetLoader::LoadSkybox("assets/textures/qwantani_moon_noon_puresky_4k.hdr", skybox);
+
+            scene.GetPostProcess().SetEV(-1.0f);
         }
     }
 

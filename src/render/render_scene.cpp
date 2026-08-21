@@ -15,7 +15,8 @@ namespace Kita::Pbrv
         : m_frameData(context, resources, swapChain, descriptorAllocator),
         m_materialData(context, resources, descriptorAllocator),
         m_meshData(resources),
-        m_skyboxData(context, resources, descriptorAllocator)
+        m_skyboxData(context, resources, descriptorAllocator),
+        m_postProcessData(context, resources, descriptorAllocator)
     {
     }
 
@@ -29,5 +30,6 @@ namespace Kita::Pbrv
         m_materialData.Update(frameIndex, scene.GetMaterial());
         m_meshData.Update(scene.GetMesh());
         m_skyboxData.Update(frameIndex, scene.GetSkybox());
+        m_postProcessData.Update(frameIndex, scene.GetPostProcess());
     }
 }

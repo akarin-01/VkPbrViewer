@@ -9,6 +9,7 @@
 #include "render/rendering_scope.h"
 
 #include "render/data/render_target_data.h"
+#include "render/data/render_post_process_data.h"
 
 #include <cassert>
 
@@ -17,9 +18,11 @@ namespace Kita::Pbrv
     PostProcessPass::PostProcessPass(const RenderContext& context,
         RenderResources& resources,
         const SwapChain& swapChain,
-        RenderTargetData& targetData)
+        RenderTargetData& targetData,
+        const RenderPostProcessData& postProcessData)
         : RenderPassBase(context, resources, swapChain),
-        m_targetData(targetData)
+        m_targetData(targetData),
+        m_postProcessData(postProcessData)
     {
         CreatePipeline();
     }
@@ -39,6 +42,7 @@ namespace Kita::Pbrv
         assert(m_pipeline && "PostProcessPass: pipeline is null");
 
         auto& commandBuffer = frameInfo.m_commandBuffer;
+        auto& frameIndex = frameInfo.m_frameIndex;
         auto& imageIndex = frameInfo.m_imageIndex;
 
         // Color image: COLOR_ATTACHMENT_OPTIMAL -> SHADER_READ_ONLY_OPTIMAL
@@ -61,7 +65,6 @@ namespace Kita::Pbrv
             VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
             colorRange);
 
-
         // Begin rendering
         {
             VkExtent2D extent = m_swapChain.Extent();
@@ -80,6 +83,9 @@ namespace Kita::Pbrv
             // Draw
             vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
                 0, 1, &m_targetData.GetSet(), 0, nullptr);
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
+                1, 1, &m_postProcessData.GetSet(frameIndex), 0, nullptr);
+
             vkCmdDraw(commandBuffer, 3, 1, 0, 0);
         }
         // End rendering
@@ -97,7 +103,7 @@ namespace Kita::Pbrv
     {
         GraphicsPipelineBuilder builder(m_context.Device());
         builder.SetShaders("assets/shaders/post_process_vert.spv", "assets/shaders/post_process_frag.spv")
-            .SetDescriptorSetLayouts({ m_targetData.GetSetLayout() })
+            .SetDescriptorSetLayouts({ m_targetData.GetSetLayout(), m_postProcessData.GetSetLayout() })
             .SetDynamicRendering({ m_swapChain.Format() }, VK_FORMAT_UNDEFINED);
         m_pipeline = builder.Build();
     }

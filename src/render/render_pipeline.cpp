@@ -58,7 +58,7 @@ namespace Kita::Pbrv
             m_targetData, scene.GetRenderFrameData(), scene.GetRenderSkyboxData()));
         m_passes.push_back(std::make_unique<PostProcessPass>(
             context, resources, swapChain,
-            m_targetData));
+            m_targetData, scene.GetRenderPostProcessData()));
     }
 
     void RenderPipeline::DestroyRenderPasses()

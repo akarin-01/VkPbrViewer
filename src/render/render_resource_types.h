@@ -29,6 +29,12 @@ namespace Kita::Pbrv
     };
     STD140_ASSERT(MaterialPC, 32);
 
+    struct PostProcessUbo
+    {
+        alignas(16) glm::vec4 m_exposure;          // x - exposure, yzw - padding
+    };
+    STD140_ASSERT(PostProcessUbo, 16);
+
     using RenderBufferHandle = uint64_t;
     using RenderImageHandle = uint64_t;
     using RenderImageViewHandle = uint64_t;

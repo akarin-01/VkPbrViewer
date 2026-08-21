@@ -27,9 +27,6 @@ namespace Kita::Pbrv
         void DrawFrame(const Scene& scene);
 
     private:
-        static std::unique_ptr<DescriptorAllocator> CreateDescriptorAllocator(const RenderContext& context);
-
-    private:
         std::unique_ptr<RenderContext> m_context;
         std::unique_ptr<SwapChain> m_swapChain;
         std::unique_ptr<FrameSync> m_frameSync;

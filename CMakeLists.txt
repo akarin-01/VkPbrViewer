@@ -108,6 +108,7 @@ add_executable(VkPbrViewer
     src/render/data/render_frame_data.cpp
     src/render/data/render_material_data.cpp
     src/render/data/render_mesh_data.cpp
+    src/render/data/render_post_process_data.cpp
     src/render/data/render_skybox_data.cpp
     src/render/data/render_target_data.cpp
 
@@ -123,6 +124,7 @@ add_executable(VkPbrViewer
     src/scene/light.cpp
     src/scene/material.cpp
     src/scene/mesh.cpp
+    src/scene/post_process.cpp
     src/scene/skybox.cpp
     src/scene/texture.cpp
 )

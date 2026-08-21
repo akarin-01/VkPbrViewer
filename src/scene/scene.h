@@ -5,6 +5,7 @@
 #include "scene/material.h"
 #include "scene/mesh.h"
 #include "scene/skybox.h"
+#include "scene/post_process.h"
 
 namespace Kita::Pbrv
 {
@@ -30,11 +31,15 @@ namespace Kita::Pbrv
         const Skybox& GetSkybox() const { return m_skybox; }
         Skybox& GetSkybox() { return m_skybox; }
 
+        const PostProcess& GetPostProcess() const { return m_postProcess; }
+        PostProcess& GetPostProcess() { return m_postProcess; }
+
     private:
         Camera m_camera{};
         Light m_light{};
         Material m_material{};
         Mesh m_mesh{};
         Skybox m_skybox{};
+        PostProcess m_postProcess{};
     };
 }

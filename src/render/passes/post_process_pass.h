@@ -7,6 +7,7 @@
 namespace Kita::Pbrv
 {
     class RenderTargetData;
+    class RenderPostProcessData;
     class GraphicsPipeline;
 
     class PostProcessPass : public RenderPassBase
@@ -15,7 +16,8 @@ namespace Kita::Pbrv
         PostProcessPass(const RenderContext& context,
             RenderResources& resources,
             const SwapChain& swapChain,
-            RenderTargetData& targetData);
+            RenderTargetData& targetData,
+            const RenderPostProcessData& postProcessData);
         ~PostProcessPass();
 
         void RecreateResources() override;
@@ -26,6 +28,7 @@ namespace Kita::Pbrv
 
     private:
         RenderTargetData& m_targetData;
+        const RenderPostProcessData& m_postProcessData;
 
         std::unique_ptr<GraphicsPipeline> m_pipeline;
     };
