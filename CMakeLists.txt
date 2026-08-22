@@ -114,6 +114,7 @@ add_executable(VkPbrViewer
     # render
     src/render/compute_pipeline.cpp
     src/render/descriptor_allocator.cpp
+    src/render/descriptor_writer.cpp
     src/render/frame_sync.cpp
     src/render/graphics_pipeline.cpp
     src/render/one_shot_command.cpp

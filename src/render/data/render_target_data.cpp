@@ -4,6 +4,7 @@
 #include "render/render_utils.h"
 #include "render/render_resources.h"
 #include "render/descriptor_allocator.h"
+#include "render/descriptor_writer.h"
 
 #include <array>
 #include <cassert>
@@ -194,7 +195,10 @@ namespace Kita::Pbrv
 
         // Set
         {
-            WriteSet(m_set);
+            DescriptorWriter writer(m_resources, m_context.Device());
+            writer.WriteImage(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, m_colorTex.m_imageViewHandle, m_colorTex.m_samplerHandle)
+                .UpdateSet(m_set);
         }
     }
 
@@ -212,33 +216,5 @@ namespace Kita::Pbrv
             m_resources.DestroyImageView(m_depthTex.m_imageViewHandle);
             m_resources.DestroyImage(m_depthTex.m_imageHandle);
         }
-    }
-
-    void RenderTargetData::WriteSet(VkDescriptorSet set) const
-    {
-        VkDescriptorImageInfo imageInfo{};
-        {
-            RenderImageView* imageView = m_resources.GetImageView(m_colorTex.m_imageViewHandle);
-            assert(imageView && "Image view handle is invalid");
-            RenderSampler* sampler = m_resources.GetSampler(m_colorTex.m_samplerHandle);
-            assert(sampler && "Sampler handle is invalid");
-
-            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            imageInfo.imageView = imageView->m_imageView;
-            imageInfo.sampler = sampler->m_sampler;
-        }
-
-        std::array<VkWriteDescriptorSet, 1> writes{};
-        writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writes[0].dstSet = set;
-        writes[0].dstBinding = 0;
-        writes[0].dstArrayElement = 0;
-        writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        writes[0].descriptorCount = 1;
-        writes[0].pImageInfo = &imageInfo;
-
-        vkUpdateDescriptorSets(m_context.Device(),
-            static_cast<uint32_t>(writes.size()), writes.data(),
-            0, nullptr);
     }
 }

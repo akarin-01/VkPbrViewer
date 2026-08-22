@@ -1,9 +1,9 @@
 #include "render_mesh_data.h"
 
 #include "core/log.h"
-#include "render/render_resources.h"
 #include "scene/mesh.h"
 #include "scene/vertex.h"
+#include "render/render_resources.h"
 
 #include <cassert>
 #include <cstddef>

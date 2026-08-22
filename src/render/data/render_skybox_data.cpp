@@ -6,6 +6,7 @@
 #include "render/render_utils.h"
 #include "render/render_resources.h"
 #include "render/descriptor_allocator.h"
+#include "render/descriptor_writer.h"
 #include "render/compute_pipeline.h"
 #include "render/one_shot_command.h"
 
@@ -158,30 +159,10 @@ namespace Kita::Pbrv
 
     void RenderSkyboxData::WriteSet(VkDescriptorSet set) const
     {
-        VkDescriptorImageInfo imageInfo{};
-        {
-            RenderImageView* imageView = m_resources.GetImageView(m_cubemap.m_imageViewHandle);
-            assert(imageView && "Image view handle is invalid");
-            RenderSampler* sampler = m_resources.GetSampler(m_cubemap.m_samplerHandle);
-            assert(sampler && "Sampler handle is invalid");
-
-            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            imageInfo.imageView = imageView->m_imageView;
-            imageInfo.sampler = sampler->m_sampler;
-        }
-
-        std::array<VkWriteDescriptorSet, 1> writes{};
-        writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writes[0].dstSet = set;
-        writes[0].dstBinding = 0;
-        writes[0].dstArrayElement = 0;
-        writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        writes[0].descriptorCount = 1;
-        writes[0].pImageInfo = &imageInfo;
-
-        vkUpdateDescriptorSets(m_context.Device(),
-            static_cast<uint32_t>(writes.size()), writes.data(),
-            0, nullptr);
+        DescriptorWriter writer(m_resources, m_context.Device());
+        writer.WriteImage(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, m_cubemap.m_imageViewHandle, m_cubemap.m_samplerHandle)
+            .UpdateSet(set);
     }
 
     RenderTexture RenderSkyboxData::CreateEquirectTexture(const Skybox& sceneSkybox, VkFormat format) const
@@ -259,47 +240,12 @@ namespace Kita::Pbrv
 
     void RenderSkyboxData::WriteConversionSet(const RenderTexture& equirect, RenderImageViewHandle storageHandle) const
     {
-        VkDescriptorImageInfo cubemapInfo{};
-        {
-            RenderImageView* imageView = m_resources.GetImageView(storageHandle);
-            assert(imageView && "Storage image view handle is invalid");
-
-            cubemapInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-            cubemapInfo.imageView = imageView->m_imageView;
-        }
-
-        VkDescriptorImageInfo equirectInfo{};
-        {
-            RenderImageView* imageView = m_resources.GetImageView(equirect.m_imageViewHandle);
-            assert(imageView && "Equirect image view handle is invalid");
-            RenderSampler* sampler = m_resources.GetSampler(equirect.m_samplerHandle);
-            assert(sampler && "Equirect sampler handle is invalid");
-
-            equirectInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            equirectInfo.imageView = imageView->m_imageView;
-            equirectInfo.sampler = sampler->m_sampler;
-        }
-
-        std::array<VkWriteDescriptorSet, 2> writes{};
-        writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writes[0].dstSet = m_conversionSet;
-        writes[0].dstBinding = 0;
-        writes[0].dstArrayElement = 0;
-        writes[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        writes[0].descriptorCount = 1;
-        writes[0].pImageInfo = &cubemapInfo;
-
-        writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writes[1].dstSet = m_conversionSet;
-        writes[1].dstBinding = 1;
-        writes[1].dstArrayElement = 0;
-        writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        writes[1].descriptorCount = 1;
-        writes[1].pImageInfo = &equirectInfo;
-
-        vkUpdateDescriptorSets(m_context.Device(),
-            static_cast<uint32_t>(writes.size()), writes.data(),
-            0, nullptr);
+        DescriptorWriter writer(m_resources, m_context.Device());
+        writer.WriteImage(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+            VK_IMAGE_LAYOUT_GENERAL, storageHandle, 0)
+            .WriteImage(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, equirect.m_imageViewHandle, equirect.m_samplerHandle)
+            .UpdateSet(m_conversionSet);
     }
 
     void RenderSkyboxData::DispatchConversion(const RenderTexture& cubemap, const RenderTexture& equirect) const

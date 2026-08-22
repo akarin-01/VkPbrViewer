@@ -1,14 +1,13 @@
 #include "render_post_process_data.h"
 
 #include "scene/post_process.h"
-
 #include "render/render_context.h"
 #include "render/render_utils.h"
 #include "render/render_resources.h"
 #include "render/descriptor_allocator.h"
+#include "render/descriptor_writer.h"
 
 #include <glm/glm.hpp>
-#include <cassert>
 #include <cmath>
 
 namespace Kita::Pbrv
@@ -54,27 +53,10 @@ namespace Kita::Pbrv
         {
             m_sets[i] = m_descriptorAllocator.Allocate(m_setLayout, "Post process set");
 
-            VkDescriptorBufferInfo bufferInfo{};
-            {
-                RenderBuffer* buffer = m_resources.GetBuffer(m_uboHandles[i]);
-                assert(buffer && "Post process buffer handle is invalid");
-                bufferInfo.buffer = buffer->m_buffer;
-                bufferInfo.offset = 0;
-                bufferInfo.range = sizeof(PostProcessUbo);
-            }
-
-            std::array<VkWriteDescriptorSet, 1> writes{};
-            writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            writes[0].dstSet = m_sets[i];
-            writes[0].dstBinding = 0;
-            writes[0].dstArrayElement = 0;
-            writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            writes[0].descriptorCount = 1;
-            writes[0].pBufferInfo = &bufferInfo;
-
-            vkUpdateDescriptorSets(m_context.Device(),
-                static_cast<uint32_t>(writes.size()), writes.data(),
-                0, nullptr);
+            DescriptorWriter writer(m_resources, m_context.Device());
+            writer.WriteBuffer(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                m_uboHandles[i], 0, sizeof(PostProcessUbo))
+                .UpdateSet(m_sets[i]);
         }
     }
 

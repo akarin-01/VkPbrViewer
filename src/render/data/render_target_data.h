@@ -44,7 +44,6 @@ namespace Kita::Pbrv
     private:
         void Create(VkExtent2D extent);
         void Destroy();
-        void WriteSet(VkDescriptorSet set) const;
 
     private:
         const RenderContext& m_context;

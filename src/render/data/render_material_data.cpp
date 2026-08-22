@@ -1,15 +1,15 @@
 #include "render_material_data.h"
 
 #include "core/log.h"
+#include "scene/material.h"
+#include "scene/texture.h"
 #include "render/render_context.h"
 #include "render/render_utils.h"
 #include "render/render_resources.h"
 #include "render/descriptor_allocator.h"
-#include "scene/material.h"
-#include "scene/texture.h"
+#include "render/descriptor_writer.h"
 
 #include <glm/glm.hpp>
-#include <cassert>
 #include <stdexcept>
 
 namespace Kita::Pbrv
@@ -277,32 +277,15 @@ namespace Kita::Pbrv
 
     void RenderMaterialData::WriteSet(VkDescriptorSet set)
     {
-        std::array<VkDescriptorImageInfo, kMaterialTextureCount> imageInfos{};
+        DescriptorWriter writer(m_resources, m_context.Device());
         for (uint32_t i = 0; i < kMaterialTextureCount; ++i)
         {
             auto& texture = m_textures[i];
 
-            RenderImageView* imageView = m_resources.GetImageView(texture.m_imageViewHandle);
-            assert(imageView && "Image view handle is invalid");
-            RenderSampler* sampler = m_resources.GetSampler(texture.m_samplerHandle);
-            assert(sampler && "Sampler handle is invalid");
-
-            auto& imageInfo = imageInfos[i];
-            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            imageInfo.imageView = imageView->m_imageView;
-            imageInfo.sampler = sampler->m_sampler;
+            writer.WriteImage(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, texture.m_imageViewHandle, texture.m_samplerHandle);
         }
 
-        std::array<VkWriteDescriptorSet, 1> writes{};
-        writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writes[0].dstSet = set;
-        writes[0].dstBinding = 0;
-        writes[0].dstArrayElement = 0;
-        writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        writes[0].descriptorCount = static_cast<uint32_t>(imageInfos.size());
-        writes[0].pImageInfo = imageInfos.data();
-
-        vkUpdateDescriptorSets(m_context.Device(),
-            static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
+        writer.UpdateSet(set);
     }
 }
