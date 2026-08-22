@@ -186,8 +186,8 @@ if(WIN32)
     # gdi32: Vulkan/GLFW 可能需要的系统库；comdlg32: OpenFileDialog(GetOpenFileNameA)
     target_link_libraries(VkPbrViewer PRIVATE gdi32 comdlg32)
 else()
-    # 当前文件浏览器使用 Win32 API，非 Windows 直接配置期报错，避免编译期才炸
-    message(FATAL_ERROR "[CMake] OpenFileDialog currently only supports Windows (requires comdlg32). Please build on Windows.")
+    # 当前文件浏览器使用 Win32 API；非 Windows 平台配置期给出警告，对话框按钮为 no-op
+    message(WARNING "[CMake] OpenFileDialog currently only supports Windows; it will be a no-op on this platform.")
 endif()
 
 # ===== Shader 编译（GLSL → SPIR-V）=====

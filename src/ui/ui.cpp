@@ -31,10 +31,7 @@ namespace Kita::Pbrv
                     AssetLoader::LoadTexture(path.value(), type, tex);
                 }
             }
-            ImGui::PopID();
-
             ImGui::SameLine();
-            ImGui::PushID(title);
             if (ImGui::Button("Delete"))
             {
                 tex.SetEmpty();

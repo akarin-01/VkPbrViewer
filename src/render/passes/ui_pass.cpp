@@ -62,7 +62,11 @@ namespace Kita::Pbrv
 
     void UIPass::RecreateResources()
     {
-        /* Empty */
+        /* Swapchain recreation may change the image count; format is assumed unchanged.
+         * In dynamic rendering mode the Vulkan backend owns no framebuffers,
+         * so only the minimum image count needs to be refreshed.
+         */
+        ImGui_ImplVulkan_SetMinImageCount(static_cast<uint32_t>(m_swapChain.ImageCount()));
     }
 
     void UIPass::Draw(const FrameInfo& frameInfo) const
