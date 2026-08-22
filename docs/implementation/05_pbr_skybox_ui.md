@@ -33,3 +33,10 @@
 - [x] 鼠标悬停 UI 时屏蔽相机输入（`WantCaptureMouse` 守卫，面板操作不触发相机旋转 / 平移）
 - [x] 文件选择对话框（Win32 `GetOpenFileNameA`，封装于 `ui_utils::OpenFileDialog`）：模型 / 天空盒 / 纹理导入
 - [x] Light 参数由 Direction 重构为 Position：`Scene::Light` 存储原始位置向量，shader 内 `normalize(frame.lightPos.xyz)`
+
+### 四、材质贴图与切线生成（补充）
+
+- [ ] AssetLoader：glTF 缺少 `TANGENT` 时按三角形生成切线（标准 MikkTSpace 思路），避免法线贴图 TBN 退化
+- [ ] 贴图槽位重构：Metallic / Roughness 两个槽合并为 `MetallicRoughness`（G=roughness, B=metallic），新增 Emissive 槽
+- [ ] `lit.frag` 同步：从 MR 贴图取 roughness/metallic，新增 `emissiveFactor * emissiveTexture`（ACES 前加自发光）
+- [ ] UI / fallback / 描述符预算同步：槽位总数保持 5，descriptor pool 数量不变
