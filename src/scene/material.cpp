@@ -29,4 +29,10 @@ namespace Kita::Pbrv
         m_ao = ao;
         return *this;
     }
+
+    Material& Material::SetEmissive(glm::vec3 emissive)
+    {
+        m_emissive = emissive;
+        return *this;
+    }
 }

@@ -8,10 +8,11 @@ namespace Kita::Pbrv
 {
     enum class TextureType
     {
-        None,       // undefined
-        Albedo,     // sRGB
-        Normal,     // linear, decode *2-1 in shader
-        Linear,     // linear, single channel
+        None,               // undefined
+        Srgb,               // sRGB, 4 channel
+        Normal,             // linear, decode *2-1 in shader
+        MetallicRoughness,  // linear, 4 channel
+        Linear,             // linear, 1 channel
     };
 
     class Texture

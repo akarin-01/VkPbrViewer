@@ -9,6 +9,7 @@ layout(push_constant, std430) uniform MaterialPC
 {
     vec4 albedo;
     vec4 params;            // x - metallic, y - roughness, z - ao, w - padding
+    vec4 emissive;          // xyz - emissive, w - padding
 } material;
 
 layout(set = 1, binding = 0) uniform sampler2D textures[TEXTURE_COUNT];
@@ -68,10 +69,12 @@ void main()
     vec3 lDir = normalize(frame.lightPos.xyz);              // directional light
     vec3 hDir = normalize(vDir + lDir);
 
+    vec4 mr = texture(textures[MR], fragTexCoord);
     vec4 albedo = material.albedo * texture(textures[ALBEDO], fragTexCoord);
-    float metallic = material.params.x * texture(textures[METALLIC], fragTexCoord).r;
-    float roughness = material.params.y * texture(textures[ROUGHNESS], fragTexCoord).r;
+    float metallic = material.params.x * mr.b;
+    float roughness = material.params.y * mr.g;
     float ao = material.params.z * texture(textures[AO], fragTexCoord).r;
+    vec3 emissive = material.emissive.rgb * texture(textures[EMISSIVE], fragTexCoord).rgb;
 
     float NdotV = max(dot(nDir, vDir), 0.0);
     float NdotL = max(dot(nDir, lDir), 0.0);
@@ -92,6 +95,6 @@ void main()
     // Ambient (temporary — replaced by IBL in the future)
     vec3 ambient = vec3(0.03) * albedo.rgb * ao * (1.0 - metallic);
 
-    vec3 result = (diffuse + specular) * NdotL * radiance + ambient;
+    vec3 result = (diffuse + specular) * NdotL * radiance + ambient + emissive;
     outColor = vec4(result, albedo.a);
 }

@@ -19,14 +19,14 @@ namespace Kita::Pbrv
         void InitScene(Scene& scene)
         {
             Kita::Pbrv::Mesh& mesh = scene.GetMesh();
-            Kita::Pbrv::AssetLoader::LoadGltfMesh("assets/models/Cerberus_LP.glb", mesh);
+            Kita::Pbrv::AssetLoader::LoadGltfMesh("assets/models/DamagedHelmet.gltf", mesh);
 
             Kita::Pbrv::Material& mat = scene.GetMaterial();
-            Kita::Pbrv::AssetLoader::LoadTexture("assets/textures/Cerberus_A.tga", TextureType::Albedo, mat.GetAlbedoTex());
-            Kita::Pbrv::AssetLoader::LoadTexture("assets/textures/Cerberus_N.tga", TextureType::Normal, mat.GetNormalTex());
-            Kita::Pbrv::AssetLoader::LoadTexture("assets/textures/Cerberus_M.tga", TextureType::Linear, mat.GetMetallicTex());
-            Kita::Pbrv::AssetLoader::LoadTexture("assets/textures/Cerberus_R.tga", TextureType::Linear, mat.GetRoughnessTex());
-            Kita::Pbrv::AssetLoader::LoadTexture("assets/textures/Cerberus_AO.tga", TextureType::Linear, mat.GetAOTex());
+            Kita::Pbrv::AssetLoader::LoadTexture("assets/textures/Default_albedo.jpg", TextureType::Srgb, mat.GetAlbedoTex());
+            Kita::Pbrv::AssetLoader::LoadTexture("assets/textures/Default_normal.jpg", TextureType::Normal, mat.GetNormalTex());
+            Kita::Pbrv::AssetLoader::LoadTexture("assets/textures/Default_metalRoughness.jpg", TextureType::MetallicRoughness, mat.GetMRTex());
+            Kita::Pbrv::AssetLoader::LoadTexture("assets/textures/Default_AO.jpg", TextureType::Linear, mat.GetAOTex());
+            Kita::Pbrv::AssetLoader::LoadTexture("assets/textures/Default_Emissive.jpg", TextureType::Srgb, mat.GetEmissiveTex());
 
             Kita::Pbrv::Skybox& skybox = scene.GetSkybox();
             Kita::Pbrv::AssetLoader::LoadSkybox("assets/textures/qwantani_moon_noon_puresky_4k.hdr", skybox);

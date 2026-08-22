@@ -20,9 +20,11 @@ namespace Kita::Pbrv
         {
             switch (type)
             {
-            case TextureType::Albedo:
+            case TextureType::Srgb:
                 return VK_FORMAT_R8G8B8A8_SRGB;
             case TextureType::Normal:
+                return VK_FORMAT_R8G8B8A8_UNORM;
+            case TextureType::MetallicRoughness:
                 return VK_FORMAT_R8G8B8A8_UNORM;
             case TextureType::Linear:
                 return VK_FORMAT_R8_UNORM;
@@ -39,12 +41,12 @@ namespace Kita::Pbrv
                 return "Albedo";
             case Normal:
                 return "Normal";
-            case Metallic:
-                return "Metallic";
-            case Roughness:
-                return "Roughness";
+            case MetallicRoughness:
+                return "MetallicRoughness";
             case AO:
                 return "AO";
+            case Emissive:
+                return "Emissive";
             default:
                 return "Unknown";
             }
@@ -58,12 +60,12 @@ namespace Kita::Pbrv
                 return mat.GetAlbedoTex();
             case Normal:
                 return mat.GetNormalTex();
-            case Metallic:
-                return mat.GetMetallicTex();
-            case Roughness:
-                return mat.GetRoughnessTex();
+            case MetallicRoughness:
+                return mat.GetMRTex();
             case AO:
                 return mat.GetAOTex();
+            case Emissive:
+                return mat.GetEmissiveTex();
             default:
                 throw std::runtime_error("Invalid texture slot!");
             }
@@ -134,6 +136,7 @@ namespace Kita::Pbrv
             sceneMat.GetRoughness(),
             sceneMat.GetAO(),
             0.0f);
+        m_pushConstant.m_emissive = glm::vec4(sceneMat.GetEmissive(), 1.0f);
 
         bool anyTexUpdated = false;
         for (uint32_t i = 0; i < kMaterialTextureCount; ++i)
@@ -159,6 +162,7 @@ namespace Kita::Pbrv
     void RenderMaterialData::CreateFallbacks()
     {
         uint8_t white[] = { 255, 255, 255, 255 };
+        uint8_t black[] = { 0, 0, 0, 255 };
         uint8_t flat[] = { 128, 128, 255, 255 };
         uint32_t width = 1;
         uint32_t height = 1;
@@ -166,7 +170,7 @@ namespace Kita::Pbrv
         // Albedo
         {
             Texture tex{};
-            tex.SetData("fallback", std::vector<uint8_t>(white, white + 4), width, height, TextureType::Albedo);
+            tex.SetData("fallback", std::vector<uint8_t>(white, white + 4), width, height, TextureType::Srgb);
             m_fallbackTextures[Albedo] = CreateTexture(tex);
         }
         // Normal
@@ -175,14 +179,24 @@ namespace Kita::Pbrv
             tex.SetData("fallback", std::vector<uint8_t>(flat, flat + 4), width, height, TextureType::Normal);
             m_fallbackTextures[Normal] = CreateTexture(tex);
         }
-        // Linear
+        // MR
+        {
+            Texture tex{};
+            tex.SetData("fallback", std::vector<uint8_t>(white, white + 4), width, height, TextureType::MetallicRoughness);
+            m_fallbackTextures[MetallicRoughness] = CreateTexture(tex);
+        }
+        // AO
         {
             Texture tex{};
             tex.SetData("fallback", std::vector<uint8_t>(white, white + 1), width, height, TextureType::Linear);
             RenderTexture linearFallback = CreateTexture(tex);
-            m_fallbackTextures[Metallic] = linearFallback;
-            m_fallbackTextures[Roughness] = linearFallback;
             m_fallbackTextures[AO] = linearFallback;
+        }
+        // Emissive
+        {
+            Texture tex{};
+            tex.SetData("fallback", std::vector<uint8_t>(black, black + 4), width, height, TextureType::Srgb);
+            m_fallbackTextures[Emissive] = CreateTexture(tex);
         }
     }
 

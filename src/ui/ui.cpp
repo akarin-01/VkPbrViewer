@@ -147,15 +147,21 @@ namespace Kita::Pbrv
                                 {
                                     mat.SetAO(ao);
                                 }
+
+                                glm::vec3 emissive = mat.GetEmissive();
+                                if (ImGui::ColorEdit3("Emissive", &emissive.x))
+                                {
+                                    mat.SetEmissive(emissive);
+                                }
                             });
 
                         DrawBox("##TexturesBox", "Textures", [&mat]()
                             {
-                                DrawTextureRaw("Albedo:   ", mat.GetAlbedoTex(), TextureType::Albedo);
+                                DrawTextureRaw("Albedo:   ", mat.GetAlbedoTex(), TextureType::Srgb);
                                 DrawTextureRaw("Normal:   ", mat.GetNormalTex(), TextureType::Normal);
-                                DrawTextureRaw("Metallic: ", mat.GetMetallicTex(), TextureType::Linear);
-                                DrawTextureRaw("Roughness:", mat.GetRoughnessTex(), TextureType::Linear);
+                                DrawTextureRaw("MR:       ", mat.GetMRTex(), TextureType::MetallicRoughness);
                                 DrawTextureRaw("AO:       ", mat.GetAOTex(), TextureType::Linear);
+                                DrawTextureRaw("Emissive: ", mat.GetEmissiveTex(), TextureType::Srgb);
                             });
                     });
             }

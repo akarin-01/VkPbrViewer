@@ -14,11 +14,24 @@
 #include <stdexcept>
 #include <vector>
 #include <cstdint>
+#include <cmath>
 
 namespace Kita::Pbrv
 {
     namespace
     {
+        int GetTextureChannels(TextureType type)
+        {
+            switch (type)
+            {
+            case TextureType::Srgb:                 return 4;
+            case TextureType::Normal:               return 4;
+            case TextureType::MetallicRoughness:    return 4;
+            case TextureType::Linear:               return 1;
+            default: throw std::runtime_error("Invalid texture type!");
+            }
+        }
+
         glm::vec4 ReadAccessorElement(const tinygltf::Model& model, const tinygltf::Accessor& accessor, size_t index)
         {
             const tinygltf::BufferView& bufferView = model.bufferViews[accessor.bufferView];
@@ -79,6 +92,76 @@ namespace Kita::Pbrv
                 return reinterpret_cast<const uint32_t*>(src)[0];
             default:
                 throw std::runtime_error("Unsupported index component type!");
+            }
+        }
+
+        void ComputeTangents(std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices)
+        {
+            if (indices.size() % 3 != 0)
+            {
+                Log::Warning("[Scene] Index count is not a multiple of 3, skipping tangent computation");
+                return;
+            }
+
+            std::vector<glm::vec3> tan1(vertices.size(), glm::vec3(0.0f));
+            std::vector<glm::vec3> tan2(vertices.size(), glm::vec3(0.0f));
+
+            for (size_t i = 0; i + 2 < indices.size(); i += 3)
+            {
+                const uint32_t i0 = indices[i + 0];
+                const uint32_t i1 = indices[i + 1];
+                const uint32_t i2 = indices[i + 2];
+
+                const glm::vec3& p0 = vertices[i0].position;
+                const glm::vec3& p1 = vertices[i1].position;
+                const glm::vec3& p2 = vertices[i2].position;
+
+                const glm::vec2& uv0 = vertices[i0].texCoord;
+                const glm::vec2& uv1 = vertices[i1].texCoord;
+                const glm::vec2& uv2 = vertices[i2].texCoord;
+
+                const glm::vec3 e1 = p1 - p0;
+                const glm::vec3 e2 = p2 - p0;
+                const glm::vec2 duv1 = uv1 - uv0;
+                const glm::vec2 duv2 = uv2 - uv0;
+
+                const float r = duv1.x * duv2.y - duv2.x * duv1.y;
+                if (std::abs(r) < 1e-8f)
+                {
+                    // Degenerate UVs, skip this triangle
+                    continue;
+                }
+
+                const float f = 1.0f / r;
+                const glm::vec3 tangent = (e1 * duv2.y - e2 * duv1.y) * f;
+                const glm::vec3 bitangent = (e2 * duv1.x - e1 * duv2.x) * f;
+
+                tan1[i0] += tangent;
+                tan1[i1] += tangent;
+                tan1[i2] += tangent;
+
+                tan2[i0] += bitangent;
+                tan2[i1] += bitangent;
+                tan2[i2] += bitangent;
+            }
+
+            for (size_t i = 0; i < vertices.size(); ++i)
+            {
+                if (vertices[i].tangent != glm::vec4(0.0f))
+                {
+                    // Has tangent, skip this vertex
+                    continue;
+                }
+
+                const glm::vec3& n = vertices[i].normal;
+
+                glm::vec3 t = tan1[i] - n * glm::dot(n, tan1[i]);   // Gram-Schmidt orthogonalization
+                t = glm::length(t) > 1e-8f ? glm::normalize(t) : glm::vec3(1.0f, 0.0f, 0.0f);
+
+                // w = handedness, used by the shader to derive the bitangent direction
+                const float w = glm::dot(glm::cross(n, t), tan2[i]) < 0.0f ? -1.0f : 1.0f;
+
+                vertices[i].tangent = glm::vec4(t, w);
             }
         }
     }
@@ -176,6 +259,8 @@ namespace Kita::Pbrv
             }
         }
 
+        ComputeTangents(vertices, indices);
+
         std::string name = std::filesystem::path(path).stem().string();
 
         mesh.SetData(name, std::move(vertices), std::move(indices));
@@ -188,7 +273,7 @@ namespace Kita::Pbrv
         std::vector<uint8_t> pixels;
         uint32_t width, height;
         {
-            int desiredChannels = (type == TextureType::Linear) ? 1 : 4;
+            int desiredChannels = GetTextureChannels(type);
 
             int texWidth, texHeight, texChannels;
             stbi_uc* data = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, desiredChannels);

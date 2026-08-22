@@ -10,9 +10,9 @@ namespace Kita::Pbrv
     {
         Albedo = 0,
         Normal,
-        Metallic,
-        Roughness,
+        MetallicRoughness,
         AO,
+        Emissive,
         kMaterialTextureCount
     };
 }

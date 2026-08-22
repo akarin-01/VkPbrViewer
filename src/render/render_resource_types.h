@@ -26,8 +26,9 @@ namespace Kita::Pbrv
     {
         alignas(16) glm::vec4 m_albedo;
         alignas(16) glm::vec4 m_params;             // x - metallic, y - roughness, z - ao, w - padding
+        alignas(16) glm::vec4 m_emissive;           // xyz - emissive, w - padding
     };
-    STD140_ASSERT(MaterialPC, 32);
+    STD140_ASSERT(MaterialPC, 48);
 
     struct PostProcessUbo
     {

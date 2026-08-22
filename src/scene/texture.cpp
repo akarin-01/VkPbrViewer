@@ -10,10 +10,12 @@ namespace Kita::Pbrv
         {
             switch (type)
             {
-            case TextureType::Albedo:
-                return "Albedo";
+            case TextureType::Srgb:
+                return "Srgb";
             case TextureType::Normal:
                 return "Normal";
+            case TextureType::MetallicRoughness:
+                return "MetallicRoughness";
             case TextureType::Linear:
                 return "Linear";
             default:
