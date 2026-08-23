@@ -4,12 +4,11 @@
 #include "render/render_utils.h"
 #include "render/render_resources.h"
 #include "render/swap_chain.h"
+#include "render/render_scene.h"
 #include "render/descriptor_allocator.h"
 #include "render/graphics_pipeline.h"
 #include "render/rendering_scope.h"
-
 #include "render/data/render_target_data.h"
-#include "render/data/render_post_process_data.h"
 
 #include <cassert>
 
@@ -19,10 +18,10 @@ namespace Kita::Pbrv
         RenderResources& resources,
         const SwapChain& swapChain,
         RenderTargetData& targetData,
-        const RenderPostProcessData& postProcessData)
+        const RenderScene& scene)
         : RenderPassBase(context, resources, swapChain),
         m_targetData(targetData),
-        m_postProcessData(postProcessData)
+        m_postProcessData(scene.GetPostProcessData())
     {
         CreatePipeline();
     }

@@ -30,12 +30,12 @@ namespace Kita::Pbrv
 
         void Update(const Scene& scene, const FrameInfo& frameInfo);
 
-        const RenderFrameData& GetRenderFrameData() const { return m_frameData; }
-        const RenderMaterialData& GetRenderMaterialData() const { return m_materialData; }
-        const RenderMeshData& GetRenderMeshData() const { return m_meshData; }
-        const RenderSkyboxData& GetRenderSkyboxData() const { return m_skyboxData; }
-        const RenderPostProcessData& GetRenderPostProcessData() const { return m_postProcessData; }
-        const RenderIblData& GetRenderIblData() const { return m_iblData; }
+        const RenderFrameData& GetFrameData() const { return m_frameData; }
+        const RenderMaterialData& GetMaterialData() const { return m_materialData; }
+        const RenderMeshData& GetMeshData() const { return m_meshData; }
+        const RenderSkyboxData& GetSkyboxData() const { return m_skyboxData; }
+        const RenderPostProcessData& GetPostProcessData() const { return m_postProcessData; }
+        const RenderIblData& GetIblData() const { return m_iblData; }
 
     private:
         RenderFrameData m_frameData;

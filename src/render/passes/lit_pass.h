@@ -6,12 +6,13 @@
 
 namespace Kita::Pbrv
 {
+    class RenderTargetData;
+    class RenderScene;
     class RenderFrameData;
     class RenderMaterialData;
     class RenderMeshData;
     class RenderIblData;
     class GraphicsPipeline;
-    class RenderTargetData;
 
     class LitPass : public RenderPassBase
     {
@@ -20,10 +21,7 @@ namespace Kita::Pbrv
             RenderResources& resources,
             const SwapChain& swapChain,
             RenderTargetData& targetData,
-            const RenderFrameData& frameData,
-            const RenderMaterialData& materialData,
-            const RenderMeshData& meshData,
-            const RenderIblData& iblData);
+            const RenderScene& scene);
         ~LitPass();
 
         void RecreateResources() override;

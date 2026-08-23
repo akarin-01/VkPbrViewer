@@ -4,13 +4,10 @@
 #include "render/render_context.h"
 #include "render/render_resources.h"
 #include "render/swap_chain.h"
-
-#include "render/data/render_target_data.h"
-#include "render/data/render_frame_data.h"
-#include "render/data/render_skybox_data.h"
-
+#include "render/render_scene.h"
 #include "render/graphics_pipeline.h"
 #include "render/rendering_scope.h"
+#include "render/data/render_target_data.h"
 
 #include <cassert>
 
@@ -20,12 +17,11 @@ namespace Kita::Pbrv
         RenderResources& resources,
         const SwapChain& swapChain,
         RenderTargetData& targetData,
-        const RenderFrameData& frameData,
-        const RenderSkyboxData& skybox)
+        const RenderScene& scene)
         : RenderPassBase(context, resources, swapChain),
         m_targetData(targetData),
-        m_frameData(frameData),
-        m_skybox(skybox)
+        m_frameData(scene.GetFrameData()),
+        m_skybox(scene.GetSkyboxData())
     {
         CreatePipeline();
     }
