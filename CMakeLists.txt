@@ -130,6 +130,7 @@ add_executable(VkPbrViewer
 
     #render data
     src/render/data/render_frame_data.cpp
+    src/render/data/render_ibl_data.cpp
     src/render/data/render_material_data.cpp
     src/render/data/render_mesh_data.cpp
     src/render/data/render_post_process_data.cpp
@@ -202,6 +203,7 @@ set(SHADER_SOURCES
     assets/shaders/post_process.vert
     assets/shaders/post_process.frag
     assets/shaders/equirect_to_cubemap.comp
+    assets/shaders/irradiance_convolution.comp
 )
 set(SHADER_OUTPUTS
     assets/shaders/lit_vert.spv
@@ -211,6 +213,7 @@ set(SHADER_OUTPUTS
     assets/shaders/post_process_vert.spv
     assets/shaders/post_process_frag.spv
     assets/shaders/equirect_to_cubemap_comp.spv
+    assets/shaders/irradiance_convolution_comp.spv
 )
 
 set(SHADER_INCLUDES

@@ -9,6 +9,7 @@ namespace Kita::Pbrv
     class RenderFrameData;
     class RenderMaterialData;
     class RenderMeshData;
+    class RenderIblData;
     class GraphicsPipeline;
     class RenderTargetData;
 
@@ -21,7 +22,8 @@ namespace Kita::Pbrv
             RenderTargetData& targetData,
             const RenderFrameData& frameData,
             const RenderMaterialData& materialData,
-            const RenderMeshData& meshData);
+            const RenderMeshData& meshData,
+            const RenderIblData& iblData);
         ~LitPass();
 
         void RecreateResources() override;
@@ -34,6 +36,7 @@ namespace Kita::Pbrv
         RenderTargetData& m_targetData;
         const RenderFrameData& m_frameData;
         const RenderMaterialData& m_materialData;
+        const RenderIblData& m_iblData;
         const RenderMeshData& m_meshData;
 
         std::unique_ptr<GraphicsPipeline> m_pipeline;

@@ -9,6 +9,7 @@
 #include "render/data/render_frame_data.h"
 #include "render/data/render_material_data.h"
 #include "render/data/render_mesh_data.h"
+#include "render/data/render_ibl_data.h"
 
 #include "render/graphics_pipeline.h"
 #include "render/rendering_scope.h"
@@ -23,12 +24,14 @@ namespace Kita::Pbrv
         RenderTargetData& targetData,
         const RenderFrameData& frameData,
         const RenderMaterialData& materialData,
-        const RenderMeshData& meshData)
+        const RenderMeshData& meshData,
+        const RenderIblData& iblData)
         : RenderPassBase(context, resources, swapChain),
         m_targetData(targetData),
         m_frameData(frameData),
         m_materialData(materialData),
-        m_meshData(meshData)
+        m_meshData(meshData),
+        m_iblData(iblData)
     {
         CreatePipeline();
     }
@@ -90,6 +93,9 @@ namespace Kita::Pbrv
                 vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
                     1, 1, &m_materialData.GetSet(frameIndex), 0, nullptr);
 
+                vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
+                    2, 1, &m_iblData.GetSet(frameIndex), 0, nullptr);
+
                 auto& pushConstant = m_materialData.GetPushConstant();
                 vkCmdPushConstants(commandBuffer, m_pipeline->Layout(),
                     VK_SHADER_STAGE_FRAGMENT_BIT,
@@ -122,7 +128,7 @@ namespace Kita::Pbrv
             .SetCullMode(VK_CULL_MODE_BACK_BIT)
             .SetRasterizationSamples(m_context.SampleCount())
             .SetDepth(true, true, VK_COMPARE_OP_LESS)
-            .SetDescriptorSetLayouts({ m_frameData.GetSetLayout(), m_materialData.GetSetLayout(), })
+            .SetDescriptorSetLayouts({ m_frameData.GetSetLayout(), m_materialData.GetSetLayout(), m_iblData.GetSetLayout() })
             .SetPushConstants({ pushConstant })
             .SetDynamicRendering({ m_targetData.GetColorFormat() }, m_targetData.GetDepthFormat());
         m_pipeline = builder.Build();

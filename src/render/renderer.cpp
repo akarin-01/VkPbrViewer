@@ -29,12 +29,14 @@ namespace Kita::Pbrv
              * RenderTargetData     |   1    |   0   |     1     |     0     |
              * RenderSkyboxData     |   1    |   0   |     1     |     1     |
              * RenderPostProcessData| frames |   1   |     0     |     0     |
+             * RenderIblData        | frames |   0   |     1     |     0     |
+             * RenderIblData        |   1    |   0   |     1     |     1     |
             */
-            constexpr uint32_t kMaxSets = kMaxFramesInFlight * 4 + 2;
+            constexpr uint32_t kMaxSets = kMaxFramesInFlight * 5 + 3;
             constexpr uint32_t kMaxUboCount = kMaxFramesInFlight * 2;
             constexpr uint32_t kMaxSamplerCount = kMaxFramesInFlight * kMaterialTextureCount
-                + kMaxFramesInFlight + 2;
-            constexpr uint32_t kMaxStorageCount = 1;
+                + kMaxFramesInFlight * 2 + 3;
+            constexpr uint32_t kMaxStorageCount = 2;
 
             std::array<VkDescriptorPoolSize, 3> poolSizes
             {

@@ -14,6 +14,8 @@ layout(push_constant, std430) uniform MaterialPC
 
 layout(set = 1, binding = 0) uniform sampler2D textures[TEXTURE_COUNT];
 
+layout(set = 2, binding = 0) uniform samplerCube irradianceMap;
+
 layout(location = 0) in vec3 fragPos;
 layout(location = 1) in vec3 fragNormal;
 layout(location = 2) in vec2 fragTexCoord;
@@ -75,6 +77,7 @@ void main()
     float roughness = material.params.y * mr.g;
     float ao = material.params.z * texture(textures[AO], fragTexCoord).r;
     vec3 emissive = material.emissive.rgb * texture(textures[EMISSIVE], fragTexCoord).rgb;
+    vec3 irradiance = texture(irradianceMap, nDir).rgb;
 
     float NdotV = max(dot(nDir, vDir), 0.0);
     float NdotL = max(dot(nDir, lDir), 0.0);
@@ -90,11 +93,14 @@ void main()
     vec3 specular = f * d * g / max(4.0 * NdotV * NdotL, 0.001);
 
     // Lambert diffuse，乘 (1 - F) 保证能量守恒，metallic=1 时消失
-    vec3 diffuse = (1.0 - f) * (1.0 - metallic) * albedo.rgb / PI;
+    vec3 kd = (vec3(1.0) - f) * (1.0 - metallic);
+    vec3 diffuse = kd * albedo.rgb / PI;
 
-    // Ambient (temporary — replaced by IBL in the future)
-    vec3 ambient = vec3(0.03) * albedo.rgb * ao * (1.0 - metallic);
+    // Ambient (Ibl diffuse and TODO: Ibl specular)
+    vec3 ambient = kd * albedo.rgb / PI * irradiance;
 
-    vec3 result = (diffuse + specular) * NdotL * radiance + ambient + emissive;
+    vec3 result = (diffuse + specular) * NdotL * radiance;
+    result += ambient * ao;                                      
+    result += emissive;
     outColor = vec4(result, albedo.a);
 }

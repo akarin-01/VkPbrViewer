@@ -5,6 +5,7 @@
 #include "render/data/render_mesh_data.h"
 #include "render/data/render_skybox_data.h"
 #include "render/data/render_post_process_data.h"
+#include "render/data/render_ibl_data.h"
 
 #include <vulkan/vulkan.h>
 
@@ -34,6 +35,7 @@ namespace Kita::Pbrv
         const RenderMeshData& GetRenderMeshData() const { return m_meshData; }
         const RenderSkyboxData& GetRenderSkyboxData() const { return m_skyboxData; }
         const RenderPostProcessData& GetRenderPostProcessData() const { return m_postProcessData; }
+        const RenderIblData& GetRenderIblData() const { return m_iblData; }
 
     private:
         RenderFrameData m_frameData;
@@ -41,5 +43,6 @@ namespace Kita::Pbrv
         RenderMeshData m_meshData;
         RenderSkyboxData m_skyboxData;
         RenderPostProcessData m_postProcessData;
+        RenderIblData m_iblData;
     };
 }

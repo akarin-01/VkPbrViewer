@@ -4,9 +4,9 @@
 
 ### 一、漫反射 IBL（Diffuse）
 
-- [ ] 从天空盒 cubemap 生成 Irradiance Map
-- [ ] 创建 IBL 渲染数据资源与描述符
-- [ ] `lit.frag` 采样 irradiance，计算环境漫反射项，替换临时 ambient
+- [x] 从天空盒 cubemap 生成 Irradiance Map
+- [x] 创建 IBL 渲染数据资源与描述符
+- [x] `lit.frag` 采样 irradiance，计算环境漫反射项，替换临时 ambient
 
 ### 二、镜面反射 IBL（Specular）
 

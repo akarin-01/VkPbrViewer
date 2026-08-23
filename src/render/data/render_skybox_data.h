@@ -29,6 +29,7 @@ namespace Kita::Pbrv
 
         VkDescriptorSetLayout GetSetLayout() const { return m_setLayout; }
         const VkDescriptorSet& GetSet(uint32_t frameIndex) const { return m_sets[frameIndex]; }
+        RenderTexture GetCubemap() const { return m_cubemap; }
 
     private:
         RenderTexture CreateCubemap(const Skybox& sceneSkybox) const;
