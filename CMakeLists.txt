@@ -220,6 +220,7 @@ set(SHADER_OUTPUTS
 set(SHADER_INCLUDES
     assets/shaders/common/material_texture_slots.glsl
     assets/shaders/common/per_frame_data.glsl
+    assets/shaders/common/cubemap_utils.glsl
 )
 
 set(COMPILED_SHADERS)

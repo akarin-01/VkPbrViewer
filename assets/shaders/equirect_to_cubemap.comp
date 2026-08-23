@@ -5,20 +5,7 @@ layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 layout(set = 0, binding = 0, rgba16f) uniform imageCube outCubemap;
 layout(set = 0, binding = 1) uniform sampler2D equirect;
 
-// Face, faceCoord -> World dir(cube)
-vec3 GetDirection(uint face, vec2 faceCoord)
-{
-    switch (face)
-    {
-    case 0u: return normalize(vec3( 1.0, -faceCoord.y, -faceCoord.x));      // +X
-    case 1u: return normalize(vec3(-1.0, -faceCoord.y,  faceCoord.x));      // -X
-    case 2u: return normalize(vec3( faceCoord.x,  1.0,  faceCoord.y));      // +Y
-    case 3u: return normalize(vec3( faceCoord.x, -1.0, -faceCoord.y));      // -Y
-    case 4u: return normalize(vec3( faceCoord.x, -faceCoord.y,  1.0));      // +Z
-    case 5u: return normalize(vec3(-faceCoord.x, -faceCoord.y, -1.0));      // -Z
-    }
-    return vec3(0.0);
-}
+#include "common/cubemap_utils.glsl"
 
 // World dir -> Equirect uv
 vec2 ToEquirectUV(vec3 dir)
