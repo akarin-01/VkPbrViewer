@@ -147,6 +147,11 @@ namespace Kita::Pbrv
             VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
             VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask,
             VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_COLOR_BIT);
+        void TransitionImageLayout(RenderImageHandle handle,
+            VkImageLayout oldLayout, VkImageLayout newLayout,
+            VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
+            VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask,
+            const VkImageSubresourceRange& range);
 
         RenderImageViewHandle CreateImageView(const VkImageViewCreateInfo& createInfo);
         RenderImageViewHandle CreateImageView(RenderImageHandle imageHandle, VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D, VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_COLOR_BIT);

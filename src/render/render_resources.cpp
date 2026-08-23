@@ -226,14 +226,31 @@ namespace Kita::Pbrv
             return;
         }
 
+        VkImageSubresourceRange range{};
+        range.aspectMask = aspectMask;
+        range.baseMipLevel = 0;
+        range.levelCount = image->m_mipLevels;
+        range.baseArrayLayer = 0;
+        range.layerCount = image->m_arrayLayers;
+
+        TransitionImageLayout(handle,
+            oldLayout, newLayout,
+            srcStageMask, srcAccessMask,
+            dstStageMask, dstAccessMask,
+            range);
+    }
+
+    void RenderResources::TransitionImageLayout(RenderImageHandle handle, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask, VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask, const VkImageSubresourceRange& range)
+    {
+        RenderImage* image = GetImage(handle);
+        if (!image)
+        {
+            Log::Warning("[Resources] Transition layout: image(", handle, ") is invalid");
+            return;
+        }
+
         {
             OneShotCommand command(m_context);
-            VkImageSubresourceRange range{};
-            range.aspectMask = aspectMask;
-            range.baseMipLevel = 0;
-            range.levelCount = image->m_mipLevels;
-            range.baseArrayLayer = 0;
-            range.layerCount = image->m_arrayLayers;
 
             ::Kita::Pbrv::TransitionImageLayout(command.Handle(), image->m_image,
                 oldLayout, newLayout,

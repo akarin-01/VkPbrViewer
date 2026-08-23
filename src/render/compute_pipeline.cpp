@@ -20,11 +20,13 @@ namespace Kita::Pbrv
 
         // Pipeline layout
         auto& setLayouts = config.m_setLayouts;
+        auto& pushConstants = config.m_pushConstants;
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(setLayouts.size());
         pipelineLayoutInfo.pSetLayouts = setLayouts.data();
-        pipelineLayoutInfo.pushConstantRangeCount = 0;
+        pipelineLayoutInfo.pushConstantRangeCount = static_cast<uint32_t>(pushConstants.size());
+        pipelineLayoutInfo.pPushConstantRanges = pushConstants.data();
 
         if (vkCreatePipelineLayout(m_device, &pipelineLayoutInfo, nullptr, &m_layout) != VK_SUCCESS)
         {
@@ -65,6 +67,12 @@ namespace Kita::Pbrv
     ComputePipelineBuilder& ComputePipelineBuilder::SetDescriptorSetLayouts(const std::vector<VkDescriptorSetLayout>& setLayouts)
     {
         m_config.m_setLayouts = setLayouts;
+        return *this;
+    }
+
+    ComputePipelineBuilder& ComputePipelineBuilder::SetPushConstants(const std::vector<VkPushConstantRange>& pushConstants)
+    {
+        m_config.m_pushConstants = pushConstants;
         return *this;
     }
 

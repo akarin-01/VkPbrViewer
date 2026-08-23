@@ -13,7 +13,7 @@ namespace Kita::Pbrv
     class RenderResources;
     class DescriptorAllocator;
     class Skybox;
-    class ComputePipeline;
+    class ComputeConversion;
 
     class RenderSkyboxData
     {
@@ -38,8 +38,6 @@ namespace Kita::Pbrv
         RenderTexture CreateEquirectTexture(const Skybox& sceneSkybox, VkFormat format) const;
         RenderTexture CreateCubemapTexture(uint32_t faceSize, VkFormat format) const;
         void DestroyTexture(RenderTexture& texture) const;
-        void WriteConversionSet(const RenderTexture& equirect, RenderImageViewHandle storageHandle) const;
-        void DispatchConversion(const RenderTexture& cubemap, const RenderTexture& equirect) const;
 
     private:
         const RenderContext& m_context;
@@ -53,9 +51,6 @@ namespace Kita::Pbrv
         uint32_t m_setRefreshCount{ 0 };
         uint64_t m_lastSyncedRevision{ UINT64_MAX };
 
-        // GPU conversion: equirect -> cubemap
-        VkDescriptorSetLayout m_conversionSetLayout{ VK_NULL_HANDLE };
-        VkDescriptorSet m_conversionSet{ VK_NULL_HANDLE };
-        std::unique_ptr<ComputePipeline> m_conversionPipeline;
+        std::unique_ptr<ComputeConversion> m_conversion;
     };
 }

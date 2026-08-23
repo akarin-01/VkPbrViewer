@@ -112,6 +112,7 @@ add_executable(VkPbrViewer
     src/core/window.cpp
 
     # render
+    src/render/compute_conversion.cpp
     src/render/compute_pipeline.cpp
     src/render/descriptor_allocator.cpp
     src/render/descriptor_writer.cpp

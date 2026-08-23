@@ -6,8 +6,7 @@
 #include "render/render_resources.h"
 #include "render/descriptor_allocator.h"
 #include "render/descriptor_writer.h"
-#include "render/compute_pipeline.h"
-#include "render/one_shot_command.h"
+#include "render/compute_conversion.h"
 
 #include <cassert>
 
@@ -46,53 +45,20 @@ namespace Kita::Pbrv
             WriteSet(set);
         }
 
-        // Conversion set layout
-        {
-            std::array<VkDescriptorSetLayoutBinding, 2> bindings{};
-            bindings[0].binding = 0;
-            bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-            bindings[0].descriptorCount = 1;
-            bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-
-            bindings[1].binding = 1;
-            bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            bindings[1].descriptorCount = 1;
-            bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-
-            VkDescriptorSetLayoutCreateInfo createInfo{};
-            createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-            createInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-            createInfo.pBindings = bindings.data();
-
-            m_conversionSetLayout = CreateDescriptorSetLayout(m_context.Device(), createInfo);
-        }
-
-        // Conversion set
-        {
-            m_conversionSet = m_descriptorAllocator.Allocate(m_conversionSetLayout, "Conversion set");
-        }
-
-        // Conversion pipeline
-        {
-            ComputePipelineBuilder builder(m_context.Device());
-            builder.SetShader("assets/shaders/irradiance_convolution_comp.spv")
-                .SetDescriptorSetLayouts({ m_conversionSetLayout });
-            m_conversionPipeline = builder.Build();
-        }
+        m_conversion = std::make_unique<ComputeConversion>(m_context, m_resources, m_descriptorAllocator,
+            1, "assets/shaders/irradiance_convolution_comp.spv", 0);
     }
 
     RenderIblData::~RenderIblData()
     {
-        m_conversionPipeline.reset();
+        m_conversion.reset();
 
         // Sets will be destroyed automatically
 
         // Texture
         DestroyTexture(m_irradianceMap);
-
         DestroyFallback();
 
-        vkDestroyDescriptorSetLayout(m_context.Device(), m_conversionSetLayout, nullptr);
         vkDestroyDescriptorSetLayout(m_context.Device(), m_setLayout, nullptr);
     }
 
@@ -182,23 +148,40 @@ namespace Kita::Pbrv
             .UpdateSet(set);
     }
 
-    RenderTexture RenderIblData::CreateIrradianceMap(const RenderTexture& envmap) const
+    RenderTexture RenderIblData::CreateIrradianceMap(const RenderTexture& sourceCubemap) const
     {
         const uint32_t faceSize = 32;
+        const VkFormat format = m_context.HdrFormat();
 
         // 1. Create irradiance map
-        RenderTexture irradiance = CreateIrradianceTexture(faceSize);
+        RenderTexture irradiance = CreateCubemapTexture(faceSize, format);
 
         // 2. GPU conversion: dispatch irradiance_convolution compute shader
-        WriteConversionSet(irradiance, envmap);
-        DispatchConversion(irradiance, envmap);
+        VkImageSubresourceRange range{};
+        range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        range.baseMipLevel = 0;
+        range.levelCount = 1;
+        range.baseArrayLayer = 0;
+        range.layerCount = 6;
+
+        ComputeConversion::Output output{};
+        output.m_image = irradiance.m_imageHandle;
+        output.m_imageView = irradiance.m_imageViewHandle;
+        output.m_range = range;
+
+        ComputeConversion::Input input{};
+        input.m_imageView = sourceCubemap.m_imageViewHandle;
+        input.m_sampler = sourceCubemap.m_samplerHandle;
+
+        m_conversion->Dispatch(output, { (faceSize + 7) / 8, (faceSize + 7) / 8, 6 },
+            { input });
 
         return irradiance;
     }
 
-    RenderTexture RenderIblData::CreateIrradianceTexture(uint32_t faceSize) const
+    RenderTexture RenderIblData::CreateCubemapTexture(uint32_t faceSize, VkFormat format) const
     {
-        RenderTexture irradianceTex{};
+        RenderTexture cubemap{};
 
         VkImageCreateInfo imageInfo{};
         imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -206,7 +189,7 @@ namespace Kita::Pbrv
         imageInfo.extent = { faceSize, faceSize, 1 };
         imageInfo.mipLevels = 1;
         imageInfo.arrayLayers = 6;
-        imageInfo.format = m_context.HdrFormat();
+        imageInfo.format = format;
         imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
         imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         imageInfo.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
@@ -214,65 +197,10 @@ namespace Kita::Pbrv
         imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
         imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 
-        irradianceTex.m_imageHandle = m_resources.CreateImage(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        cubemap.m_imageHandle = m_resources.CreateImage(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        cubemap.m_imageViewHandle = m_resources.CreateImageView(cubemap.m_imageHandle, VK_IMAGE_VIEW_TYPE_CUBE);
+        cubemap.m_samplerHandle = m_resources.CreateSamplerLinearClampNoMip();
 
-        irradianceTex.m_imageViewHandle = m_resources.CreateImageView(irradianceTex.m_imageHandle, VK_IMAGE_VIEW_TYPE_CUBE);
-
-        irradianceTex.m_samplerHandle = m_resources.CreateSamplerLinearClampNoMip();
-
-        return irradianceTex;
-    }
-
-    void RenderIblData::WriteConversionSet(const RenderTexture& irradiance, const RenderTexture& envMap) const
-    {
-        DescriptorWriter writer(m_resources, m_context.Device());
-        writer.WriteImage(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-            VK_IMAGE_LAYOUT_GENERAL, irradiance.m_imageViewHandle, 0)
-            .WriteImage(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, envMap.m_imageViewHandle, envMap.m_samplerHandle)
-            .UpdateSet(m_conversionSet);
-    }
-
-    void RenderIblData::DispatchConversion(const RenderTexture& irradiance, const RenderTexture& envMap) const
-    {
-        assert(m_conversionPipeline && "Conversion: pipeline is null");
-
-        {
-            OneShotCommand command(m_context);
-
-            RenderImage* irradianceImage = m_resources.GetImage(irradiance.m_imageHandle);
-            assert(irradianceImage && "Irradiance image handle is invalid");
-            RenderImage* envMapImage = m_resources.GetImage(envMap.m_imageHandle);
-            assert(envMapImage && "Env map image handle is invalid");
-
-            uint32_t irradianceWidth = irradianceImage->m_extent.width;
-            uint32_t irradianceHeight = irradianceImage->m_extent.height;
-
-            VkImageSubresourceRange irradianceRange{};
-            irradianceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            irradianceRange.baseMipLevel = 0;
-            irradianceRange.levelCount = 1;
-            irradianceRange.baseArrayLayer = 0;
-            irradianceRange.layerCount = 6;
-
-            // Irradiance: undefined -> general
-            TransitionImageLayout(command.Handle(), irradianceImage->m_image,
-                VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
-                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
-                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
-                irradianceRange);
-
-            vkCmdBindPipeline(command.Handle(), VK_PIPELINE_BIND_POINT_COMPUTE, m_conversionPipeline->Handle());
-            vkCmdBindDescriptorSets(command.Handle(), VK_PIPELINE_BIND_POINT_COMPUTE, m_conversionPipeline->Layout(),
-                0, 1, &m_conversionSet, 0, nullptr);
-            vkCmdDispatch(command.Handle(), (irradianceWidth + 7) / 8, (irradianceHeight + 7) / 8, 6);
-
-            // Irradiance: general -> shader read only
-            TransitionImageLayout(command.Handle(), irradianceImage->m_image,
-                VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
-                VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT,
-                irradianceRange);
-        }
+        return cubemap;
     }
 }

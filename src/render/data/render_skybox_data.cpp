@@ -7,8 +7,7 @@
 #include "render/render_resources.h"
 #include "render/descriptor_allocator.h"
 #include "render/descriptor_writer.h"
-#include "render/compute_pipeline.h"
-#include "render/one_shot_command.h"
+#include "render/compute_conversion.h"
 
 #include <array>
 #include <algorithm>
@@ -39,57 +38,25 @@ namespace Kita::Pbrv
             m_setLayout = CreateDescriptorSetLayout(m_context.Device(), createInfo);
         }
 
-        // Sets (contents are written once the cubemap is implemented)
+        // Sets
         for (auto& set : m_sets)
         {
             set = m_descriptorAllocator.Allocate(m_setLayout, "Skybox set");
         }
 
-        // Conversion set layout
-        {
-            std::array<VkDescriptorSetLayoutBinding, 2> bindings{};
-            bindings[0].binding = 0;
-            bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-            bindings[0].descriptorCount = 1;
-            bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-            bindings[1].binding = 1;
-            bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            bindings[1].descriptorCount = 1;
-            bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-
-            VkDescriptorSetLayoutCreateInfo createInfo{};
-            createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-            createInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-            createInfo.pBindings = bindings.data();
-
-            m_conversionSetLayout = CreateDescriptorSetLayout(m_context.Device(), createInfo);
-        }
-
-        // Conversion set
-        {
-            m_conversionSet = m_descriptorAllocator.Allocate(m_conversionSetLayout, "Conversion set");
-        }
-
-        // Conversion pipeline
-        {
-            ComputePipelineBuilder builder(m_context.Device());
-            builder.SetShader("assets/shaders/equirect_to_cubemap_comp.spv")
-                .SetDescriptorSetLayouts({ m_conversionSetLayout });
-            m_conversionPipeline = builder.Build();
-        }
+        m_conversion = std::make_unique<ComputeConversion>(m_context, m_resources, m_descriptorAllocator,
+            1, "assets/shaders/equirect_to_cubemap_comp.spv", 0);
     }
 
     RenderSkyboxData::~RenderSkyboxData()
     {
+        m_conversion.reset();
+
         // Sets will be destroyed automatically
 
-        // Texture (only created once the cubemap is implemented; destroying zero handles is a safe no-op)
-        m_resources.DestroySampler(m_cubemap.m_samplerHandle);
-        m_resources.DestroyImageView(m_cubemap.m_imageViewHandle);
-        m_resources.DestroyImage(m_cubemap.m_imageHandle);
+        // Texture
+        DestroyTexture(m_cubemap);
 
-        m_conversionPipeline.reset();
-        vkDestroyDescriptorSetLayout(m_context.Device(), m_conversionSetLayout, nullptr);
         vkDestroyDescriptorSetLayout(m_context.Device(), m_setLayout, nullptr);
     }
 
@@ -121,11 +88,15 @@ namespace Kita::Pbrv
 
     RenderTexture RenderSkyboxData::CreateCubemap(const Skybox& sceneSkybox) const
     {
-        const VkFormat equirectFormat = VK_FORMAT_R32G32B32A32_SFLOAT;
         const uint32_t faceSize = 2048;
+        const VkFormat equirectFormat = VK_FORMAT_R32G32B32A32_SFLOAT;
 
-        // 1. Create equirect texture
+        // 1. Create equirect texture (SHADER_READ_ONLY_OPTIMAL)
         RenderTexture equirect = CreateEquirectTexture(sceneSkybox, equirectFormat);
+        m_resources.TransitionImageLayout(equirect.m_imageHandle,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
+            VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
 
         // 2.1 Create cubemap (sample)
         RenderTexture cubemap = CreateCubemapTexture(faceSize, m_context.HdrFormat());
@@ -140,8 +111,37 @@ namespace Kita::Pbrv
         RenderImageViewHandle storageImageViewHandle = m_resources.CreateImageView(cubemap.m_imageHandle, VK_IMAGE_VIEW_TYPE_CUBE, storageRange);
 
         // 3. GPU conversion: dispatch equirect_to_cubemap compute shader
-        WriteConversionSet(equirect, storageImageViewHandle);
-        DispatchConversion(cubemap, equirect);
+        VkImageSubresourceRange range{};
+        range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        range.baseMipLevel = 0;
+        range.levelCount = 1;
+        range.baseArrayLayer = 0;
+        range.layerCount = 6;
+
+        ComputeConversion::Output output{};
+        output.m_image = cubemap.m_imageHandle;
+        output.m_imageView = storageImageViewHandle;
+        output.m_range = range;
+        output.m_finalLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        output.m_finalStage = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+        output.m_finalAccess = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+
+        ComputeConversion::Input input{};
+        input.m_imageView = equirect.m_imageViewHandle;
+        input.m_sampler = equirect.m_samplerHandle;
+
+        m_conversion->Dispatch(output, { (faceSize + 7) / 8, (faceSize + 7) / 8, 6 },
+            { input });
+
+        RenderImage* cubemapImage = m_resources.GetImage(cubemap.m_imageHandle);
+        assert(cubemapImage && "Skybox: cubemap image is invalid handle");
+        range.baseMipLevel = 1;
+        range.levelCount = cubemapImage->m_mipLevels - 1;
+        m_resources.TransitionImageLayout(cubemap.m_imageHandle,
+            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
+            VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
+            range);
 
         // 4. Destroy conversion resources
         m_resources.DestroyImageView(storageImageViewHandle);
@@ -236,81 +236,5 @@ namespace Kita::Pbrv
         m_resources.DestroyImage(texture.m_imageHandle);
 
         texture = {};
-    }
-
-    void RenderSkyboxData::WriteConversionSet(const RenderTexture& equirect, RenderImageViewHandle storageHandle) const
-    {
-        DescriptorWriter writer(m_resources, m_context.Device());
-        writer.WriteImage(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-            VK_IMAGE_LAYOUT_GENERAL, storageHandle, 0)
-            .WriteImage(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, equirect.m_imageViewHandle, equirect.m_samplerHandle)
-            .UpdateSet(m_conversionSet);
-    }
-
-    void RenderSkyboxData::DispatchConversion(const RenderTexture& cubemap, const RenderTexture& equirect) const
-    {
-        assert(m_conversionPipeline && "Conversion: pipeline is null");
-
-        {
-            OneShotCommand command(m_context);
-
-            RenderImage* cubemapImage = m_resources.GetImage(cubemap.m_imageHandle);
-            assert(cubemapImage && "Cubemap image handle is invalid");
-            RenderImage* equirectImage = m_resources.GetImage(equirect.m_imageHandle);
-            assert(equirectImage && "Equirect image handle is invalid");
-
-            uint32_t cubemapWidth = cubemapImage->m_extent.width;
-            uint32_t cubemapHeight = cubemapImage->m_extent.height;
-
-            VkImageSubresourceRange cubemapRange{};
-            cubemapRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            cubemapRange.baseMipLevel = 0;
-            cubemapRange.levelCount = 1;
-            cubemapRange.baseArrayLayer = 0;
-            cubemapRange.layerCount = 6;
-
-            VkImageSubresourceRange equirectRange{};
-            equirectRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            equirectRange.baseMipLevel = 0;
-            equirectRange.levelCount = 1;
-            equirectRange.baseArrayLayer = 0;
-            equirectRange.layerCount = 1;
-
-            // Cubemap: undefined -> general
-            TransitionImageLayout(command.Handle(), cubemapImage->m_image,
-                VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
-                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
-                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
-                cubemapRange);
-
-            // Equirect: transfer dst -> shader read only
-            TransitionImageLayout(command.Handle(), equirectImage->m_image,
-                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT,
-                equirectRange);
-
-            vkCmdBindPipeline(command.Handle(), VK_PIPELINE_BIND_POINT_COMPUTE, m_conversionPipeline->Handle());
-            vkCmdBindDescriptorSets(command.Handle(), VK_PIPELINE_BIND_POINT_COMPUTE, m_conversionPipeline->Layout(),
-                0, 1, &m_conversionSet, 0, nullptr);
-            vkCmdDispatch(command.Handle(), (cubemapWidth + 7) / 8, (cubemapHeight + 7) / 8, 6);
-
-            // Cubemap: general(level 0) -> transfer dst
-            TransitionImageLayout(command.Handle(), cubemapImage->m_image,
-                VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
-                VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                cubemapRange);
-
-            // Cubemap: undefined(ohter levels) -> transfer dst
-            cubemapRange.baseMipLevel = 1;
-            cubemapRange.levelCount = cubemapImage->m_mipLevels - 1;
-            TransitionImageLayout(command.Handle(), cubemapImage->m_image,
-                VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
-                VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                cubemapRange);
-        }
     }
 }

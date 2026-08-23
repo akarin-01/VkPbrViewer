@@ -14,6 +14,7 @@ namespace Kita::Pbrv
 
         // Pipeline layout
         std::vector<VkDescriptorSetLayout> m_setLayouts{};
+        std::vector<VkPushConstantRange> m_pushConstants{};
     };
 
     class ComputePipeline
@@ -41,6 +42,7 @@ namespace Kita::Pbrv
 
         ComputePipelineBuilder& SetShader(const std::string& compPath);
         ComputePipelineBuilder& SetDescriptorSetLayouts(const std::vector<VkDescriptorSetLayout>& setLayouts);
+        ComputePipelineBuilder& SetPushConstants(const std::vector<VkPushConstantRange>& pushConstants);
 
         std::unique_ptr<ComputePipeline> Build() const;
 
