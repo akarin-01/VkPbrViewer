@@ -4,10 +4,8 @@
 #include "scene/material.h"
 #include "scene/texture.h"
 #include "render/render_context.h"
-#include "render/render_utils.h"
 #include "render/render_resources.h"
-#include "render/descriptor_allocator.h"
-#include "render/descriptor_writer.h"
+#include "render/render_texture_set.h"
 
 #include <glm/glm.hpp>
 #include <stdexcept>
@@ -79,54 +77,13 @@ namespace Kita::Pbrv
         m_resources(resources),
         m_descriptorAllocator(descriptorAllocator)
     {
-        CreateFallbacks();
-
-        // Textures
-        m_textures = m_fallbackTextures;
-
-        // Set layout
-        {
-            std::array<VkDescriptorSetLayoutBinding, 1> bindings{};
-            bindings[0].binding = 0;
-            bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            bindings[0].descriptorCount = kMaterialTextureCount;
-            bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-            VkDescriptorSetLayoutCreateInfo createInfo{};
-            createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-            createInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-            createInfo.pBindings = bindings.data();
-
-            m_setLayout = CreateDescriptorSetLayout(m_context.Device(), createInfo);
-        }
-
-        // Sets
-        {
-            for (auto& set : m_sets)
-            {
-                set = m_descriptorAllocator.Allocate(m_setLayout, "Material set");
-                WriteSet(set);
-            }
-        }
+        m_textureSet = std::make_unique<TextureSet>(m_context, m_resources, m_descriptorAllocator,
+            TextureArray{ CreateFallbacks() });
     }
 
     RenderMaterialData::~RenderMaterialData()
     {
-        // Sets will be destroyed automatically
-
-        // Textures (skip fallbacks; they are destroyed together below)
-        for (size_t i = 0; i < m_textures.size(); ++i)
-        {
-            if (m_textures[i] != m_fallbackTextures[i])
-            {
-                DestroyTexture(m_textures[i]);
-            }
-        }
-
-        // Set layout
-        vkDestroyDescriptorSetLayout(m_context.Device(), m_setLayout, nullptr);
-
-        DestroyFallbacks();
+        m_textureSet.reset();
     }
 
     void RenderMaterialData::Update(uint32_t frameIndex, const Material& sceneMat)
@@ -139,107 +96,92 @@ namespace Kita::Pbrv
         m_pushConstant.m_emissive = glm::vec4(sceneMat.GetEmissive(), 1.0f);
 
         bool anyTexUpdated = false;
+        TextureArray updatedTexs{};
         for (uint32_t i = 0; i < kMaterialTextureCount; ++i)
         {
-            anyTexUpdated |= UpdateTextureSlot(i, GetTexture(sceneMat, i));
+            auto& sceneTex = GetTexture(sceneMat, i);
+            if (m_lastSyncedRevisions[i] != sceneTex.GetRevision())
+            {
+                m_lastSyncedRevisions[i] = sceneTex.GetRevision();
+
+                if (sceneTex.IsEmpty())
+                {
+                    updatedTexs[i] = m_textureSet->GetFallbacks()[i];
+                }
+                else
+                {
+                    updatedTexs[i] = CreateTexture(sceneTex);
+
+                    Log::Info("[Renderer] Create texture [", ToString(MaterialTextureSlot(i)), "]: ",
+                        sceneTex.GetName(), ", ", sceneTex.GetPixelCount(), " bytes");
+                }
+
+                anyTexUpdated = true;
+            }
         }
 
         if (anyTexUpdated)
         {
-            m_setRefreshCount = kMaxFramesInFlight;
-
+            m_textureSet->Update(updatedTexs);
             KITA_LOG_DEBUG("[Renderer] Update material descriptor set: textures changed");
         }
 
-        bool setRefreshed = m_setRefreshCount > 0;
-        if (setRefreshed)
-        {
-            WriteSet(m_sets[frameIndex]);
-            --m_setRefreshCount;
-        }
+        m_textureSet->RefreshSet(frameIndex);
     }
 
-    void RenderMaterialData::CreateFallbacks()
+    VkDescriptorSetLayout RenderMaterialData::GetSetLayout() const
     {
-        uint8_t white[] = { 255, 255, 255, 255 };
-        uint8_t black[] = { 0, 0, 0, 255 };
-        uint8_t flat[] = { 128, 128, 255, 255 };
-        uint32_t width = 1;
-        uint32_t height = 1;
+        return m_textureSet->GetLayout();
+    }
+
+    const VkDescriptorSet& RenderMaterialData::GetSet(uint32_t frameIndex) const
+    {
+        return m_textureSet->GetSet(frameIndex);
+    }
+
+    RenderMaterialData::TextureArray RenderMaterialData::CreateFallbacks() const
+    {
+        constexpr uint8_t white[] = { 255, 255, 255, 255 };
+        constexpr uint8_t black[] = { 0, 0, 0, 255 };
+        constexpr uint8_t flat[] = { 128, 128, 255, 255 };
+        constexpr uint32_t width = 1;
+        constexpr uint32_t height = 1;
+
+        TextureArray fallbacks{};
 
         // Albedo
         {
             Texture tex{};
             tex.SetData("fallback", std::vector<uint8_t>(white, white + 4), width, height, TextureType::Srgb);
-            m_fallbackTextures[Albedo] = CreateTexture(tex);
+            fallbacks[Albedo] = CreateTexture(tex);
         }
         // Normal
         {
             Texture tex{};
             tex.SetData("fallback", std::vector<uint8_t>(flat, flat + 4), width, height, TextureType::Normal);
-            m_fallbackTextures[Normal] = CreateTexture(tex);
+            fallbacks[Normal] = CreateTexture(tex);
         }
         // MR
         {
             Texture tex{};
             tex.SetData("fallback", std::vector<uint8_t>(white, white + 4), width, height, TextureType::MetallicRoughness);
-            m_fallbackTextures[MetallicRoughness] = CreateTexture(tex);
+            fallbacks[MetallicRoughness] = CreateTexture(tex);
         }
         // AO
         {
             Texture tex{};
             tex.SetData("fallback", std::vector<uint8_t>(white, white + 1), width, height, TextureType::Linear);
             RenderTexture linearFallback = CreateTexture(tex);
-            m_fallbackTextures[AO] = linearFallback;
+            fallbacks[AO] = linearFallback;
         }
         // Emissive
         {
             Texture tex{};
             tex.SetData("fallback", std::vector<uint8_t>(black, black + 4), width, height, TextureType::Srgb);
-            m_fallbackTextures[Emissive] = CreateTexture(tex);
-        }
-    }
-
-    void RenderMaterialData::DestroyFallbacks()
-    {
-        for (auto& texture : m_fallbackTextures)
-        {
-            DestroyTexture(texture);
-        }
-    }
-
-    bool RenderMaterialData::UpdateTextureSlot(uint32_t slot, const Texture& sceneTex)
-    {
-        if (sceneTex.GetRevision() != m_lastSyncedRevisions[slot])
-        {
-            m_lastSyncedRevisions[slot] = sceneTex.GetRevision();
-
-            bool isOldFallback = m_textures[slot] == m_fallbackTextures[slot];
-            if (!isOldFallback)
-            {
-                DestroyTexture(m_textures[slot]);
-            }
-
-            RenderTexture newTex{};
-            if (sceneTex.IsEmpty())
-            {
-                // New texture is empty, use fallback
-                newTex = m_fallbackTextures[slot];
-            }
-            else
-            {
-                // New texture is not empty, create new texture
-                newTex = CreateTexture(sceneTex);
-
-                Log::Info("[Renderer] Upload ", ToString(MaterialTextureSlot(slot)), " texture: ",
-                    sceneTex.GetName(), ", ", sceneTex.GetPixelCount(), " bytes");
-            }
-            m_textures[slot] = newTex;
-
-            return true;
+            fallbacks[Emissive] = CreateTexture(tex);
         }
 
-        return false;
+        return fallbacks;
     }
 
     RenderTexture RenderMaterialData::CreateTexture(const Texture& sceneTex) const
@@ -278,28 +220,5 @@ namespace Kita::Pbrv
         texture.m_samplerHandle = m_resources.CreateSamplerLinearRepeatMip();
 
         return texture;
-    }
-
-    void RenderMaterialData::DestroyTexture(RenderTexture& texture) const
-    {
-        m_resources.DestroySampler(texture.m_samplerHandle);
-        m_resources.DestroyImageView(texture.m_imageViewHandle);
-        m_resources.DestroyImage(texture.m_imageHandle);
-
-        texture = {};
-    }
-
-    void RenderMaterialData::WriteSet(VkDescriptorSet set)
-    {
-        DescriptorWriter writer(m_resources, m_context.Device());
-        for (uint32_t i = 0; i < kMaterialTextureCount; ++i)
-        {
-            auto& texture = m_textures[i];
-
-            writer.WriteImage(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, texture.m_imageViewHandle, texture.m_samplerHandle);
-        }
-
-        writer.UpdateSet(set);
     }
 }

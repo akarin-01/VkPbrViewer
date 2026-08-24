@@ -5,6 +5,7 @@
 
 #include <vulkan/vulkan.h>
 #include <memory>
+#include <array>
 
 namespace Kita::Pbrv
 {
@@ -12,6 +13,7 @@ namespace Kita::Pbrv
     class RenderResources;
     class DescriptorAllocator;
     class ComputeConversion;
+    template<uint32_t, uint32_t> class RenderTextureSet;
 
     class RenderIblData
     {
@@ -21,16 +23,15 @@ namespace Kita::Pbrv
             const DescriptorAllocator& descriptorAllocator);
         ~RenderIblData();
 
-        void Update(uint32_t frameIndex, const RenderTexture& skyboxCubemap);
+        void Update(uint32_t frameIndex, const RenderTexture& sourceCubemap);
 
-        VkDescriptorSetLayout GetSetLayout() const { return m_setLayout; }
-        const VkDescriptorSet& GetSet(uint32_t frameIndex) const { return m_sets[frameIndex]; }
+        VkDescriptorSetLayout GetSetLayout() const;
+        const VkDescriptorSet& GetSet(uint32_t frameIndex) const;
 
     private:
-        void CreateFallback();
-        void DestroyFallback();
-        void DestroyTexture(RenderTexture& texture) const;
-        void WriteSet(VkDescriptorSet set) const;
+        using TextureSet = RenderTextureSet<1, kMaxFramesInFlight>;
+        using TextureArray = std::array<RenderTexture, 1>;
+
         RenderTexture CreateIrradianceMap(const RenderTexture& sourceCubemap) const;
         RenderTexture CreateCubemapTexture(uint32_t faceSize, VkFormat format) const;
 
@@ -39,14 +40,9 @@ namespace Kita::Pbrv
         RenderResources& m_resources;
         const DescriptorAllocator& m_descriptorAllocator;
 
-        RenderTexture m_irradianceMap{};
-        RenderTexture m_fallback{};
-        RenderTexture m_lastSkyboxCubemap{};
+        RenderTexture m_lastCubemap{};
 
-        VkDescriptorSetLayout m_setLayout{ VK_NULL_HANDLE };
-        std::array<VkDescriptorSet, kMaxFramesInFlight> m_sets{};
-        uint32_t m_setRefreshCount{ 0 };
-
+        std::unique_ptr<TextureSet> m_textureSet;
         std::unique_ptr<ComputeConversion> m_conversion;
     };
 }

@@ -87,6 +87,11 @@ namespace Kita::Pbrv
         RenderImageViewHandle m_imageViewHandle{ 0 };
         RenderSamplerHandle m_samplerHandle{ 0 };
 
+        bool IsEmpty() const
+        {
+            return m_imageHandle == 0;
+        }
+
         bool operator==(const RenderTexture& other) const
         {
             return (m_imageHandle == other.m_imageHandle)

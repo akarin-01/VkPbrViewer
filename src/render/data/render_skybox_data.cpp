@@ -3,18 +3,23 @@
 #include "core/log.h"
 #include "scene/skybox.h"
 #include "render/render_context.h"
-#include "render/render_utils.h"
 #include "render/render_resources.h"
-#include "render/descriptor_allocator.h"
-#include "render/descriptor_writer.h"
 #include "render/compute_conversion.h"
+#include "render/render_texture_set.h"
+#include "render/render_texture_utils.h"
 
 #include <array>
 #include <algorithm>
 #include <cmath>
+#include <cassert>
 
 namespace Kita::Pbrv
 {
+    namespace
+    {
+        constexpr uint32_t kCubemapFaceSize = 2048;
+    }
+
     RenderSkyboxData::RenderSkyboxData(const RenderContext& context,
         RenderResources& resources,
         const DescriptorAllocator& descriptorAllocator)
@@ -22,28 +27,8 @@ namespace Kita::Pbrv
         m_resources(resources),
         m_descriptorAllocator(descriptorAllocator)
     {
-        // Set layout
-        {
-            std::array<VkDescriptorSetLayoutBinding, 1> bindings{};
-            bindings[0].binding = 0;
-            bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            bindings[0].descriptorCount = 1;
-            bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-            VkDescriptorSetLayoutCreateInfo createInfo{};
-            createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-            createInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-            createInfo.pBindings = bindings.data();
-
-            m_setLayout = CreateDescriptorSetLayout(m_context.Device(), createInfo);
-        }
-
-        // Sets
-        for (auto& set : m_sets)
-        {
-            set = m_descriptorAllocator.Allocate(m_setLayout, "Skybox set");
-        }
-
+        m_textureSet = std::make_unique<TextureSet>(m_context, m_resources, m_descriptorAllocator,
+            TextureArray{ CreateCubemapFallback(m_resources, m_context.HdrFormat()) });
         m_conversion = std::make_unique<ComputeConversion>(m_context, m_resources, m_descriptorAllocator,
             1, "assets/shaders/equirect_to_cubemap_comp.spv", 0);
     }
@@ -51,13 +36,7 @@ namespace Kita::Pbrv
     RenderSkyboxData::~RenderSkyboxData()
     {
         m_conversion.reset();
-
-        // Sets will be destroyed automatically
-
-        // Texture
-        DestroyTexture(m_cubemap);
-
-        vkDestroyDescriptorSetLayout(m_context.Device(), m_setLayout, nullptr);
+        m_textureSet.reset();
     }
 
     void RenderSkyboxData::Update(uint32_t frameIndex, const Skybox& sceneSkybox)
@@ -66,40 +45,51 @@ namespace Kita::Pbrv
         {
             m_lastSyncedRevision = sceneSkybox.GetRevision();
 
-            DestroyTexture(m_cubemap);
-
+            TextureArray updatedTexs{};
             if (sceneSkybox.IsEmpty())
             {
-                return;
+                updatedTexs = m_textureSet->GetFallbacks();
+            }
+            else
+            {
+                updatedTexs[0] = CreateCubemap(sceneSkybox);
+
+                Log::Info("[Renderer] Create skybox cubemap: ", sceneSkybox.GetName(), ", ",
+                    sceneSkybox.GetWidth(), "x", sceneSkybox.GetHeight(), " -> ",
+                    kCubemapFaceSize, "x", kCubemapFaceSize, "x6");
             }
 
-            m_cubemap = CreateCubemap(sceneSkybox);
-            m_setRefreshCount = kMaxFramesInFlight;
+            m_textureSet->Update(updatedTexs);
             KITA_LOG_DEBUG("[Renderer] Update skybox descriptor set: textures changed");
         }
 
-        bool setRefreshed = m_setRefreshCount > 0;
-        if (setRefreshed)
-        {
-            WriteSet(m_sets[frameIndex]);
-            --m_setRefreshCount;
-        }
+        m_textureSet->RefreshSet(frameIndex);
+    }
+
+    VkDescriptorSetLayout RenderSkyboxData::GetSetLayout() const
+    {
+        return m_textureSet->GetLayout();
+    }
+
+    const VkDescriptorSet& RenderSkyboxData::GetSet(uint32_t frameIndex) const
+    {
+        return m_textureSet->GetSet(frameIndex);
+    }
+
+    RenderTexture RenderSkyboxData::GetCubemap() const
+    {
+        return m_textureSet->GetTextures()[0];
     }
 
     RenderTexture RenderSkyboxData::CreateCubemap(const Skybox& sceneSkybox) const
     {
-        const uint32_t faceSize = 2048;
         const VkFormat equirectFormat = VK_FORMAT_R32G32B32A32_SFLOAT;
 
         // 1. Create equirect texture (SHADER_READ_ONLY_OPTIMAL)
         RenderTexture equirect = CreateEquirectTexture(sceneSkybox, equirectFormat);
-        m_resources.TransitionImageLayout(equirect.m_imageHandle,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
-            VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
 
         // 2.1 Create cubemap (sample)
-        RenderTexture cubemap = CreateCubemapTexture(faceSize, m_context.HdrFormat());
+        RenderTexture cubemap = CreateCubemapTexture(kCubemapFaceSize, m_context.HdrFormat());
 
         // 2.2 Create storage image view for conversion
         VkImageSubresourceRange storageRange{};
@@ -130,9 +120,14 @@ namespace Kita::Pbrv
         input.m_imageView = equirect.m_imageViewHandle;
         input.m_sampler = equirect.m_samplerHandle;
 
-        m_conversion->Dispatch(output, { (faceSize + 7) / 8, (faceSize + 7) / 8, 6 },
+        m_conversion->Dispatch(output, { (kCubemapFaceSize + 7) / 8, (kCubemapFaceSize + 7) / 8, 6 },
             { input });
 
+        // 4. Destroy conversion resources
+        m_resources.DestroyImageView(storageImageViewHandle);
+        DestroyTexture(m_resources, equirect);
+
+        // 5. Generate cubemap mipmaps
         RenderImage* cubemapImage = m_resources.GetImage(cubemap.m_imageHandle);
         assert(cubemapImage && "Skybox: cubemap image is invalid handle");
         range.baseMipLevel = 1;
@@ -143,26 +138,9 @@ namespace Kita::Pbrv
             VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
             range);
 
-        // 4. Destroy conversion resources
-        m_resources.DestroyImageView(storageImageViewHandle);
-        DestroyTexture(equirect);
-
-        // 5. Generate cubemap mipmaps
         m_resources.GenerateImageMipmaps(cubemap.m_imageHandle);
 
-        Log::Info("[Renderer] Convert skybox cubemap: ", sceneSkybox.GetName(), ", ",
-            sceneSkybox.GetWidth(), "x", sceneSkybox.GetHeight(), " -> ",
-            faceSize, "x", faceSize, "x6");
-
         return cubemap;
-    }
-
-    void RenderSkyboxData::WriteSet(VkDescriptorSet set) const
-    {
-        DescriptorWriter writer(m_resources, m_context.Device());
-        writer.WriteImage(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, m_cubemap.m_imageViewHandle, m_cubemap.m_samplerHandle)
-            .UpdateSet(set);
     }
 
     RenderTexture RenderSkyboxData::CreateEquirectTexture(const Skybox& sceneSkybox, VkFormat format) const
@@ -191,6 +169,11 @@ namespace Kita::Pbrv
 
         equirect.m_imageHandle = m_resources.CreateImageWithData(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
             pixels.data(), pixels.size() * sizeof(float));
+
+        m_resources.TransitionImageLayout(equirect.m_imageHandle,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
+            VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
 
         equirect.m_imageViewHandle = m_resources.CreateImageView(equirect.m_imageHandle);
 
@@ -227,14 +210,5 @@ namespace Kita::Pbrv
         cubemap.m_samplerHandle = m_resources.CreateSamplerLinearClampMip();
 
         return cubemap;
-    }
-
-    void RenderSkyboxData::DestroyTexture(RenderTexture& texture) const
-    {
-        m_resources.DestroySampler(texture.m_samplerHandle);
-        m_resources.DestroyImageView(texture.m_imageViewHandle);
-        m_resources.DestroyImage(texture.m_imageHandle);
-
-        texture = {};
     }
 }
