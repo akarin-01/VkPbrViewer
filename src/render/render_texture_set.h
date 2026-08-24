@@ -1,6 +1,5 @@
 #pragma once
 
-#include "render/render_resource_types.h"
 #include "render/render_context.h"
 #include "render/render_resources.h"
 #include "render/descriptor_allocator.h"

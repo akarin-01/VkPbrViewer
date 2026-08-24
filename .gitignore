@@ -21,7 +21,7 @@ lib/
 *.spv
 
 # ===== 运行时资产（大体积二进制，本地管理） =====
-/assets/textures/
+/assets/hdr/
 /assets/models/
 
 # ===== Dear ImGui 运行时设置文件（窗口布局记忆）=====
