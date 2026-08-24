@@ -1,7 +1,7 @@
 #pragma once
 
-#include "render/render_resource_types.h"
 #include "render/render_constants.h"
+#include "render/render_texture.h"
 
 #include <vulkan/vulkan.h>
 #include <array>

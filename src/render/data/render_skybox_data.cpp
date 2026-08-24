@@ -6,7 +6,6 @@
 #include "render/render_resources.h"
 #include "render/compute_conversion.h"
 #include "render/render_texture_set.h"
-#include "render/render_texture_utils.h"
 
 #include <array>
 #include <algorithm>
@@ -89,7 +88,10 @@ namespace Kita::Pbrv
         RenderTexture equirect = CreateEquirectTexture(sceneSkybox, equirectFormat);
 
         // 2.1 Create cubemap (sample)
-        RenderTexture cubemap = CreateCubemapTexture(kCubemapFaceSize, m_context.HdrFormat());
+        RenderTexture cubemap = CreateCubemapTexture(m_resources,
+            kCubemapFaceSize, m_context.HdrFormat(), CalculateMipLevels(kCubemapFaceSize, kCubemapFaceSize),
+            VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+            m_resources.CreateSamplerLinearClampMip());
 
         // 2.2 Create storage image view for conversion
         VkImageSubresourceRange storageRange{};
@@ -145,70 +147,16 @@ namespace Kita::Pbrv
 
     RenderTexture RenderSkyboxData::CreateEquirectTexture(const Skybox& sceneSkybox, VkFormat format) const
     {
-        RenderTexture equirect{};
-
         const auto& pixels = sceneSkybox.GetPixels();
         const uint32_t width = sceneSkybox.GetWidth();
         const uint32_t height = sceneSkybox.GetHeight();
+        const uint32_t mipLevels = 1;
 
         const uint32_t channels = static_cast<uint32_t>(pixels.size() / (width * height));
         assert(channels == 4 && "Skybox pixels must be RGBA (LoadSkybox forces 4 channels)");
 
-        VkImageCreateInfo imageInfo{};
-        imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-        imageInfo.imageType = VK_IMAGE_TYPE_2D;
-        imageInfo.extent = { width, height, 1 };
-        imageInfo.mipLevels = 1;
-        imageInfo.arrayLayers = 1;
-        imageInfo.format = format;
-        imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-        imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-        imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-        imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-        equirect.m_imageHandle = m_resources.CreateImageWithData(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-            pixels.data(), pixels.size() * sizeof(float));
-
-        m_resources.TransitionImageLayout(equirect.m_imageHandle,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
-            VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
-
-        equirect.m_imageViewHandle = m_resources.CreateImageView(equirect.m_imageHandle);
-
-        equirect.m_samplerHandle = m_resources.CreateSamplerEquirect();
-
-        return equirect;
-    }
-
-    RenderTexture RenderSkyboxData::CreateCubemapTexture(uint32_t faceSize, VkFormat format) const
-    {
-        auto mipLevels = CalculateMipLevels(faceSize, faceSize);
-
-        RenderTexture cubemap{};
-
-        VkImageCreateInfo imageInfo{};
-        imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-        imageInfo.imageType = VK_IMAGE_TYPE_2D;
-        imageInfo.extent = { faceSize, faceSize, 1 };
-        imageInfo.mipLevels = mipLevels;
-        imageInfo.arrayLayers = 6;
-        imageInfo.format = format;
-        imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-        imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        imageInfo.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
-            | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-        imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-        imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
-
-        cubemap.m_imageHandle = m_resources.CreateImage(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-        cubemap.m_imageViewHandle = m_resources.CreateImageView(cubemap.m_imageHandle, VK_IMAGE_VIEW_TYPE_CUBE);
-
-        cubemap.m_samplerHandle = m_resources.CreateSamplerLinearClampMip();
-
-        return cubemap;
+        return Create2DTextureWithData(m_resources, pixels.data(), pixels.size() * sizeof(float),
+            width, height, format, mipLevels,
+            m_resources.CreateSamplerEquirect());
     }
 }

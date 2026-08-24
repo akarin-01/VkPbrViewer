@@ -5,7 +5,6 @@
 #include "render/render_resources.h"
 #include "render/compute_conversion.h"
 #include "render/render_texture_set.h"
-#include "render/render_texture_utils.h"
 
 #include <cassert>
 
@@ -74,7 +73,9 @@ namespace Kita::Pbrv
         const VkFormat format = m_context.HdrFormat();
 
         // 1. Create irradiance map
-        RenderTexture irradiance = CreateCubemapTexture(kIrradianceFaceSize, format);
+        RenderTexture irradiance = CreateCubemapTexture(m_resources,
+            kIrradianceFaceSize, format, 1, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+            m_resources.CreateSamplerLinearClampNoMip());
 
         // 2. GPU conversion: dispatch irradiance_convolution compute shader
         VkImageSubresourceRange range{};
@@ -97,30 +98,5 @@ namespace Kita::Pbrv
             { input });
 
         return irradiance;
-    }
-
-    RenderTexture RenderIblData::CreateCubemapTexture(uint32_t faceSize, VkFormat format) const
-    {
-        RenderTexture cubemap{};
-
-        VkImageCreateInfo imageInfo{};
-        imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-        imageInfo.imageType = VK_IMAGE_TYPE_2D;
-        imageInfo.extent = { faceSize, faceSize, 1 };
-        imageInfo.mipLevels = 1;
-        imageInfo.arrayLayers = 6;
-        imageInfo.format = format;
-        imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-        imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        imageInfo.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-        imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-        imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
-
-        cubemap.m_imageHandle = m_resources.CreateImage(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        cubemap.m_imageViewHandle = m_resources.CreateImageView(cubemap.m_imageHandle, VK_IMAGE_VIEW_TYPE_CUBE);
-        cubemap.m_samplerHandle = m_resources.CreateSamplerLinearClampNoMip();
-
-        return cubemap;
     }
 }

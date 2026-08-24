@@ -1,13 +1,12 @@
 #pragma once
 
 #include "render/render_resource_types.h"
-#include "render/render_constants.h"
 #include "render/render_context.h"
 #include "render/render_resources.h"
 #include "render/descriptor_allocator.h"
 #include "render/descriptor_writer.h"
 #include "render/render_utils.h"
-#include "render/render_texture_utils.h"
+#include "render/render_texture.h"
 
 #include <vulkan/vulkan.h>
 #include <array>

@@ -80,28 +80,4 @@ namespace Kita::Pbrv
         uint32_t m_frameIndex{ 0 };
         uint32_t m_imageIndex{ 0 };
     };
-
-    struct RenderTexture
-    {
-        RenderImageHandle m_imageHandle{ 0 };
-        RenderImageViewHandle m_imageViewHandle{ 0 };
-        RenderSamplerHandle m_samplerHandle{ 0 };
-
-        bool IsEmpty() const
-        {
-            return m_imageHandle == 0;
-        }
-
-        bool operator==(const RenderTexture& other) const
-        {
-            return (m_imageHandle == other.m_imageHandle)
-                && (m_imageViewHandle == other.m_imageViewHandle)
-                && (m_samplerHandle == other.m_samplerHandle);
-        }
-
-        bool operator!=(const RenderTexture& other) const
-        {
-            return !(*this == other);
-        }
-    };
 }

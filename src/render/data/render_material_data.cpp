@@ -186,39 +186,15 @@ namespace Kita::Pbrv
 
     RenderTexture RenderMaterialData::CreateTexture(const Texture& sceneTex) const
     {
-        auto& pixels = sceneTex.GetPixels();
-        auto width = sceneTex.GetWidth();
-        auto height = sceneTex.GetHeight();
-        auto type = sceneTex.GetType();
+        const auto& pixels = sceneTex.GetPixels();
+        const uint32_t width = sceneTex.GetWidth();
+        const uint32_t height = sceneTex.GetHeight();
+        const auto type = sceneTex.GetType();
 
-        VkFormat format = ToFormat(type);
-        auto mipLevels = CalculateMipLevels(width, height);
+        const VkFormat format = ToFormat(type);
+        const uint32_t mipLevels = CalculateMipLevels(width, height);
 
-        RenderTexture texture{};
-
-        VkImageCreateInfo imageInfo{};
-        imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-        imageInfo.imageType = VK_IMAGE_TYPE_2D;
-        imageInfo.extent.width = width;
-        imageInfo.extent.height = height;
-        imageInfo.extent.depth = 1;
-        imageInfo.mipLevels = mipLevels;
-        imageInfo.arrayLayers = 1;
-        imageInfo.format = format;
-        imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-        imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-        imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-        imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-        texture.m_imageHandle = m_resources.CreateImageWithData(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-            pixels.data(), pixels.size());
-        m_resources.GenerateImageMipmaps(texture.m_imageHandle);
-
-        texture.m_imageViewHandle = m_resources.CreateImageView(texture.m_imageHandle, VK_IMAGE_VIEW_TYPE_2D);
-
-        texture.m_samplerHandle = m_resources.CreateSamplerLinearRepeatMip();
-
-        return texture;
+        return Create2DTextureWithData(m_resources, pixels.data(), pixels.size(),
+            width, height, format, mipLevels, m_resources.CreateSamplerLinearRepeatMip());
     }
 }

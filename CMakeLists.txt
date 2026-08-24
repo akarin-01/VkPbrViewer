@@ -123,7 +123,7 @@ add_executable(VkPbrViewer
     src/render/render_pipeline.cpp
     src/render/render_resources.cpp
     src/render/render_scene.cpp
-    src/render/render_texture_utils.cpp
+    src/render/render_texture.cpp
     src/render/render_utils.cpp
     src/render/renderer.cpp
     src/render/rendering_scope.cpp

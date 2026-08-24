@@ -1,6 +1,6 @@
 #pragma once
 
-#include "render/render_resource_types.h"
+#include "render/render_texture.h"
 
 #include <vulkan/vulkan.h>
 #include <memory>
@@ -36,7 +36,6 @@ namespace Kita::Pbrv
 
         RenderTexture CreateCubemap(const Skybox& sceneSkybox) const;
         RenderTexture CreateEquirectTexture(const Skybox& sceneSkybox, VkFormat format) const;
-        RenderTexture CreateCubemapTexture(uint32_t faceSize, VkFormat format) const;
 
     private:
         const RenderContext& m_context;
