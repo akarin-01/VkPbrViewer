@@ -4,6 +4,7 @@
 #include "render/render_texture.h"
 
 #include <vulkan/vulkan.h>
+#include <glm/glm.hpp>
 #include <array>
 #include <cstdint>
 #include <memory>
@@ -16,6 +17,14 @@ namespace Kita::Pbrv
     class Material;
     class Texture;
     template<uint32_t, uint32_t> class RenderTextureSet;
+
+    struct MaterialPC
+    {
+        alignas(16) glm::vec4 m_albedo;
+        alignas(16) glm::vec4 m_params;             // x - metallic, y - roughness, z - ao, w - padding
+        alignas(16) glm::vec4 m_emissive;           // xyz - emissive, w - padding
+    };
+    STD140_ASSERT(MaterialPC, 48);
 
     class RenderMaterialData
     {

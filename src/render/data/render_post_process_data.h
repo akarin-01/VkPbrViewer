@@ -4,6 +4,7 @@
 #include "render/render_constants.h"
 
 #include <vulkan/vulkan.h>
+#include <glm/glm.hpp>
 #include <array>
 
 namespace Kita::Pbrv
@@ -12,6 +13,12 @@ namespace Kita::Pbrv
     class RenderContext;
     class RenderResources;
     class DescriptorAllocator;
+
+    struct PostProcessUbo
+    {
+        alignas(16) glm::vec4 m_exposure;          // x - exposure, yzw - padding
+    };
+    STD140_ASSERT(PostProcessUbo, 16);
 
     class RenderPostProcessData
     {

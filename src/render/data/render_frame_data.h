@@ -4,6 +4,7 @@
 #include "render/render_constants.h"
 
 #include <vulkan/vulkan.h>
+#include <glm/glm.hpp>
 #include <array>
 
 namespace Kita::Pbrv
@@ -14,6 +15,16 @@ namespace Kita::Pbrv
     class RenderResources;
     class SwapChain;
     class DescriptorAllocator;
+
+    struct FrameUbo
+    {
+        alignas(16) glm::mat4 m_viewProj;
+        alignas(16) glm::mat4 m_skyboxViewProj;
+        alignas(16) glm::vec4 m_viewPos;            // xyz - pos, w - 1 always
+        alignas(16) glm::vec4 m_lightPos;           // xyz - pos, w - 0(directional light)
+        alignas(16) glm::vec4 m_lightColor;         // xyz - rgb, w - intensity
+    };
+    STD140_ASSERT(FrameUbo, 176);
 
     class RenderFrameData
     {

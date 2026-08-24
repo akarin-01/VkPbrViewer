@@ -5,37 +5,9 @@
 #include <vulkan/vulkan.h>
 #include <vector>
 #include <array>
-#include <glm/glm.hpp>
-
-#define STD140_ASSERT(T, SIZE)\
-    static_assert(sizeof(T) == SIZE, #T " std140 mismatch (expected " #SIZE")")
 
 namespace Kita::Pbrv
 {
-    struct FrameUbo
-    {
-        alignas(16) glm::mat4 m_viewProj;
-        alignas(16) glm::mat4 m_skyboxViewProj;
-        alignas(16) glm::vec4 m_viewPos;            // xyz - pos, w - 1 always
-        alignas(16) glm::vec4 m_lightPos;           // xyz - pos, w - 0(directional light)
-        alignas(16) glm::vec4 m_lightColor;         // xyz - rgb, w - intensity
-    };
-    STD140_ASSERT(FrameUbo, 176);
-
-    struct MaterialPC
-    {
-        alignas(16) glm::vec4 m_albedo;
-        alignas(16) glm::vec4 m_params;             // x - metallic, y - roughness, z - ao, w - padding
-        alignas(16) glm::vec4 m_emissive;           // xyz - emissive, w - padding
-    };
-    STD140_ASSERT(MaterialPC, 48);
-
-    struct PostProcessUbo
-    {
-        alignas(16) glm::vec4 m_exposure;          // x - exposure, yzw - padding
-    };
-    STD140_ASSERT(PostProcessUbo, 16);
-
     using RenderBufferHandle = uint64_t;
     using RenderImageHandle = uint64_t;
     using RenderImageViewHandle = uint64_t;
