@@ -60,6 +60,62 @@ namespace Kita::Pbrv
             return true;
         }
 
+        VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
+            VkDebugUtilsMessageSeverityFlagBitsEXT severity,
+            VkDebugUtilsMessageTypeFlagsEXT /*type*/,
+            const VkDebugUtilsMessengerCallbackDataEXT* data,
+            void* /*userData*/)
+        {
+            switch (severity)
+            {
+            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
+                Log::Error("[Vulkan] ", data->pMessage);
+                break;
+            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
+                Log::Warning("[Vulkan] ", data->pMessage);
+                break;
+            default:   // INFO / VERBOSE
+                Log::Info("[Vulkan] ", data->pMessage);
+                break;
+            }
+            return VK_FALSE;   // don't abort
+        }
+
+        void FillDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
+        {
+            createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+            createInfo.messageSeverity =
+                VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+                VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+            createInfo.messageType =
+                VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+                VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+                VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+            createInfo.pfnUserCallback = DebugCallback;
+        }
+
+        VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* createInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* debugMessenger)
+        {
+            auto createFunc = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
+                vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"));
+            if (!createFunc)
+            {
+                return VK_ERROR_EXTENSION_NOT_PRESENT;
+            }
+
+            return createFunc(instance, createInfo, pAllocator, debugMessenger);
+        }
+
+        void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator)
+        {
+            auto destroyFunc = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
+                vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT"));
+            if (destroyFunc)
+            {
+                destroyFunc(instance, debugMessenger, pAllocator);
+            }
+        }
+
         bool CheckDeviceExtensionSupport(VkPhysicalDevice device)
         {
             uint32_t extensionCount;
@@ -193,6 +249,7 @@ namespace Kita::Pbrv
         : m_window(window)
     {
         CreateInstance();
+        SetupDebugMessenger();
         CreateSurface();
         PickPhysicalDevice();
         CreateLogicalDevice();
@@ -204,6 +261,7 @@ namespace Kita::Pbrv
         vkDestroyCommandPool(m_device, m_commandPool, nullptr);
         vkDestroyDevice(m_device, nullptr);
         vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
+        DestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
         vkDestroyInstance(m_instance, nullptr);
     }
 
@@ -223,15 +281,25 @@ namespace Kita::Pbrv
         appInfo.apiVersion = VK_API_VERSION_1_3;
 
         auto extensions = m_window.GetRequiredInstanceExtensions();
+        if (enableValidationLayers)
+        {
+            extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        }
+
         VkInstanceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
         createInfo.pApplicationInfo = &appInfo;
         createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
         createInfo.ppEnabledExtensionNames = extensions.data();
+
         if (enableValidationLayers)
         {
             createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
             createInfo.ppEnabledLayerNames = validationLayers.data();
+
+            VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
+            FillDebugMessengerCreateInfo(debugCreateInfo);
+            createInfo.pNext = &debugCreateInfo;
         }
         else
         {
@@ -241,6 +309,22 @@ namespace Kita::Pbrv
         if (vkCreateInstance(&createInfo, nullptr, &m_instance) != VK_SUCCESS)
         {
             throw std::runtime_error("Failed to create instance!");
+        }
+    }
+
+    void RenderContext::SetupDebugMessenger()
+    {
+        if (!enableValidationLayers)
+        {
+            return;
+        }
+
+        VkDebugUtilsMessengerCreateInfoEXT createInfo{};
+        FillDebugMessengerCreateInfo(createInfo);
+
+        if (CreateDebugUtilsMessengerEXT(m_instance, &createInfo, nullptr, &m_debugMessenger) != VK_SUCCESS)
+        {
+            throw std::runtime_error("Failed to set up debug messenger!");
         }
     }
 
