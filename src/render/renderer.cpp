@@ -22,21 +22,24 @@ namespace Kita::Pbrv
     {
         std::unique_ptr<DescriptorAllocator> CreateDescriptorAllocator(const RenderContext& context)
         {
-            /* Owner                |  Sets  |  UBO  |  Sampler  |  Storage  |
-             * RenderFrameData      | frames |   1   |     0     |     0     |
-             * RenderMaterialData   | frames |   0   | materials |     0     |
-             * RenderSkyboxData     | frames |   0   |     1     |     0     |
-             * RenderTargetData     |   1    |   0   |     1     |     0     |
-             * RenderSkyboxData     |   1    |   0   |     1     |     1     |
-             * RenderPostProcessData| frames |   1   |     0     |     0     |
-             * RenderIblData        | frames |   0   |     1     |     0     |
-             * RenderIblData        |   1    |   0   |     1     |     1     |
+            /* Owner                           |  Sets  |  UBO  |  Sampler  |  Storage  |
+             * RenderFrameData                 | frames |   1   |     0     |     0     |
+             * RenderMaterialData              | frames |   0   | materials |     0     |
+             * RenderSkyboxData                | frames |   0   |     1     |     0     |
+             * RenderPostProcessData           | frames |   1   |     0     |     0     |
+             * RenderIblData                   | frames |   0   |     2     |     0     |
+             * RenderTargetData                |   1    |   0   |     1     |     0     |
+             * Skybox conversion               |   1    |   0   |     1     |     1     |
+             * Ibl conv: brdf                  |   1    |   0   |     0     |     1     |
+             * Ibl conv: irradiance            |   1    |   0   |     1     |     1     |
+             * Ibl conv: prefilter             |   1    |   0   |     1     |     1     |
+             * Ibl brdf lut set                |   1    |   0   |     1     |     0     |
             */
-            constexpr uint32_t kMaxSets = kMaxFramesInFlight * 5 + 3;
+            // Static: 6 sets / 5 samplers / 4 storages (target + 4 conversions + brdf lut)
+            constexpr uint32_t kMaxSets = kMaxFramesInFlight * 5 + 6;
             constexpr uint32_t kMaxUboCount = kMaxFramesInFlight * 2;
-            constexpr uint32_t kMaxSamplerCount = kMaxFramesInFlight * kMaterialTextureCount
-                + kMaxFramesInFlight * 2 + 3;
-            constexpr uint32_t kMaxStorageCount = 2;
+            constexpr uint32_t kMaxSamplerCount = kMaxFramesInFlight * (kMaterialTextureCount + 3) + 5;
+            constexpr uint32_t kMaxStorageCount = 4;
 
             std::array<VkDescriptorPoolSize, 3> poolSizes
             {

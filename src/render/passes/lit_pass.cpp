@@ -83,10 +83,12 @@ namespace Kita::Pbrv
                 0, 1, &m_frameData.GetSet(frameIndex), 0, nullptr);
             {
                 vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                    1, 1, &m_materialData.GetSet(frameIndex), 0, nullptr);
-
+                    1, 1, &m_iblData.GetBrdfLutSet(frameIndex), 0, nullptr);
                 vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
                     2, 1, &m_iblData.GetSet(frameIndex), 0, nullptr);
+
+                vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
+                    3, 1, &m_materialData.GetSet(frameIndex), 0, nullptr);
 
                 auto& pushConstant = m_materialData.GetPushConstant();
                 vkCmdPushConstants(commandBuffer, m_pipeline->Layout(),
@@ -120,8 +122,13 @@ namespace Kita::Pbrv
             .SetCullMode(VK_CULL_MODE_BACK_BIT)
             .SetRasterizationSamples(m_context.SampleCount())
             .SetDepth(true, true, VK_COMPARE_OP_LESS)
-            .SetDescriptorSetLayouts({ m_frameData.GetSetLayout(), m_materialData.GetSetLayout(), m_iblData.GetSetLayout() })
-            .SetPushConstants({ pushConstant })
+            .SetDescriptorSetLayouts({
+                    m_frameData.GetSetLayout(),
+                    m_iblData.GetBrdfLutSetLayout(),
+                    m_iblData.GetSetLayout(),
+                    m_materialData.GetSetLayout(),
+                })
+                .SetPushConstants({ pushConstant })
             .SetDynamicRendering({ m_targetData.GetColorFormat() }, m_targetData.GetDepthFormat());
         m_pipeline = builder.Build();
     }

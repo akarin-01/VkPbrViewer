@@ -1,9 +1,9 @@
 #version 450
 
+#include "common/constants.glsl"
 #include "common/per_frame_data.glsl"
 #include "common/material_texture_slots.glsl"
-
-#define PI 3.14159265359
+#include "common/ggx.glsl"
 
 layout(push_constant, std430) uniform MaterialPC
 {
@@ -12,9 +12,9 @@ layout(push_constant, std430) uniform MaterialPC
     vec4 emissive;          // xyz - emissive, w - padding
 } material;
 
-layout(set = 1, binding = 0) uniform sampler2D textures[TEXTURE_COUNT];
-
-layout(set = 2, binding = 0) uniform samplerCube irradianceMap;
+layout(set = 1, binding = 0) uniform sampler2D brdfLut;
+layout(set = 2, binding = 0) uniform samplerCube iblMaps[2];        // 0 -> irradiance, 1 -> prefilter
+layout(set = 3, binding = 0) uniform sampler2D textures[TEXTURE_COUNT];
 
 layout(location = 0) in vec3 fragPos;
 layout(location = 1) in vec3 fragNormal;
@@ -29,16 +29,10 @@ vec3 FresnelSchlick(float cosTheta, vec3 f0)
     return f0 + (1.0 - f0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 }
 
-// D: GGX (Trowbridge-Reitz)
-float DistributionGGX(vec3 N, vec3 H, float roughness)
+// F: Schlick Fresnel for IBL (roughness lowers the base reflectance)
+vec3 FresnelSchlickRoughness(float cosTheta, vec3 f0, float roughness)
 {
-    float a = roughness * roughness;
-    float a2 = a * a;
-    float NdotH = max(dot(N, H), 0.0);
-    float NdotH2 = NdotH * NdotH;
-
-    float denom = NdotH2 * (a2 - 1.0) + 1.0;
-    return a2 / (PI * denom * denom);
+    return f0 + (max(vec3(1.0 - roughness), f0) - f0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 }
 
 // G: Smith (Schlick-GGX)，k 因子区分直接光照与 IBL
@@ -77,18 +71,18 @@ void main()
     float roughness = material.params.y * mr.g;
     float ao = material.params.z * texture(textures[AO], fragTexCoord).r;
     vec3 emissive = material.emissive.rgb * texture(textures[EMISSIVE], fragTexCoord).rgb;
-    vec3 irradiance = texture(irradianceMap, nDir).rgb;
 
     float NdotV = max(dot(nDir, vDir), 0.0);
     float NdotL = max(dot(nDir, lDir), 0.0);
     float HdotV = max(dot(hDir, vDir), 0.0);
+    float NdotH = max(dot(nDir, hDir), 0.0);
 
     vec3 radiance = frame.lightColor.xyz * frame.lightColor.w;
     vec3 f0 = mix(vec3(0.04), albedo.rgb, metallic);
 
     // Cook-Torrance specular: D * F * G / (4 * NdotV * NdotL)
     vec3 f = FresnelSchlick(HdotV, f0);
-    float d = DistributionGGX(nDir, hDir, roughness);
+    float d = DistributionGGX(NdotH, roughness);
     float g = GeometrySmith(nDir, vDir, lDir, roughness);
     vec3 specular = f * d * g / max(4.0 * NdotV * NdotL, 0.001);
 
@@ -96,11 +90,19 @@ void main()
     vec3 kd = (vec3(1.0) - f) * (1.0 - metallic);
     vec3 diffuse = kd * albedo.rgb / PI;
 
-    // Ambient (Ibl diffuse and TODO: Ibl specular)
-    vec3 ambient = kd * albedo.rgb / PI * irradiance;
+    // IBL ambient: split-sum specular + irradiance diffuse
+    vec3 R = reflect(-vDir, nDir);
+    float mip = roughness * (textureQueryLevels(iblMaps[1]) - 1.0);
+    vec3 prefilteredColor = textureLod(iblMaps[1], R, mip).rgb;
+    vec2 brdf = texture(brdfLut, vec2(NdotV, roughness)).rg;
+
+    vec3 fresnelIBL = FresnelSchlickRoughness(NdotV, f0, roughness);
+    vec3 kdIBL = (vec3(1.0) - fresnelIBL) * (1.0 - metallic);
+    vec3 diffuseIBL = kdIBL * albedo.rgb / PI * texture(iblMaps[0], nDir).rgb;
+    vec3 specularIBL = prefilteredColor * (fresnelIBL * brdf.x + brdf.y);
 
     vec3 result = (diffuse + specular) * NdotL * radiance;
-    result += ambient * ao;                                      
+    result += (diffuseIBL + specularIBL) * ao;
     result += emissive;
     outColor = vec4(result, albedo.a);
 }

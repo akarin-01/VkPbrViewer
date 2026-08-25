@@ -5,25 +5,9 @@ layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 layout(set = 0, binding = 0, rgba16f) uniform writeonly imageCube irradianceMap;
 layout(set = 0, binding = 1) uniform samplerCube envMap;
 
-#define PI 3.14159265359
-
+#include "common/constants.glsl"
 #include "common/cubemap_utils.glsl"
-
-// Hammersley
-float RadicalInverseVdC(uint bits)
-{
-    bits = (bits << 16u) | (bits >> 16u);
-    bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
-    bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
-    bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
-    bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
-    return float(bits) * 2.3283064365386963e-10;
-}
-
-vec2 Hammersley(uint i, uint N)
-{
-    return vec2(float(i) / float(N), RadicalInverseVdC(i));
-}
+#include "common/hammersley.glsl"
 
 void main()
 {

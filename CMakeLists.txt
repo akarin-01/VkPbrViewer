@@ -206,6 +206,8 @@ set(SHADER_SOURCES
     assets/shaders/post_process.frag
     assets/shaders/equirect_to_cubemap.comp
     assets/shaders/irradiance_convolution.comp
+    assets/shaders/prefilter.comp
+    assets/shaders/brdf_integration.comp
 )
 set(SHADER_OUTPUTS
     assets/shaders/lit_vert.spv
@@ -216,12 +218,17 @@ set(SHADER_OUTPUTS
     assets/shaders/post_process_frag.spv
     assets/shaders/equirect_to_cubemap_comp.spv
     assets/shaders/irradiance_convolution_comp.spv
+    assets/shaders/prefilter_comp.spv
+    assets/shaders/brdf_integration_comp.spv
 )
 
 set(SHADER_INCLUDES
+    assets/shaders/common/constants.glsl
+    assets/shaders/common/cubemap_utils.glsl
+    assets/shaders/common/ggx.glsl
+    assets/shaders/common/hammersley.glsl
     assets/shaders/common/material_texture_slots.glsl
     assets/shaders/common/per_frame_data.glsl
-    assets/shaders/common/cubemap_utils.glsl
 )
 
 set(COMPILED_SHADERS)

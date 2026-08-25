@@ -40,13 +40,32 @@ namespace Kita::Pbrv
         return fallback;
     }
 
-    void DestroyTexture(RenderResources& resources, RenderTexture& texture)
+    RenderTexture Create2DTexture(RenderResources& resources, uint32_t width, uint32_t height, VkFormat format, uint32_t mipLevels, VkImageUsageFlags usage, RenderSamplerHandle sampler)
     {
-        resources.DestroySampler(texture.m_samplerHandle);
-        resources.DestroyImageView(texture.m_imageViewHandle);
-        resources.DestroyImage(texture.m_imageHandle);
+        RenderTexture texture{};
 
-        texture = {};
+        VkImageCreateInfo imageInfo{};
+        imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        imageInfo.imageType = VK_IMAGE_TYPE_2D;
+        imageInfo.extent.width = width;
+        imageInfo.extent.height = height;
+        imageInfo.extent.depth = 1;
+        imageInfo.mipLevels = mipLevels;
+        imageInfo.arrayLayers = 1;
+        imageInfo.format = format;
+        imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+        imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        imageInfo.usage = usage;
+        imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        texture.m_imageHandle = resources.CreateImage(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        texture.m_imageViewHandle = resources.CreateImageView(texture.m_imageHandle, VK_IMAGE_VIEW_TYPE_2D);
+
+        texture.m_samplerHandle = sampler;
+
+        return texture;
     }
 
     RenderTexture Create2DTextureWithData(RenderResources& resources, const void* data, size_t size, uint32_t width, uint32_t height, VkFormat format, uint32_t mipLevels, RenderSamplerHandle sampler)
@@ -104,5 +123,14 @@ namespace Kita::Pbrv
         cubemap.m_samplerHandle = sampler;
 
         return cubemap;
+    }
+
+    void DestroyTexture(RenderResources& resources, RenderTexture& texture)
+    {
+        resources.DestroySampler(texture.m_samplerHandle);
+        resources.DestroyImageView(texture.m_imageViewHandle);
+        resources.DestroyImage(texture.m_imageHandle);
+
+        texture = {};
     }
 }
