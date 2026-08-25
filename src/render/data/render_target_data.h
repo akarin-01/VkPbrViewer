@@ -24,11 +24,19 @@ namespace Kita::Pbrv
         const RenderTexture& GetColorTexture() const { return m_colorTex; }
         VkImageView GetColorImageView() const;
         VkFormat GetColorFormat() const;
+        const RenderTexture& GetResolveTexture() const { return m_resolveTex; }
+        VkImageView GetResolveImageView() const;
+        VkFormat GetResolveFormat() const;
         const RenderTexture& GetDepthTexture() const { return m_depthTex; }
         VkImageView GetDepthImageView() const;
         VkFormat GetDepthFormat() const;
 
         void TransitionColorImageLayout(VkCommandBuffer commandBuffer,
+            VkImageLayout newLayout,
+            VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
+            VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask);
+
+        void TransitionResolveImageLayout(VkCommandBuffer commandBuffer,
             VkImageLayout newLayout,
             VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
             VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask);
@@ -52,6 +60,9 @@ namespace Kita::Pbrv
 
         RenderTexture m_colorTex{};
         VkImageLayout m_colorLayout{ VK_IMAGE_LAYOUT_UNDEFINED };
+
+        RenderTexture m_resolveTex{};
+        VkImageLayout m_resolveLayout{ VK_IMAGE_LAYOUT_UNDEFINED };
 
         RenderTexture m_depthTex{};
         VkImageLayout m_depthLayout{ VK_IMAGE_LAYOUT_UNDEFINED };

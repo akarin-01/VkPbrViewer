@@ -25,6 +25,7 @@ namespace Kita::Pbrv
         VkFormat DepthFormat() const { return m_depthFormat; }
         VkFormat HdrFormat() const { return m_hdrFormat; }
         float MaxAnisotropy() const { return m_maxAnisotropy; }
+        VkSampleCountFlags SupportedSampleCounts() const { return m_supportedSampleCounts; }
         VkSampleCountFlagBits MaxSampleCount() const { return m_maxSampleCount; }
         VkSampleCountFlagBits SampleCount() const { return m_sampleCount; }
 
@@ -53,6 +54,7 @@ namespace Kita::Pbrv
         VkFormat m_depthFormat{ VK_FORMAT_UNDEFINED };
         VkFormat m_hdrFormat{ VK_FORMAT_UNDEFINED };
         float m_maxAnisotropy{ 1.0f };
+        VkSampleCountFlags m_supportedSampleCounts{ VK_SAMPLE_COUNT_1_BIT };
         VkSampleCountFlagBits m_maxSampleCount{ VK_SAMPLE_COUNT_1_BIT };
         VkSampleCountFlagBits m_sampleCount{ VK_SAMPLE_COUNT_1_BIT };
     };

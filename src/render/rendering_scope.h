@@ -9,6 +9,8 @@ namespace Kita::Pbrv
     {
         VkImageView m_imageView{ VK_NULL_HANDLE };
         VkImageLayout m_imageLayout{ VK_IMAGE_LAYOUT_UNDEFINED };
+        VkImageView m_resolveImageView{ VK_NULL_HANDLE };
+        VkImageLayout m_resolveImageLayout{ VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
         VkAttachmentLoadOp m_loadOp{ VK_ATTACHMENT_LOAD_OP_LOAD };
         VkAttachmentStoreOp m_storeOp{ VK_ATTACHMENT_STORE_OP_STORE };
         VkClearValue m_clearValue{};

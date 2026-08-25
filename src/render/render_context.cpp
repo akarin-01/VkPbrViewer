@@ -147,36 +147,45 @@ namespace Kita::Pbrv
             return properties.limits.maxSamplerAnisotropy;
         }
 
-        VkSampleCountFlagBits PickMaxSampleCount(VkPhysicalDeviceProperties properties)
+        VkSampleCountFlags PickSupportedSampleCounts(VkPhysicalDeviceProperties properties)
         {
-            VkSampleCountFlags count = properties.limits.framebufferColorSampleCounts &
+            return properties.limits.framebufferColorSampleCounts &
                 properties.limits.framebufferDepthSampleCounts;
+        }
 
-            if (count & VK_SAMPLE_COUNT_64_BIT)
+        VkSampleCountFlagBits PickMaxSampleCount(VkSampleCountFlags supported)
+        {
+            if (supported & VK_SAMPLE_COUNT_64_BIT)
             {
                 return VK_SAMPLE_COUNT_64_BIT;
             }
-            if (count & VK_SAMPLE_COUNT_32_BIT)
+            if (supported & VK_SAMPLE_COUNT_32_BIT)
             {
                 return VK_SAMPLE_COUNT_32_BIT;
             }
-            if (count & VK_SAMPLE_COUNT_16_BIT)
+            if (supported & VK_SAMPLE_COUNT_16_BIT)
             {
                 return VK_SAMPLE_COUNT_16_BIT;
             }
-            if (count & VK_SAMPLE_COUNT_8_BIT)
+            if (supported & VK_SAMPLE_COUNT_8_BIT)
             {
                 return VK_SAMPLE_COUNT_8_BIT;
             }
-            if (count & VK_SAMPLE_COUNT_4_BIT)
+            if (supported & VK_SAMPLE_COUNT_4_BIT)
             {
                 return VK_SAMPLE_COUNT_4_BIT;
             }
-            if (count & VK_SAMPLE_COUNT_2_BIT)
+            if (supported & VK_SAMPLE_COUNT_2_BIT)
             {
                 return VK_SAMPLE_COUNT_2_BIT;
             }
             return VK_SAMPLE_COUNT_1_BIT;
+        }
+
+        VkSampleCountFlagBits PickSampleCount(VkSampleCountFlags supported)
+        {
+            // 4x MSAA: balanced quality/performance; fall back to 1x if unsupported
+            return (supported & VK_SAMPLE_COUNT_4_BIT) ? VK_SAMPLE_COUNT_4_BIT : VK_SAMPLE_COUNT_1_BIT;
         }
     }
 
@@ -342,7 +351,8 @@ namespace Kita::Pbrv
         m_depthFormat = PickDepthFormat(m_physicalDevice);
         m_hdrFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
         m_maxAnisotropy = PickMaxAnisotropy(properties);
-        m_maxSampleCount = PickMaxSampleCount(properties);
-        m_sampleCount = VK_SAMPLE_COUNT_1_BIT;
+        m_supportedSampleCounts = PickSupportedSampleCounts(properties);
+        m_maxSampleCount = PickMaxSampleCount(m_supportedSampleCounts);
+        m_sampleCount = PickSampleCount(m_supportedSampleCounts);
     }
 }

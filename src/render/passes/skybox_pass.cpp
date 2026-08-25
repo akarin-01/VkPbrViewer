@@ -45,6 +45,11 @@ namespace Kita::Pbrv
             VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
             VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
 
+        // Resolve image -> COLOR_ATTACHMENT_OPTIMAL
+        m_targetData.TransitionResolveImageLayout(commandBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
+            VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
+
         // Depth image -> DEPTH_STENCIL_ATTACHMENT_OPTIMAL
         m_targetData.TransitionDepthImageLayout(commandBuffer, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
             VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT, VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
@@ -57,6 +62,8 @@ namespace Kita::Pbrv
             RenderingAttachmentDesc colorDesc{};
             colorDesc.m_imageView = m_targetData.GetColorImageView();
             colorDesc.m_imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            colorDesc.m_resolveImageView = m_targetData.GetResolveImageView();
+            colorDesc.m_resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
             colorDesc.m_loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
             colorDesc.m_storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 

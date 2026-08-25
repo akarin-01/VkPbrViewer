@@ -16,6 +16,9 @@ namespace Kita::Pbrv
             colorInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
             colorInfo.imageView = colorDesc.m_imageView;
             colorInfo.imageLayout = colorDesc.m_imageLayout;
+            colorInfo.resolveImageView = colorDesc.m_resolveImageView;
+            colorInfo.resolveImageLayout = colorDesc.m_resolveImageLayout;
+            colorInfo.resolveMode = colorDesc.m_resolveImageView ? VK_RESOLVE_MODE_AVERAGE_BIT : VK_RESOLVE_MODE_NONE;
             colorInfo.loadOp = colorDesc.m_loadOp;
             colorInfo.storeOp = colorDesc.m_storeOp;
             colorInfo.clearValue = colorDesc.m_clearValue;
@@ -28,6 +31,9 @@ namespace Kita::Pbrv
             attachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
             attachmentInfo.imageView = depthDesc->m_imageView;
             attachmentInfo.imageLayout = depthDesc->m_imageLayout;
+            attachmentInfo.resolveImageView = depthDesc->m_resolveImageView;
+            attachmentInfo.resolveImageLayout = depthDesc->m_resolveImageLayout;
+            attachmentInfo.resolveMode = depthDesc->m_resolveImageView ? VK_RESOLVE_MODE_AVERAGE_BIT : VK_RESOLVE_MODE_NONE;
             attachmentInfo.loadOp = depthDesc->m_loadOp;
             attachmentInfo.storeOp = depthDesc->m_storeOp;
             attachmentInfo.clearValue = depthDesc->m_clearValue;
