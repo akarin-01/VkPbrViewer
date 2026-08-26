@@ -5,7 +5,7 @@
 #include "resource/descriptor_allocator.h"
 #include "rhi/descriptor_writer.h"
 #include "rhi/utils.h"
-#include "resource/texture.h"
+#include "resource/render_texture.h"
 
 #include <vulkan/vulkan.h>
 #include <array>

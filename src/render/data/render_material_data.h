@@ -3,7 +3,8 @@
 #include "core/macro.h"
 #include "rhi/constants.h"
 #include "resource/constants.h"
-#include "resource/texture.h"
+#include "resource/resource_id.h"
+#include "resource/render_texture.h"
 
 #include <vulkan/vulkan.h>
 #include <glm/glm.hpp>
@@ -21,12 +22,12 @@ namespace Kita::Pbrv
     {
         class RenderResources;
         class DescriptorAllocator;
+        struct Texture;
         template<uint32_t, uint32_t> class RenderTextureSet;
     }
     namespace Scene
     {
         class Material;
-        class Texture;
     }
 
     namespace Render
@@ -58,7 +59,7 @@ namespace Kita::Pbrv
             using TextureArray = std::array<Resource::RenderTexture, Resource::kMaterialTextureCount>;
 
             TextureArray CreateFallbacks() const;
-            Resource::RenderTexture CreateTexture(const Scene::Texture& sceneTex) const;
+            Resource::RenderTexture CreateTexture(const Resource::Texture& texture) const;
 
         private:
             const Rhi::RenderContext& m_context;
@@ -67,7 +68,7 @@ namespace Kita::Pbrv
 
             MaterialPC m_pushConstant{ {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f} };
 
-            std::array<uint64_t, Resource::kMaterialTextureCount> m_lastSyncedRevisions{};
+            std::array<Resource::ResourceId, Resource::kMaterialTextureCount> m_lastSyncedTextureIds{};
 
             std::unique_ptr<TextureSet> m_textureSet;
         };

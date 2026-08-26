@@ -1,11 +1,11 @@
-#include "application/application.h"
 #include "core/log.h"
+#include "application/app.h"
 
 int main()
 {
     try
     {
-        Kita::Pbrv::Application::Application app{};
+        Kita::Pbrv::Application::App app{};
         app.Run();
 
         return EXIT_SUCCESS;

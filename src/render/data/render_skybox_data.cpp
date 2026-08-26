@@ -2,7 +2,9 @@
 #include "core/log.h"
 #include "rhi/context.h"
 #include "resource/compute_conversion.h"
+#include "resource/handle.h"
 #include "resource/resources.h"
+#include "resource/texture.h"
 #include "resource/texture_set.h"
 #include "scene/skybox.h"
 
@@ -39,23 +41,24 @@ namespace Kita::Pbrv
             m_textureSet.reset();
         }
 
-        void RenderSkyboxData::Update(uint32_t frameIndex, const Scene::Skybox& sceneSkybox)
+void RenderSkyboxData::Update(uint32_t frameIndex, const Scene::Skybox& sceneSkybox)
         {
-            if (sceneSkybox.GetRevision() != m_lastSyncedRevision)
+            const auto& skyboxTex = sceneSkybox.GetSkybox();
+            if (skyboxTex.GetId() != m_lastSkyboxId)
             {
-                m_lastSyncedRevision = sceneSkybox.GetRevision();
+                m_lastSkyboxId = skyboxTex.GetId();
 
                 TextureArray updatedTexs{};
-                if (sceneSkybox.IsEmpty())
+                if (!skyboxTex.IsValid())
                 {
                     updatedTexs = m_textureSet->GetFallbacks();
                 }
                 else
                 {
-                    updatedTexs[0] = CreateCubemap(sceneSkybox);
+                    updatedTexs[0] = CreateCubemap(*skyboxTex);
 
-                    Core::Log::Info("[Renderer] Create skybox cubemap: ", sceneSkybox.GetName(), ", ",
-                        sceneSkybox.GetWidth(), "x", sceneSkybox.GetHeight(), " -> ",
+                    Core::Log::Info("[Renderer] Create skybox cubemap: ", skyboxTex->m_name, ", ",
+                        skyboxTex->m_width, "x", skyboxTex->m_height, " -> ",
                         kCubemapFaceSize, "x", kCubemapFaceSize, "x6");
                 }
 
@@ -81,12 +84,12 @@ namespace Kita::Pbrv
             return m_textureSet->GetTextures()[0];
         }
 
-        Resource::RenderTexture RenderSkyboxData::CreateCubemap(const Scene::Skybox& sceneSkybox) const
+        Resource::RenderTexture RenderSkyboxData::CreateCubemap(const Resource::Texture& texture) const
         {
             const VkFormat equirectFormat = VK_FORMAT_R32G32B32A32_SFLOAT;
 
             // 1. Create equirect texture (SHADER_READ_ONLY_OPTIMAL)
-            Resource::RenderTexture equirect = CreateEquirectTexture(sceneSkybox, equirectFormat);
+            Resource::RenderTexture equirect = CreateEquirectTexture(texture, equirectFormat);
 
             // 2.1 Create cubemap (sample)
             Resource::RenderTexture cubemap = Resource::CreateCubemapTexture(m_resources,
@@ -146,17 +149,15 @@ namespace Kita::Pbrv
             return cubemap;
         }
 
-        Resource::RenderTexture RenderSkyboxData::CreateEquirectTexture(const Scene::Skybox& sceneSkybox, VkFormat format) const
+        Resource::RenderTexture RenderSkyboxData::CreateEquirectTexture(const Resource::Texture& texture, VkFormat format) const
         {
-            const auto& pixels = sceneSkybox.GetPixels();
-            const uint32_t width = sceneSkybox.GetWidth();
-            const uint32_t height = sceneSkybox.GetHeight();
+            // Hdr asset: m_bytes holds float RGBA pixels
+            const float* pixels = reinterpret_cast<const float*>(texture.m_bytes.data());
+            const uint32_t width = texture.m_width;
+            const uint32_t height = texture.m_height;
             const uint32_t mipLevels = 1;
 
-            const uint32_t channels = static_cast<uint32_t>(pixels.size() / (width * height));
-            assert(channels == 4 && "Scene::Skybox pixels must be RGBA (LoadSkybox forces 4 channels)");
-
-            return Resource::Create2DTextureWithData(m_resources, pixels.data(), pixels.size() * sizeof(float),
+            return Resource::Create2DTextureWithData(m_resources, pixels, texture.m_bytes.size(),
                 width, height, format, mipLevels,
                 m_resources.CreateSamplerEquirect());
         }

@@ -123,10 +123,12 @@ add_executable(VkPbrViewer
     src/rhi/utils.cpp
 
     # resource
+    src/resource/asset_manager.cpp
+    src/resource/asset_utils.cpp
     src/resource/compute_conversion.cpp
     src/resource/descriptor_allocator.cpp
+    src/resource/render_texture.cpp
     src/resource/resources.cpp
-    src/resource/texture.cpp
 
     # render
     src/render/render_pipeline.cpp
@@ -149,18 +151,14 @@ add_executable(VkPbrViewer
     src/render/passes/ui_pass.cpp
 
     # scene
-    src/scene/asset_loader.cpp
     src/scene/camera.cpp
-    src/scene/camera_controller.cpp
     src/scene/light.cpp
     src/scene/material.cpp
-    src/scene/mesh.cpp
     src/scene/post_process.cpp
-    src/scene/skybox.cpp
-    src/scene/texture.cpp
 
     # application
-    src/application/application.cpp
+    src/application/app.cpp
+    src/application/camera_controller.cpp
     src/application/ui.cpp
     src/application/ui_utils.cpp
 )

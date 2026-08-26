@@ -1,60 +1,36 @@
 #pragma once
 
-#include "resource/types.h"
+#include "resource/handle.h"
 
-#include <vulkan/vulkan.h>
+#include <string>
+#include <vector>
+#include <cstdint>
 
 namespace Kita::Pbrv
 {
     namespace Resource
     {
-        class RenderResources;
-
-        struct RenderTexture
+        enum class TextureType
         {
-            bool IsEmpty() const
-            {
-                return m_imageHandle == 0;
-            }
-
-            bool operator==(const RenderTexture& other) const
-            {
-                return (m_imageHandle == other.m_imageHandle)
-                    && (m_imageViewHandle == other.m_imageViewHandle)
-                    && (m_samplerHandle == other.m_samplerHandle);
-            }
-
-            bool operator!=(const RenderTexture& other) const
-            {
-                return !(*this == other);
-            }
-
-            RenderImageHandle m_imageHandle{ 0 };
-            RenderImageViewHandle m_imageViewHandle{ 0 };
-            RenderSamplerHandle m_samplerHandle{ 0 };
+            None,               // undefined
+            Srgb,               // sRGB, 4 ch uint8 (albedo, emissive)
+            Normal,             // linear, 4 ch uint8 (normal)
+            MetallicRoughness,  // linear, 4 ch uint8 (metallic roughness)
+            Linear,             // linear, 1 ch uint8 (AO)
+            Hdr,                // linear, 4 ch float (skybox)
         };
 
-        RenderTexture CreateCubemapFallback(RenderResources& resources, VkFormat format);
+        struct Texture
+        {
+            using Handle = Resource::Handle<Texture>;   // asset handle
 
-        /// Creates an empty 2D texture in UNDEFINED layout (e.g. a storage write
-        /// target for conversion passes).
-        RenderTexture Create2DTexture(RenderResources& resources,
-            uint32_t width, uint32_t height, VkFormat format, uint32_t mipLevels,
-            VkImageUsageFlags usage, RenderSamplerHandle sampler);
+            std::string m_name{ "empty" };
+            std::vector<uint8_t> m_bytes;
+            uint32_t m_width{ 0 };
+            uint32_t m_height{ 0 };
+            TextureType m_type{ TextureType::None };
 
-        /// Creates a 2D texture (upload + mip chain); the result is left in SHADER_READ_ONLY_OPTIMAL
-        /// (mipLevels = 1 performs only the final layout transition).
-        RenderTexture Create2DTextureWithData(RenderResources& resources,
-            const void* data, size_t size,
-            uint32_t width, uint32_t height, VkFormat format, uint32_t mipLevels,
-            RenderSamplerHandle sampler);
-
-        /// Creates an empty cubemap in UNDEFINED layout (e.g. a storage write target
-        /// for conversion passes).
-        RenderTexture CreateCubemapTexture(RenderResources& resources,
-            uint32_t faceSize, VkFormat format, uint32_t mipLevels, VkImageUsageFlags usage,
-            RenderSamplerHandle sampler);
-
-        void DestroyTexture(RenderResources& resources, RenderTexture& texture);
+            size_t GetByteCount() const { return m_bytes.size(); }
+        };
     }
 }

@@ -2,17 +2,21 @@
 
 namespace Kita::Pbrv
 {
+    namespace Resource
+    {
+        class AssetManager;
+    }
     namespace Scene
     {
         class Scene;
     }
 
-    namespace Ui
+    namespace Application
     {
         class UI
         {
         public:
-            UI(Scene::Scene& scene);
+            UI(Scene::Scene& scene, Resource::AssetManager& assets);
             ~UI();
 
             void Update(float deltaTime);
@@ -24,6 +28,7 @@ namespace Kita::Pbrv
 
         private:
             Scene::Scene& m_scene;
+            Resource::AssetManager& m_assets;
         };
     }
 }

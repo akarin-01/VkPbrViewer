@@ -12,11 +12,11 @@
 
 namespace Kita::Pbrv
 {
-    namespace Ui
+    namespace Application
     {
         std::optional<std::string> OpenFileDialog(const char* filter, const char* title)
         {
-    #if defined(_WIN32)
+#if defined(_WIN32)
             char path[MAX_PATH]{};
             OPENFILENAMEA ofn{};
             ofn.lStructSize = sizeof(ofn);
@@ -33,7 +33,7 @@ namespace Kita::Pbrv
             ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
             if (GetOpenFileNameA(&ofn))
                 return std::string(path);
-    #endif
+#endif
 
             return std::nullopt;
         }

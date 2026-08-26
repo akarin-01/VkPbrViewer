@@ -1,10 +1,11 @@
 #include "render_material_data.h"
 #include "core/log.h"
 #include "rhi/context.h"
+#include "resource/handle.h"
 #include "resource/resources.h"
+#include "resource/texture.h"
 #include "resource/texture_set.h"
 #include "scene/material.h"
-#include "scene/texture.h"
 
 #include <glm/glm.hpp>
 #include <stdexcept>
@@ -15,17 +16,17 @@ namespace Kita::Pbrv
     {
         namespace
         {
-            VkFormat ToFormat(Scene::TextureType type)
+            VkFormat ToFormat(Resource::TextureType type)
             {
                 switch (type)
                 {
-                case Scene::TextureType::Srgb:
+                case Resource::TextureType::Srgb:
                     return VK_FORMAT_R8G8B8A8_SRGB;
-                case Scene::TextureType::Normal:
+                case Resource::TextureType::Normal:
                     return VK_FORMAT_R8G8B8A8_UNORM;
-                case Scene::TextureType::MetallicRoughness:
+                case Resource::TextureType::MetallicRoughness:
                     return VK_FORMAT_R8G8B8A8_UNORM;
-                case Scene::TextureType::Linear:
+                case Resource::TextureType::Linear:
                     return VK_FORMAT_R8_UNORM;
                 default:
                     throw std::runtime_error("Invalid texture type!");
@@ -48,25 +49,6 @@ namespace Kita::Pbrv
                     return "Resource::Emissive";
                 default:
                     return "Unknown";
-                }
-            }
-
-            const Scene::Texture& GetTexture(const Scene::Material& mat, uint32_t slot)
-            {
-                switch (slot)
-                {
-                case Resource::Albedo:
-                    return mat.GetAlbedoTex();
-                case Resource::Normal:
-                    return mat.GetNormalTex();
-                case Resource::MetallicRoughness:
-                    return mat.GetMRTex();
-                case Resource::AO:
-                    return mat.GetAOTex();
-                case Resource::Emissive:
-                    return mat.GetEmissiveTex();
-                default:
-                    throw std::runtime_error("Invalid texture slot!");
                 }
             }
         }
@@ -100,21 +82,21 @@ namespace Kita::Pbrv
             TextureArray updatedTexs{};
             for (uint32_t i = 0; i < Resource::kMaterialTextureCount; ++i)
             {
-                auto& sceneTex = GetTexture(sceneMat, i);
-                if (m_lastSyncedRevisions[i] != sceneTex.GetRevision())
+                const auto texHandle = sceneMat.GetTexture(i);
+                if (texHandle.GetId() != m_lastSyncedTextureIds[i])
                 {
-                    m_lastSyncedRevisions[i] = sceneTex.GetRevision();
+                    m_lastSyncedTextureIds[i] = texHandle.GetId();
 
-                    if (sceneTex.IsEmpty())
+                    if (!texHandle.IsValid())
                     {
                         updatedTexs[i] = m_textureSet->GetFallbacks()[i];
                     }
                     else
                     {
-                        updatedTexs[i] = CreateTexture(sceneTex);
+                        updatedTexs[i] = CreateTexture(*texHandle);
 
                         Core::Log::Info("[Renderer] Create texture [", ToString(Resource::MaterialTextureSlot(i)), "]: ",
-                            sceneTex.GetName(), ", ", sceneTex.GetPixelCount(), " bytes");
+                            texHandle->m_name, ", ", texHandle->GetByteCount(), " bytes");
                     }
 
                     anyTexUpdated = true;
@@ -150,53 +132,67 @@ namespace Kita::Pbrv
 
             TextureArray fallbacks{};
 
-            // Resource::Albedo
+            // Albedo: white sRGB
             {
-                Scene::Texture tex{};
-                tex.SetData("fallback", std::vector<uint8_t>(white, white + 4), width, height, Scene::TextureType::Srgb);
+                Resource::Texture tex{};
+                tex.m_name = "fallback";
+                tex.m_bytes = std::vector<uint8_t>(white, white + 4);
+                tex.m_width = width;
+                tex.m_height = height;
+                tex.m_type = Resource::TextureType::Srgb;
                 fallbacks[Resource::Albedo] = CreateTexture(tex);
             }
-            // Resource::Normal
+            // Normal: flat (128, 128, 255)
             {
-                Scene::Texture tex{};
-                tex.SetData("fallback", std::vector<uint8_t>(flat, flat + 4), width, height, Scene::TextureType::Normal);
+                Resource::Texture tex{};
+                tex.m_name = "fallback";
+                tex.m_bytes = std::vector<uint8_t>(flat, flat + 4);
+                tex.m_width = width;
+                tex.m_height = height;
+                tex.m_type = Resource::TextureType::Normal;
                 fallbacks[Resource::Normal] = CreateTexture(tex);
             }
-            // MR
+            // MR: white (metallic 255, roughness 255)
             {
-                Scene::Texture tex{};
-                tex.SetData("fallback", std::vector<uint8_t>(white, white + 4), width, height, Scene::TextureType::MetallicRoughness);
+                Resource::Texture tex{};
+                tex.m_name = "fallback";
+                tex.m_bytes = std::vector<uint8_t>(white, white + 4);
+                tex.m_width = width;
+                tex.m_height = height;
+                tex.m_type = Resource::TextureType::MetallicRoughness;
                 fallbacks[Resource::MetallicRoughness] = CreateTexture(tex);
             }
-            // Resource::AO
+            // AO: white, single channel
             {
-                Scene::Texture tex{};
-                tex.SetData("fallback", std::vector<uint8_t>(white, white + 1), width, height, Scene::TextureType::Linear);
-                Resource::RenderTexture linearFallback = CreateTexture(tex);
-                fallbacks[Resource::AO] = linearFallback;
+                Resource::Texture tex{};
+                tex.m_name = "fallback";
+                tex.m_bytes = std::vector<uint8_t>(white, white + 1);
+                tex.m_width = width;
+                tex.m_height = height;
+                tex.m_type = Resource::TextureType::Linear;
+                fallbacks[Resource::AO] = CreateTexture(tex);
             }
-            // Resource::Emissive
+            // Emissive: black
             {
-                Scene::Texture tex{};
-                tex.SetData("fallback", std::vector<uint8_t>(black, black + 4), width, height, Scene::TextureType::Srgb);
+                Resource::Texture tex{};
+                tex.m_name = "fallback";
+                tex.m_bytes = std::vector<uint8_t>(black, black + 4);
+                tex.m_width = width;
+                tex.m_height = height;
+                tex.m_type = Resource::TextureType::Srgb;
                 fallbacks[Resource::Emissive] = CreateTexture(tex);
             }
 
             return fallbacks;
         }
 
-        Resource::RenderTexture RenderMaterialData::CreateTexture(const Scene::Texture& sceneTex) const
+        Resource::RenderTexture RenderMaterialData::CreateTexture(const Resource::Texture& texture) const
         {
-            const auto& pixels = sceneTex.GetPixels();
-            const uint32_t width = sceneTex.GetWidth();
-            const uint32_t height = sceneTex.GetHeight();
-            const auto type = sceneTex.GetType();
+            const VkFormat format = ToFormat(texture.m_type);
+            const uint32_t mipLevels = Rhi::CalculateMipLevels(texture.m_width, texture.m_height);
 
-            const VkFormat format = ToFormat(type);
-            const uint32_t mipLevels = Rhi::CalculateMipLevels(width, height);
-
-            return Resource::Create2DTextureWithData(m_resources, pixels.data(), pixels.size(),
-                width, height, format, mipLevels, m_resources.CreateSamplerLinearRepeatMip());
+            return Resource::Create2DTextureWithData(m_resources, texture.m_bytes.data(), texture.m_bytes.size(),
+                texture.m_width, texture.m_height, format, mipLevels, m_resources.CreateSamplerLinearRepeatMip());
         }
     }
 }

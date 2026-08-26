@@ -46,13 +46,5 @@ namespace Kita::Pbrv
             using Handle = RenderSamplerHandle;
             VkSampler m_sampler{ VK_NULL_HANDLE };
         };
-
-        struct FrameInfo
-        {
-            bool m_swapChainRecreated{ false };
-            VkCommandBuffer m_commandBuffer{ VK_NULL_HANDLE };
-            uint32_t m_frameIndex{ 0 };
-            uint32_t m_imageIndex{ 0 };
-        };
     }
 }

@@ -12,6 +12,8 @@ namespace Kita::Pbrv
             Light();
             ~Light();
 
+            void Update() const;
+
             Light& SetPosition(const glm::vec3& pos);
             Light& SetColor(const glm::vec3& color);
             Light& SetIntensity(float intensity);

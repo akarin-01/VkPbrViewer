@@ -1,6 +1,6 @@
-#include "asset_loader.h"
+#include "asset_utils.h"
+
 #include "core/log.h"
-#include "scene/vertex.h"
 
 #define TINYGLTF_IMPLEMENTATION
 #define TINYGLTF_NO_STB_IMAGE_WRITE
@@ -11,13 +11,10 @@
 
 #include <filesystem>
 #include <stdexcept>
-#include <vector>
-#include <cstdint>
-#include <cmath>
 
 namespace Kita::Pbrv
 {
-    namespace Scene
+    namespace Resource
     {
         namespace
         {
@@ -29,6 +26,20 @@ namespace Kita::Pbrv
                 case TextureType::Normal:               return 4;
                 case TextureType::MetallicRoughness:    return 4;
                 case TextureType::Linear:               return 1;
+                case TextureType::Hdr:                  return 4;
+                default: throw std::runtime_error("Invalid texture type!");
+                }
+            }
+
+            size_t GetBytesPerPixel(TextureType type)
+            {
+                switch (type)
+                {
+                case TextureType::Srgb:                 return 4;
+                case TextureType::Normal:               return 4;
+                case TextureType::MetallicRoughness:    return 4;
+                case TextureType::Linear:               return 1;
+                case TextureType::Hdr:                  return 4 * sizeof(float);
                 default: throw std::runtime_error("Invalid texture type!");
                 }
             }
@@ -100,7 +111,7 @@ namespace Kita::Pbrv
             {
                 if (indices.size() % 3 != 0)
                 {
-                    Core::Log::Warning("[Scene] Index count is not a multiple of 3, skipping tangent computation");
+                    Core::Log::Warning("[Resource] Index count is not a multiple of 3, skipping tangent computation");
                     return;
                 }
 
@@ -167,163 +178,141 @@ namespace Kita::Pbrv
             }
         }
 
-        void AssetLoader::LoadGltfMesh(const std::string& path, Mesh& mesh)
+        namespace AssetUtils
         {
-            Core::Log::Info("[Scene] Load glTF: ", path);
-
-            tinygltf::Model model;
-            tinygltf::TinyGLTF loader;
-            std::string err;
-            std::string warn;
-
-            bool success = (std::filesystem::path(path).extension() == ".glb")
-                ? loader.LoadBinaryFromFile(&model, &err, &warn, path)
-                : loader.LoadASCIIFromFile(&model, &err, &warn, path);
-
-            if (!warn.empty())
+            Mesh AssetUtils::LoadGltfMesh(const std::string& path)
             {
-                Core::Log::Warning("[Scene] glTF warning: ", warn);
-            }
-            if (!success)
-            {
-                throw std::runtime_error("Failed to load glTF: " + err);
-            }
-            if (model.meshes.empty())
-            {
-                throw std::runtime_error("glTF contains no meshes");
-            }
+                Core::Log::Info("[Resource] Load glTF: ", path);
 
-            std::vector<Vertex> vertices;
-            std::vector<uint32_t> indices;
+                tinygltf::Model model;
+                tinygltf::TinyGLTF loader;
+                std::string err;
+                std::string warn;
 
-            // Only support 1 mesh
-            for (const auto& primitive : model.meshes[0].primitives)
-            {
-                if (primitive.mode != TINYGLTF_MODE_TRIANGLES)
+                bool success = (std::filesystem::path(path).extension() == ".glb")
+                    ? loader.LoadBinaryFromFile(&model, &err, &warn, path)
+                    : loader.LoadASCIIFromFile(&model, &err, &warn, path);
+
+                if (!warn.empty())
                 {
-                    Core::Log::Warning("[Scene] Unsupported primitive mode, skipped");
-                    continue;
+                    Core::Log::Warning("[Resource] glTF warning: ", warn);
+                }
+                if (!success)
+                {
+                    throw std::runtime_error("Failed to load glTF '" + path + "': " + err);
+                }
+                if (model.meshes.empty())
+                {
+                    throw std::runtime_error("glTF '" + path + "' contains no meshes");
                 }
 
-                auto positionIt = primitive.attributes.find("POSITION");
-                if (positionIt == primitive.attributes.end())
+                std::vector<Vertex> vertices;
+                std::vector<uint32_t> indices;
+
+                // Only support 1 mesh
+                for (const auto& primitive : model.meshes[0].primitives)
                 {
-                    throw std::runtime_error("Primitive has no POSITION attribute");
-                }
-                const tinygltf::Accessor& positionAccessor = model.accessors[positionIt->second];
+                    if (primitive.mode != TINYGLTF_MODE_TRIANGLES)
+                    {
+                        Core::Log::Warning("[Resource] Unsupported primitive mode, skipped");
+                        continue;
+                    }
 
-                auto normalIt = primitive.attributes.find("NORMAL");
-                bool hasNormal = (normalIt != primitive.attributes.end());
-                const tinygltf::Accessor* normalAccessor = hasNormal ? &model.accessors[normalIt->second] : nullptr;
+                    auto positionIt = primitive.attributes.find("POSITION");
+                    if (positionIt == primitive.attributes.end())
+                    {
+                        throw std::runtime_error("Primitive has no POSITION attribute");
+                    }
+                    const tinygltf::Accessor& positionAccessor = model.accessors[positionIt->second];
 
-                auto texCoordIt = primitive.attributes.find("TEXCOORD_0");
-                bool hasTexCoord = (texCoordIt != primitive.attributes.end());
-                const tinygltf::Accessor* texCoordAccessor = hasTexCoord ? &model.accessors[texCoordIt->second] : nullptr;
+                    auto normalIt = primitive.attributes.find("NORMAL");
+                    bool hasNormal = (normalIt != primitive.attributes.end());
+                    const tinygltf::Accessor* normalAccessor = hasNormal ? &model.accessors[normalIt->second] : nullptr;
 
-                auto tangentIt = primitive.attributes.find("TANGENT");
-                bool hasTangent = (tangentIt != primitive.attributes.end());
-                const tinygltf::Accessor* tangentAccessor = hasTangent ? &model.accessors[tangentIt->second] : nullptr;
+                    auto texCoordIt = primitive.attributes.find("TEXCOORD_0");
+                    bool hasTexCoord = (texCoordIt != primitive.attributes.end());
+                    const tinygltf::Accessor* texCoordAccessor = hasTexCoord ? &model.accessors[texCoordIt->second] : nullptr;
 
-                const uint32_t baseVertexIdx = static_cast<uint32_t>(vertices.size());
-                vertices.resize(vertices.size() + positionAccessor.count);
-                for (size_t i = 0; i < positionAccessor.count; ++i)
-                {
-                    Vertex& vertex = vertices[baseVertexIdx + i];
-                    vertex.position = ReadAccessorElement(model, positionAccessor, i);
-                    vertex.normal = hasNormal ?
-                        ReadAccessorElement(model, *normalAccessor, i) :
-                        glm::vec3(0.0f, 1.0f, 0.0f);
-                    vertex.texCoord = hasTexCoord ?
-                        ReadAccessorElement(model, *texCoordAccessor, i) :
-                        glm::vec2(0.0f);
-                    vertex.tangent = hasTangent ?
-                        ReadAccessorElement(model, *tangentAccessor, i) :
-                        glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
-                }
+                    auto tangentIt = primitive.attributes.find("TANGENT");
+                    bool hasTangent = (tangentIt != primitive.attributes.end());
+                    const tinygltf::Accessor* tangentAccessor = hasTangent ? &model.accessors[tangentIt->second] : nullptr;
 
-                if (primitive.indices < 0)
-                {
-                    indices.reserve(indices.size() + positionAccessor.count);
+                    const uint32_t baseVertexIdx = static_cast<uint32_t>(vertices.size());
+                    vertices.resize(vertices.size() + positionAccessor.count);
                     for (size_t i = 0; i < positionAccessor.count; ++i)
                     {
-                        indices.emplace_back(baseVertexIdx + static_cast<uint32_t>(i));
+                        Vertex& vertex = vertices[baseVertexIdx + i];
+                        vertex.position = ReadAccessorElement(model, positionAccessor, i);
+                        vertex.normal = hasNormal ?
+                            ReadAccessorElement(model, *normalAccessor, i) :
+                            glm::vec3(0.0f, 1.0f, 0.0f);
+                        vertex.texCoord = hasTexCoord ?
+                            ReadAccessorElement(model, *texCoordAccessor, i) :
+                            glm::vec2(0.0f);
+                        vertex.tangent = hasTangent ?
+                            ReadAccessorElement(model, *tangentAccessor, i) :
+                            glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
                     }
+
+                    if (primitive.indices < 0)
+                    {
+                        indices.reserve(indices.size() + positionAccessor.count);
+                        for (size_t i = 0; i < positionAccessor.count; ++i)
+                        {
+                            indices.emplace_back(baseVertexIdx + static_cast<uint32_t>(i));
+                        }
+                    }
+                    else
+                    {
+                        const tinygltf::Accessor& indexAccessor = model.accessors[primitive.indices];
+                        indices.reserve(indices.size() + indexAccessor.count);
+                        for (size_t i = 0; i < indexAccessor.count; ++i)
+                        {
+                            indices.emplace_back(baseVertexIdx + ReadAccessorIndex(model, indexAccessor, i));
+                        }
+                    }
+                }
+
+                ComputeTangents(vertices, indices);
+
+                std::string name = std::filesystem::path(path).stem().string();
+
+                return { name, std::move(vertices), std::move(indices) };
+            }
+
+            Texture LoadTexture(const std::string& path, TextureType type)
+            {
+                Core::Log::Info("[Resource] Load texture: ", path);
+
+                void* data = nullptr;
+                int desiredChannels = GetTextureChannels(type);
+                int texWidth = 0, texHeight = 0, texChannels = 0;
+                if (type == TextureType::Hdr)
+                {
+                    data = stbi_loadf(path.c_str(), &texWidth, &texHeight, &texChannels, desiredChannels);
                 }
                 else
                 {
-                    const tinygltf::Accessor& indexAccessor = model.accessors[primitive.indices];
-                    indices.reserve(indices.size() + indexAccessor.count);
-                    for (size_t i = 0; i < indexAccessor.count; ++i)
-                    {
-                        indices.emplace_back(baseVertexIdx + ReadAccessorIndex(model, indexAccessor, i));
-                    }
+                    data = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, desiredChannels);
                 }
-            }
-
-            ComputeTangents(vertices, indices);
-
-            std::string name = std::filesystem::path(path).stem().string();
-
-            mesh.SetData(name, std::move(vertices), std::move(indices));
-        }
-
-        void AssetLoader::LoadTexture(const std::string& path, TextureType type, Texture& texture)
-        {
-            Core::Log::Info("[Scene] Load texture: ", path);
-
-            std::vector<uint8_t> pixels;
-            uint32_t width, height;
-            {
-                int desiredChannels = GetTextureChannels(type);
-
-                int texWidth, texHeight, texChannels;
-                stbi_uc* data = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, desiredChannels);
-                if (!data)
-                {
-                    throw std::runtime_error("Failed to load texture image");
-                }
-                size_t byteSize = static_cast<size_t>(texWidth)
+                const size_t byteSize = static_cast<size_t>(texWidth)
                     * static_cast<size_t>(texHeight)
-                    * static_cast<size_t>(desiredChannels);
-                pixels.assign(data, data + byteSize);
-                width = static_cast<uint32_t>(texWidth);
-                height = static_cast<uint32_t>(texHeight);
-
+                    * GetBytesPerPixel(type);
+                std::vector<uint8_t> bytes(
+                    reinterpret_cast<const uint8_t*>(data),
+                    reinterpret_cast<const uint8_t*>(data) + byteSize
+                );
                 stbi_image_free(data);
+
+                Texture tex{};
+                tex.m_name = std::filesystem::path(path).stem().string();
+                tex.m_bytes = std::move(bytes);
+                tex.m_width = static_cast<uint32_t>(texWidth);
+                tex.m_height = static_cast<uint32_t>(texHeight);
+                tex.m_type = type;
+
+                return tex;
             }
-
-            std::string name = std::filesystem::path(path).stem().string();
-
-            texture.SetData(name, std::move(pixels), width, height, type);
-        }
-
-        void AssetLoader::LoadSkybox(const std::string& path, Skybox& skybox)
-        {
-            Core::Log::Info("[Scene] Load skybox: ", path);
-
-            std::vector<float> pixels;
-            uint32_t width, height;
-            {
-                int desiredChannels = 4;
-                int texWidth, texHeight, texChannels;
-                float* data = stbi_loadf(path.c_str(), &texWidth, &texHeight, &texChannels, desiredChannels);
-                if (!data)
-                {
-                    throw std::runtime_error("Failed to load skybox image");
-                }
-                size_t byteSize = static_cast<size_t>(texWidth)
-                    * static_cast<size_t>(texHeight)
-                    * static_cast<size_t>(desiredChannels);
-                pixels.assign(data, data + byteSize);
-                width = static_cast<uint32_t>(texWidth);
-                height = static_cast<uint32_t>(texHeight);
-
-                stbi_image_free(data);
-            }
-
-            std::string name = std::filesystem::path(path).stem().string();
-
-            skybox.SetData(name, std::move(pixels), width, height);
         }
     }
 }

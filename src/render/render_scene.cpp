@@ -29,8 +29,8 @@ namespace Kita::Pbrv
             auto& frameIndex = frameInfo.m_frameIndex;
 
             m_frameData.Update(frameIndex, scene.GetCamera(), scene.GetLight());
-            m_materialData.Update(frameIndex, scene.GetMaterial());
-            m_meshData.Update(scene.GetMesh());
+            m_meshData.Update(scene.GetObject().GetMesh());
+            m_materialData.Update(frameIndex, scene.GetObject().GetMaterial());
             m_skyboxData.Update(frameIndex, scene.GetSkybox());
             m_postProcessData.Update(frameIndex, scene.GetPostProcess());
             m_iblData.Update(frameIndex, m_skyboxData.GetCubemap());

@@ -4,7 +4,7 @@
 #include "rhi/utils.h"
 #include "resource/descriptor_allocator.h"
 #include "resource/resources.h"
-#include "resource/texture.h"
+#include "resource/render_texture.h"
 
 #include <array>
 #include <cassert>

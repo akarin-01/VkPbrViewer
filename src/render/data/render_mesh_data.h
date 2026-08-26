@@ -1,5 +1,6 @@
 #pragma once
 
+#include "resource/mesh.h"
 #include "resource/types.h"
 
 #include <vector>
@@ -10,10 +11,6 @@ namespace Kita::Pbrv
     namespace Resource
     {
         class RenderResources;
-    }
-    namespace Scene
-    {
-        class Mesh;
     }
 
     namespace Render
@@ -27,7 +24,7 @@ namespace Kita::Pbrv
             explicit RenderMeshData(Resource::RenderResources& resources);
             ~RenderMeshData();
 
-            void Update(const Scene::Mesh& sceneMesh);
+            void Update(const Resource::Mesh::Handle& meshHandle);
 
             VkBuffer GetVertexBuffer() const;
             VkBuffer GetIndexBuffer() const;
@@ -35,7 +32,7 @@ namespace Kita::Pbrv
             bool IsEmpty() const { return m_vertexBufferHandle == 0; }
 
         private:
-            void Create(const Scene::Mesh& sceneMesh);
+            void Create(const Resource::Mesh& mesh);
             void Destroy();
 
         private:
@@ -45,7 +42,7 @@ namespace Kita::Pbrv
             Resource::RenderBufferHandle m_indexBufferHandle{ 0 };
             uint32_t m_indexCount{ 0 };
 
-            uint64_t m_lastSyncedRevision{ UINT64_MAX };
+            Resource::ResourceId m_lastMeshId{ Resource::kInvalidId };
         };
     }
 }

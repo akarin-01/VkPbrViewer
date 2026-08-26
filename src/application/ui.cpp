@@ -1,42 +1,61 @@
 #include "ui.h"
 
 #include "imgui.h"
-#include "application/ui_utils.h"
+#include "core/log.h"
+#include "resource/asset_manager.h"
+#include "resource/constants.h"
 #include "scene/scene.h"
-#include "scene/asset_loader.h"
+#include "application/ui_utils.h"
 
 #include <glm/glm.hpp>
 #include <array>
 
 namespace Kita::Pbrv
 {
-    namespace Ui
+    namespace Application
     {
         namespace
         {
             constexpr float kDragSpeed = 0.005f;
 
-            void DrawTextureRaw(const char* title, Scene::Texture& tex, Scene::TextureType type)
+            void DrawTextureRaw(const char* title, Scene::Material& mat, uint32_t slot,
+                Resource::TextureType type, Resource::AssetManager& assets)
             {
+                const auto tex = mat.GetTexture(slot);
+
                 ImGui::TextUnformatted(title);
                 ImGui::SameLine();
-                ImGui::TextUnformatted(tex.GetName().c_str());
-                ImGui::SameLine();
-                ImGui::Text("(%ux%u)", tex.GetWidth(), tex.GetHeight());
+                if (tex.IsValid())
+                {
+                    ImGui::TextUnformatted(tex->m_name.c_str());
+                    ImGui::SameLine();
+                    ImGui::Text("(%ux%u)", tex->m_width, tex->m_height);
+                }
+                else
+                {
+                    ImGui::TextUnformatted("empty");
+                }
 
                 ImGui::PushID(title);
                 if (ImGui::Button("Open"))
                 {
-                    auto path = OpenFileDialog("Scene::Texture Files\0*.jpg;*.png;*.tga\0All Files\0*.*\0");
+                    auto path = OpenFileDialog("Texture Files\0*.jpg;*.png;*.tga\0All Files\0*.*\0");
                     if (path)
                     {
-                        Scene::AssetLoader::LoadTexture(path.value(), type, tex);
+                        try
+                        {
+                            mat.SetTexture(slot, assets.LoadTexture(path.value(), type));
+                        }
+                        catch (const std::exception& e)
+                        {
+                            Core::Log::Error("[UI] ", e.what());
+                        }
                     }
                 }
                 ImGui::SameLine();
                 if (ImGui::Button("Delete"))
                 {
-                    tex.SetEmpty();
+                    mat.SetTexture(slot, {});
                 }
                 ImGui::PopID();
             }
@@ -50,32 +69,47 @@ namespace Kita::Pbrv
                 }
             }
 
-            void DrawEnvironmentPanel(Scene::Skybox& skybox, Scene::Light& light)
+            void DrawEnvironmentPanel(Scene::Skybox& skybox, Scene::Light& light, Resource::AssetManager& assets)
             {
                 if (ImGui::CollapsingHeader("Environment"))
                 {
-                    DrawBox("##SkyboxBox", "Scene::Skybox", [&skybox]()
+                    DrawBox("##SkyboxBox", "Skybox", [&skybox, &assets]()
                         {
-                            ImGui::TextUnformatted(skybox.GetName().c_str());
-                            ImGui::SameLine();
-                            ImGui::Text("(%ux%u)", skybox.GetWidth(), skybox.GetHeight());
+                            const auto& tex = skybox.GetSkybox();
+                            if (tex.IsValid())
+                            {
+                                ImGui::TextUnformatted(tex->m_name.c_str());
+                                ImGui::SameLine();
+                                ImGui::Text("(%ux%u)", tex->m_width, tex->m_height);
+                            }
+                            else
+                            {
+                                ImGui::TextUnformatted("empty");
+                            }
 
-                            if (ImGui::Button("Open##Scene::Skybox"))
+                            if (ImGui::Button("Open##Skybox"))
                             {
                                 auto path = OpenFileDialog("Equirect Files\0*.hdr\0All Files\0*.*\0");
                                 if (path)
                                 {
-                                    Scene::AssetLoader::LoadSkybox(path.value(), skybox);
+                                    try
+                                    {
+                                        skybox.SetSkybox(assets.LoadTexture(path.value(), Resource::TextureType::Hdr));
+                                    }
+                                    catch (const std::exception& e)
+                                    {
+                                        Core::Log::Error("[UI] ", e.what());
+                                    }
                                 }
                             }
                             ImGui::SameLine();
-                            if (ImGui::Button("Delete##Scene::Skybox"))
+                            if (ImGui::Button("Delete##Skybox"))
                             {
-                                skybox.SetEmpty();
+                                skybox.SetSkybox(Scene::Skybox::TextureHandle{});
                             }
                         });
 
-                    DrawBox("##LightBox", "Scene::Light", [&light]()
+                    DrawBox("##LightBox", "Light", [&light]()
                         {
                             glm::vec3 pos = light.GetPosition();
                             if (ImGui::DragFloat3("Position", &pos.x, kDragSpeed))
@@ -98,32 +132,49 @@ namespace Kita::Pbrv
                 }
             }
 
-            void DrawObjectPanel(Scene::Mesh& mesh, Scene::Material& mat)
+            void DrawObjectPanel(Scene::Object& object, Resource::AssetManager& assets)
             {
                 if (ImGui::CollapsingHeader("Object"))
                 {
-                    DrawBox("##MeshBox", "Scene::Mesh", [&mesh]()
+                    DrawBox("##MeshBox", "Mesh", [&object, &assets]()
                         {
-                            ImGui::TextUnformatted(mesh.GetName().c_str());
-                            ImGui::Text("%zu vertices, %zu indices", mesh.GetVertexCount(), mesh.GetIndexCount());
-
-                            if (ImGui::Button("Open##Scene::Mesh"))
+                            const auto& mesh = object.GetMesh();
+                            if (mesh.IsValid())
                             {
-                                auto path = OpenFileDialog("Scene::Mesh Files\0*.glb;*.gltf\0All Files\0*.*\0");
+                                ImGui::TextUnformatted(mesh->m_name.c_str());
+                                ImGui::Text("%zu vertices, %zu indices", mesh->GetVertexCount(), mesh->GetIndexCount());
+                            }
+                            else
+                            {
+                                ImGui::TextUnformatted("empty");
+                            }
+
+                            if (ImGui::Button("Open##Mesh"))
+                            {
+                                auto path = OpenFileDialog("Mesh Files\0*.glb;*.gltf\0All Files\0*.*\0");
                                 if (path)
                                 {
-                                    Scene::AssetLoader::LoadGltfMesh(path.value(), mesh);
+                                    try
+                                    {
+                                        object.SetMesh(assets.LoadMesh(path.value()));
+                                    }
+                                    catch (const std::exception& e)
+                                    {
+                                        Core::Log::Error("[UI] ", e.what());
+                                    }
                                 }
                             }
                             ImGui::SameLine();
-                            if (ImGui::Button("Delete##Scene::Mesh"))
+                            if (ImGui::Button("Delete##Mesh"))
                             {
-                                mesh.SetEmpty();
+                                object.SetMesh(Scene::Object::MeshHandle{});
                             }
                         });
 
-                    DrawBox("##MaterialBox", "Scene::Material", [&mat]()
+                    DrawBox("##MaterialBox", "Material", [&object, &assets]()
                         {
+                            auto& mat = object.GetMaterial();
+
                             DrawBox("##ParamsBox", "Params", [&mat]()
                                 {
                                     glm::vec4 albedo = mat.GetAlbedo();
@@ -157,13 +208,13 @@ namespace Kita::Pbrv
                                     }
                                 });
 
-                            DrawBox("##TexturesBox", "Textures", [&mat]()
+                            DrawBox("##TexturesBox", "Textures", [&mat, &assets]()
                                 {
-                                    DrawTextureRaw("Albedo:   ", mat.GetAlbedoTex(), Scene::TextureType::Srgb);
-                                    DrawTextureRaw("Normal:   ", mat.GetNormalTex(), Scene::TextureType::Normal);
-                                    DrawTextureRaw("MR:       ", mat.GetMRTex(), Scene::TextureType::MetallicRoughness);
-                                    DrawTextureRaw("AO:       ", mat.GetAOTex(), Scene::TextureType::Linear);
-                                    DrawTextureRaw("Emissive: ", mat.GetEmissiveTex(), Scene::TextureType::Srgb);
+                                    DrawTextureRaw("Albedo:   ", mat, Resource::MaterialTextureSlot::Albedo, Resource::TextureType::Srgb, assets);
+                                    DrawTextureRaw("Normal:   ", mat, Resource::MaterialTextureSlot::Normal, Resource::TextureType::Normal, assets);
+                                    DrawTextureRaw("MR:       ", mat, Resource::MaterialTextureSlot::MetallicRoughness, Resource::TextureType::MetallicRoughness, assets);
+                                    DrawTextureRaw("AO:       ", mat, Resource::MaterialTextureSlot::AO, Resource::TextureType::Linear, assets);
+                                    DrawTextureRaw("Emissive: ", mat, Resource::MaterialTextureSlot::Emissive, Resource::TextureType::Srgb, assets);
                                 });
                         });
                 }
@@ -182,8 +233,9 @@ namespace Kita::Pbrv
             }
         }
 
-        UI::UI(Scene::Scene& scene)
-            : m_scene(scene)
+        UI::UI(Scene::Scene& scene, Resource::AssetManager& assets)
+            : m_scene(scene),
+            m_assets(assets)
         {
         }
 
@@ -205,8 +257,8 @@ namespace Kita::Pbrv
 
             if (ImGui::Begin("Inspector", nullptr, ImGuiWindowFlags_NoMove))
             {
-                DrawEnvironmentPanel(m_scene.GetSkybox(), m_scene.GetLight());
-                DrawObjectPanel(m_scene.GetMesh(), m_scene.GetMaterial());
+                DrawEnvironmentPanel(m_scene.GetSkybox(), m_scene.GetLight(), m_assets);
+                DrawObjectPanel(m_scene.GetObject(), m_assets);
                 DrawPostProcessPanel(m_scene.GetPostProcess());
                 DrawStatsPanel(deltaTime);
             }
@@ -214,4 +266,3 @@ namespace Kita::Pbrv
         }
     }
 }
-

@@ -2,8 +2,7 @@
 
 #include "scene/camera.h"
 #include "scene/light.h"
-#include "scene/material.h"
-#include "scene/mesh.h"
+#include "scene/object.h"
 #include "scene/post_process.h"
 #include "scene/skybox.h"
 
@@ -24,11 +23,8 @@ namespace Kita::Pbrv
             const Light& GetLight() const { return m_light; }
             Light& GetLight() { return m_light; }
 
-            const Material& GetMaterial() const { return m_material; }
-            Material& GetMaterial() { return m_material; }
-
-            const Mesh& GetMesh() const { return m_mesh; }
-            Mesh& GetMesh() { return m_mesh; }
+            const Object& GetObject() const { return m_object; }
+            Object& GetObject() { return m_object; }
 
             const Skybox& GetSkybox() const { return m_skybox; }
             Skybox& GetSkybox() { return m_skybox; }
@@ -39,8 +35,7 @@ namespace Kita::Pbrv
         private:
             Camera m_camera{};
             Light m_light{};
-            Material m_material{};
-            Mesh m_mesh{};
+            Object m_object{};
             Skybox m_skybox{};
             PostProcess m_postProcess{};
         };

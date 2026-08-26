@@ -1,8 +1,7 @@
 #pragma once
 
-#include <string>
-#include <vector>
-#include <cstdint>
+#include "resource/handle.h"
+#include "resource/texture.h"
 
 namespace Kita::Pbrv
 {
@@ -11,28 +10,19 @@ namespace Kita::Pbrv
         class Skybox
         {
         public:
-            Skybox();
-            ~Skybox();
+            using TextureHandle = Resource::Texture::Handle;
 
-            const std::string& GetName() const { return m_name; }
-            const std::vector<float>& GetPixels() const { return m_pixels; }
-            size_t GetPixelCount() const { return m_pixels.size(); }
-            uint32_t GetWidth() const { return m_width; }
-            uint32_t GetHeight() const { return m_height; }
+            Skybox() = default;
+            ~Skybox() = default;
 
-            uint64_t GetRevision() const { return m_revision; }
-
-            bool IsEmpty() const { return m_pixels.empty(); }
-
-            void SetData(const std::string& name, std::vector<float>&& pixels, uint32_t width, uint32_t height);
-            void SetEmpty();
+            void SetSkybox(TextureHandle skybox)
+            {
+                m_skybox = std::move(skybox);
+            }
+            TextureHandle GetSkybox() const { return m_skybox; }
 
         private:
-            std::string m_name{ "empty" };
-            std::vector<float> m_pixels;
-            uint32_t m_width{ 0 };
-            uint32_t m_height{ 0 };
-            uint64_t m_revision{ 0 };
+            TextureHandle m_skybox{};
         };
     }
 }

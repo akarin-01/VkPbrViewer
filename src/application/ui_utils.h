@@ -7,7 +7,7 @@
 
 namespace Kita::Pbrv
 {
-    namespace Ui
+    namespace Application
     {
         template <typename Body>
         void DrawBox(const char* id, const char* title, Body&& body)

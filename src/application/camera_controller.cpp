@@ -6,9 +6,9 @@
 
 namespace Kita::Pbrv
 {
-    namespace Scene
+    namespace Application
     {
-        CameraController::CameraController(const Core::Input& input, Camera& camera)
+        CameraController::CameraController(const Core::Input& input, Scene::Camera& camera)
             : m_input(input), m_camera(camera)
         {
         }

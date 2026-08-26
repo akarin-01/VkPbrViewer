@@ -4,7 +4,7 @@
 
 namespace Kita::Pbrv
 {
-    namespace Scene
+    namespace Resource
     {
         struct Vertex
         {

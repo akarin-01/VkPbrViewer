@@ -2,7 +2,7 @@
 
 #include "rhi/constants.h"
 #include "resource/constants.h"
-#include "resource/texture.h"
+#include "resource/render_texture.h"
 
 #include <vulkan/vulkan.h>
 #include <memory>

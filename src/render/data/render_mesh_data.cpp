@@ -1,8 +1,9 @@
 #include "render_mesh_data.h"
 #include "core/log.h"
+#include "resource/handle.h"
+#include "resource/mesh.h"
 #include "resource/resources.h"
-#include "scene/mesh.h"
-#include "scene/vertex.h"
+#include "resource/vertex.h"
 
 #include <cassert>
 #include <cstddef>
@@ -15,7 +16,7 @@ namespace Kita::Pbrv
         {
             VkVertexInputBindingDescription bindingDescription{};
             bindingDescription.binding = 0;
-            bindingDescription.stride = sizeof(Scene::Vertex);
+            bindingDescription.stride = sizeof(Resource::Vertex);
             bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
             return bindingDescription;
@@ -28,22 +29,22 @@ namespace Kita::Pbrv
             attributeDescriptions[0].binding = 0;
             attributeDescriptions[0].location = 0;
             attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-            attributeDescriptions[0].offset = offsetof(Scene::Vertex, position);
+            attributeDescriptions[0].offset = offsetof(Resource::Vertex, position);
 
             attributeDescriptions[1].binding = 0;
             attributeDescriptions[1].location = 1;
             attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-            attributeDescriptions[1].offset = offsetof(Scene::Vertex, normal);
+            attributeDescriptions[1].offset = offsetof(Resource::Vertex, normal);
 
             attributeDescriptions[2].binding = 0;
             attributeDescriptions[2].location = 2;
             attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
-            attributeDescriptions[2].offset = offsetof(Scene::Vertex, texCoord);
+            attributeDescriptions[2].offset = offsetof(Resource::Vertex, texCoord);
 
             attributeDescriptions[3].binding = 0;
             attributeDescriptions[3].location = 3;
             attributeDescriptions[3].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-            attributeDescriptions[3].offset = offsetof(Scene::Vertex, tangent);
+            attributeDescriptions[3].offset = offsetof(Resource::Vertex, tangent);
 
             return attributeDescriptions;
         }
@@ -58,22 +59,22 @@ namespace Kita::Pbrv
             Destroy();
         }
 
-        void RenderMeshData::Update(const Scene::Mesh& sceneMesh)
+        void RenderMeshData::Update(const Resource::Mesh::Handle& meshHandle)
         {
-            if (sceneMesh.GetRevision() != m_lastSyncedRevision)
+            if (meshHandle.GetId() != m_lastMeshId)
             {
-                m_lastSyncedRevision = sceneMesh.GetRevision();
+                m_lastMeshId = meshHandle.GetId();
 
                 // Destroy old mesh
                 Destroy();
 
-                if (!sceneMesh.IsEmpty())
+                if (meshHandle.IsValid())
                 {
                     // Create new mesh
-                    Create(sceneMesh);
+                    Create(*meshHandle);
 
-                    Core::Log::Info("[Renderer] Upload mesh: ", sceneMesh.GetName(), ", ",
-                        sceneMesh.GetIndexCount(), " indices");
+                    Core::Log::Info("[Renderer] Upload mesh: ", meshHandle->m_name, ", ",
+                        meshHandle->GetIndexCount(), " indices");
                 }
             }
         }
@@ -81,7 +82,7 @@ namespace Kita::Pbrv
         VkBuffer RenderMeshData::GetVertexBuffer() const
         {
             Resource::RenderBuffer* buffer = m_resources.GetBuffer(m_vertexBufferHandle);
-            assert(buffer && "Scene::Vertex buffer handle is invalid");
+            assert(buffer && "Vertex buffer handle is invalid");
 
             return buffer->m_buffer;
         }
@@ -94,14 +95,12 @@ namespace Kita::Pbrv
             return buffer->m_buffer;
         }
 
-        void RenderMeshData::Create(const Scene::Mesh& sceneMesh)
+        void RenderMeshData::Create(const Resource::Mesh& mesh)
         {
-            assert(!sceneMesh.IsEmpty() && "RenderMeshData::Create requires non-empty mesh");
+            const auto& vertices = mesh.m_vertices;
+            const auto& indices = mesh.m_indices;
 
-            auto& vertices = sceneMesh.GetVertices();
-            auto& indices = sceneMesh.GetIndices();
-
-            // Scene::Vertex buffer
+            // Vertex buffer
             {
                 VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
                 VkBufferCreateInfo bufferInfo{};
