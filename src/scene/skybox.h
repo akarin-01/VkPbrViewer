@@ -6,30 +6,33 @@
 
 namespace Kita::Pbrv
 {
-    class Skybox
+    namespace Scene
     {
-    public:
-        Skybox();
-        ~Skybox();
+        class Skybox
+        {
+        public:
+            Skybox();
+            ~Skybox();
 
-        const std::string& GetName() const { return m_name; }
-        const std::vector<float>& GetPixels() const { return m_pixels; }
-        size_t GetPixelCount() const { return m_pixels.size(); }
-        uint32_t GetWidth() const { return m_width; }
-        uint32_t GetHeight() const { return m_height; }
+            const std::string& GetName() const { return m_name; }
+            const std::vector<float>& GetPixels() const { return m_pixels; }
+            size_t GetPixelCount() const { return m_pixels.size(); }
+            uint32_t GetWidth() const { return m_width; }
+            uint32_t GetHeight() const { return m_height; }
 
-        uint64_t GetRevision() const { return m_revision; }
+            uint64_t GetRevision() const { return m_revision; }
 
-        bool IsEmpty() const { return m_pixels.empty(); }
+            bool IsEmpty() const { return m_pixels.empty(); }
 
-        void SetData(const std::string& name, std::vector<float>&& pixels, uint32_t width, uint32_t height);
-        void SetEmpty();
+            void SetData(const std::string& name, std::vector<float>&& pixels, uint32_t width, uint32_t height);
+            void SetEmpty();
 
-    private:
-        std::string m_name{ "empty" };
-        std::vector<float> m_pixels;
-        uint32_t m_width{ 0 };
-        uint32_t m_height{ 0 };
-        uint64_t m_revision{ 0 };
-    };
+        private:
+            std::string m_name{ "empty" };
+            std::vector<float> m_pixels;
+            uint32_t m_width{ 0 };
+            uint32_t m_height{ 0 };
+            uint64_t m_revision{ 0 };
+        };
+    }
 }

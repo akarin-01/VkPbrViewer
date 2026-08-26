@@ -1,7 +1,9 @@
 #pragma once
 
-#include "render/render_resource_types.h"
-#include "render/render_constants.h"
+#include "core/macro.h"
+#include "rhi/constants.h"
+#include "resource/constants.h"
+#include "resource/types.h"
 
 #include <vulkan/vulkan.h>
 #include <glm/glm.hpp>
@@ -9,37 +11,49 @@
 
 namespace Kita::Pbrv
 {
-    class PostProcess;
-    class RenderContext;
-    class RenderResources;
-    class DescriptorAllocator;
-
-    struct PostProcessUbo
+    namespace Scene
     {
-        alignas(16) glm::vec4 m_exposure;          // x - exposure, yzw - padding
-    };
-    STD140_ASSERT(PostProcessUbo, 16);
-
-    class RenderPostProcessData
+        class PostProcess;
+    }
+    namespace Rhi
     {
-    public:
-        RenderPostProcessData(const RenderContext& context,
-            RenderResources& resources,
-            const DescriptorAllocator& descriptorAllocator);
-        ~RenderPostProcessData();
+        class RenderContext;
+    }
+    namespace Resource
+    {
+        class RenderResources;
+        class DescriptorAllocator;
+    }
 
-        void Update(uint32_t frameIndex, const PostProcess& postProcess);
+    namespace Render
+    {
+        struct PostProcessUbo
+        {
+            alignas(16) glm::vec4 m_exposure;          // x - exposure, yzw - padding
+        };
+        STD140_ASSERT(PostProcessUbo, 16);
 
-        VkDescriptorSetLayout GetSetLayout() const { return m_setLayout; }
-        const VkDescriptorSet& GetSet(uint32_t frameIndex) const { return m_sets[frameIndex]; }
+        class RenderPostProcessData
+        {
+        public:
+            RenderPostProcessData(const Rhi::RenderContext& context,
+                Resource::RenderResources& resources,
+                const Resource::DescriptorAllocator& descriptorAllocator);
+            ~RenderPostProcessData();
 
-    private:
-        const RenderContext& m_context;
-        RenderResources& m_resources;
-        const DescriptorAllocator& m_descriptorAllocator;
+            void Update(uint32_t frameIndex, const Scene::PostProcess& postProcess);
 
-        std::array<RenderBufferHandle, kMaxFramesInFlight> m_uboHandles{};
-        VkDescriptorSetLayout m_setLayout{ VK_NULL_HANDLE };
-        std::array<VkDescriptorSet, kMaxFramesInFlight> m_sets{};
-    };
+            VkDescriptorSetLayout GetSetLayout() const { return m_setLayout; }
+            const VkDescriptorSet& GetSet(uint32_t frameIndex) const { return m_sets[frameIndex]; }
+
+        private:
+            const Rhi::RenderContext& m_context;
+            Resource::RenderResources& m_resources;
+            const Resource::DescriptorAllocator& m_descriptorAllocator;
+
+            std::array<Resource::RenderBufferHandle, Rhi::kMaxFramesInFlight> m_uboHandles{};
+            VkDescriptorSetLayout m_setLayout{ VK_NULL_HANDLE };
+            std::array<VkDescriptorSet, Rhi::kMaxFramesInFlight> m_sets{};
+        };
+    }
 }

@@ -1,6 +1,7 @@
 #pragma once
 
-#include "render/render_texture.h"
+#include "rhi/constants.h"
+#include "resource/texture.h"
 
 #include <vulkan/vulkan.h>
 #include <memory>
@@ -9,42 +10,54 @@
 
 namespace Kita::Pbrv
 {
-    class RenderContext;
-    class RenderResources;
-    class DescriptorAllocator;
-    class Skybox;
-    class ComputeConversion;
-    template<uint32_t, uint32_t> class RenderTextureSet;
-
-    class RenderSkyboxData
+    namespace Rhi
     {
-    public:
-        RenderSkyboxData(const RenderContext& context,
-            RenderResources& resources,
-            const DescriptorAllocator& descriptorAllocator);
-        ~RenderSkyboxData();
+        class RenderContext;
+    }
+    namespace Resource
+    {
+        class RenderResources;
+        class DescriptorAllocator;
+        class ComputeConversion;
+        template<uint32_t, uint32_t> class RenderTextureSet;
+    }
+    namespace Scene
+    {
+        class Skybox;
+    }
 
-        void Update(uint32_t frameIndex, const Skybox& sceneSkybox);
+    namespace Render
+    {
+        class RenderSkyboxData
+        {
+        public:
+            RenderSkyboxData(const Rhi::RenderContext& context,
+                Resource::RenderResources& resources,
+                const Resource::DescriptorAllocator& descriptorAllocator);
+            ~RenderSkyboxData();
 
-        VkDescriptorSetLayout GetSetLayout() const;
-        const VkDescriptorSet& GetSet(uint32_t frameIndex) const;
-        RenderTexture GetCubemap() const;
+            void Update(uint32_t frameIndex, const Scene::Skybox& sceneSkybox);
 
-    private:
-        using TextureSet = RenderTextureSet<1, kMaxFramesInFlight>;
-        using TextureArray = std::array<RenderTexture, 1>;
+            VkDescriptorSetLayout GetSetLayout() const;
+            const VkDescriptorSet& GetSet(uint32_t frameIndex) const;
+            Resource::RenderTexture GetCubemap() const;
 
-        RenderTexture CreateCubemap(const Skybox& sceneSkybox) const;
-        RenderTexture CreateEquirectTexture(const Skybox& sceneSkybox, VkFormat format) const;
+        private:
+            using TextureSet = Resource::RenderTextureSet<1, Rhi::kMaxFramesInFlight>;
+            using TextureArray = std::array<Resource::RenderTexture, 1>;
 
-    private:
-        const RenderContext& m_context;
-        RenderResources& m_resources;
-        const DescriptorAllocator& m_descriptorAllocator;
+            Resource::RenderTexture CreateCubemap(const Scene::Skybox& sceneSkybox) const;
+            Resource::RenderTexture CreateEquirectTexture(const Scene::Skybox& sceneSkybox, VkFormat format) const;
 
-        uint64_t m_lastSyncedRevision{ UINT64_MAX };
+        private:
+            const Rhi::RenderContext& m_context;
+            Resource::RenderResources& m_resources;
+            const Resource::DescriptorAllocator& m_descriptorAllocator;
 
-        std::unique_ptr<TextureSet> m_textureSet;
-        std::unique_ptr<ComputeConversion> m_conversion;
-    };
+            uint64_t m_lastSyncedRevision{ UINT64_MAX };
+
+            std::unique_ptr<TextureSet> m_textureSet;
+            std::unique_ptr<Resource::ComputeConversion> m_conversion;
+        };
+    }
 }

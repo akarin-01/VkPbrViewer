@@ -1,42 +1,51 @@
 #pragma once
 
-#include "render/render_resource_types.h"
+#include "resource/types.h"
 
 #include <vector>
 #include <cstdint>
 
 namespace Kita::Pbrv
 {
-    class RenderResources;
-    class Mesh;
-
-    class RenderMeshData
+    namespace Resource
     {
-    public:
-        static VkVertexInputBindingDescription GetVertexBinding();
-        static std::vector<VkVertexInputAttributeDescription> GetVertexAttributes();
+        class RenderResources;
+    }
+    namespace Scene
+    {
+        class Mesh;
+    }
 
-        explicit RenderMeshData(RenderResources& resources);
-        ~RenderMeshData();
+    namespace Render
+    {
+        class RenderMeshData
+        {
+        public:
+            static VkVertexInputBindingDescription GetVertexBinding();
+            static std::vector<VkVertexInputAttributeDescription> GetVertexAttributes();
 
-        void Update(const Mesh& sceneMesh);
+            explicit RenderMeshData(Resource::RenderResources& resources);
+            ~RenderMeshData();
 
-        VkBuffer GetVertexBuffer() const;
-        VkBuffer GetIndexBuffer() const;
-        uint32_t GetIndexCount() const { return m_indexCount; }
-        bool IsEmpty() const { return m_vertexBufferHandle == 0; }
+            void Update(const Scene::Mesh& sceneMesh);
 
-    private:
-        void Create(const Mesh& sceneMesh);
-        void Destroy();
+            VkBuffer GetVertexBuffer() const;
+            VkBuffer GetIndexBuffer() const;
+            uint32_t GetIndexCount() const { return m_indexCount; }
+            bool IsEmpty() const { return m_vertexBufferHandle == 0; }
 
-    private:
-        RenderResources& m_resources;
+        private:
+            void Create(const Scene::Mesh& sceneMesh);
+            void Destroy();
 
-        RenderBufferHandle m_vertexBufferHandle{ 0 };
-        RenderBufferHandle m_indexBufferHandle{ 0 };
-        uint32_t m_indexCount{ 0 };
+        private:
+            Resource::RenderResources& m_resources;
 
-        uint64_t m_lastSyncedRevision{ UINT64_MAX };
-    };
+            Resource::RenderBufferHandle m_vertexBufferHandle{ 0 };
+            Resource::RenderBufferHandle m_indexBufferHandle{ 0 };
+            uint32_t m_indexCount{ 0 };
+
+            uint64_t m_lastSyncedRevision{ UINT64_MAX };
+        };
+    }
 }

@@ -1,7 +1,9 @@
 #pragma once
 
-#include "render/render_constants.h"
-#include "render/render_texture.h"
+#include "core/macro.h"
+#include "rhi/constants.h"
+#include "resource/constants.h"
+#include "resource/texture.h"
 
 #include <vulkan/vulkan.h>
 #include <glm/glm.hpp>
@@ -11,51 +13,63 @@
 
 namespace Kita::Pbrv
 {
-    class RenderContext;
-    class RenderResources;
-    class DescriptorAllocator;
-    class Material;
-    class Texture;
-    template<uint32_t, uint32_t> class RenderTextureSet;
-
-    struct MaterialPC
+    namespace Rhi
     {
-        alignas(16) glm::vec4 m_albedo;
-        alignas(16) glm::vec4 m_params;             // x - metallic, y - roughness, z - ao, w - padding
-        alignas(16) glm::vec4 m_emissive;           // xyz - emissive, w - padding
-    };
-    STD140_ASSERT(MaterialPC, 48);
-
-    class RenderMaterialData
+        class RenderContext;
+    }
+    namespace Resource
     {
-    public:
-        RenderMaterialData(const RenderContext& context,
-            RenderResources& resources,
-            const DescriptorAllocator& descriptorAllocator);
-        ~RenderMaterialData();
+        class RenderResources;
+        class DescriptorAllocator;
+        template<uint32_t, uint32_t> class RenderTextureSet;
+    }
+    namespace Scene
+    {
+        class Material;
+        class Texture;
+    }
 
-        void Update(uint32_t frameIndex, const Material& sceneMat);
+    namespace Render
+    {
+        struct MaterialPC
+        {
+            alignas(16) glm::vec4 m_albedo;
+            alignas(16) glm::vec4 m_params;             // x - metallic, y - roughness, z - ao, w - padding
+            alignas(16) glm::vec4 m_emissive;           // xyz - emissive, w - padding
+        };
+        STD140_ASSERT(MaterialPC, 48);
 
-        VkDescriptorSetLayout GetSetLayout() const;
-        const VkDescriptorSet& GetSet(uint32_t frameIndex) const;
-        const MaterialPC& GetPushConstant() const { return m_pushConstant; }
+        class RenderMaterialData
+        {
+        public:
+            RenderMaterialData(const Rhi::RenderContext& context,
+                Resource::RenderResources& resources,
+                const Resource::DescriptorAllocator& descriptorAllocator);
+            ~RenderMaterialData();
 
-    private:
-        using TextureSet = RenderTextureSet<kMaterialTextureCount, kMaxFramesInFlight>;
-        using TextureArray = std::array<RenderTexture, kMaterialTextureCount>;
+            void Update(uint32_t frameIndex, const Scene::Material& sceneMat);
 
-        TextureArray CreateFallbacks() const;
-        RenderTexture CreateTexture(const Texture& sceneTex) const;
+            VkDescriptorSetLayout GetSetLayout() const;
+            const VkDescriptorSet& GetSet(uint32_t frameIndex) const;
+            const MaterialPC& GetPushConstant() const { return m_pushConstant; }
 
-    private:
-        const RenderContext& m_context;
-        RenderResources& m_resources;
-        const DescriptorAllocator& m_descriptorAllocator;
+        private:
+            using TextureSet = Resource::RenderTextureSet<Resource::kMaterialTextureCount, Rhi::kMaxFramesInFlight>;
+            using TextureArray = std::array<Resource::RenderTexture, Resource::kMaterialTextureCount>;
 
-        MaterialPC m_pushConstant{ {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f} };
+            TextureArray CreateFallbacks() const;
+            Resource::RenderTexture CreateTexture(const Scene::Texture& sceneTex) const;
 
-        std::array<uint64_t, kMaterialTextureCount> m_lastSyncedRevisions{};
+        private:
+            const Rhi::RenderContext& m_context;
+            Resource::RenderResources& m_resources;
+            const Resource::DescriptorAllocator& m_descriptorAllocator;
 
-        std::unique_ptr<TextureSet> m_textureSet;
-    };
+            MaterialPC m_pushConstant{ {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f} };
+
+            std::array<uint64_t, Resource::kMaterialTextureCount> m_lastSyncedRevisions{};
+
+            std::unique_ptr<TextureSet> m_textureSet;
+        };
+    }
 }

@@ -6,31 +6,37 @@
 
 namespace Kita::Pbrv
 {
-    class RenderTargetData;
-    class RenderScene;
-    class RenderPostProcessData;
-    class GraphicsPipeline;
-
-    class PostProcessPass : public RenderPassBase
+    namespace Rhi
     {
-    public:
-        PostProcessPass(const RenderContext& context,
-            RenderResources& resources,
-            const SwapChain& swapChain,
-            RenderTargetData& targetData,
-            const RenderScene& scene);
-        ~PostProcessPass();
+        class GraphicsPipeline;
+    }
 
-        void RecreateResources() override;
-        void Draw(const FrameInfo& frameInfo) const override;
+    namespace Render
+    {
+        class RenderTargetData;
+        class RenderScene;
+        class RenderPostProcessData;
+        class PostProcessPass : public RenderPassBase
+        {
+        public:
+            PostProcessPass(const Rhi::RenderContext& context,
+                Resource::RenderResources& resources,
+                const Rhi::SwapChain& swapChain,
+                RenderTargetData& targetData,
+                const RenderScene& scene);
+            ~PostProcessPass();
 
-    private:
-        void CreatePipeline();
+            void RecreateResources() override;
+            void Draw(const Rhi::FrameInfo& frameInfo) const override;
 
-    private:
-        RenderTargetData& m_targetData;
-        const RenderPostProcessData& m_postProcessData;
+        private:
+            void CreatePipeline();
 
-        std::unique_ptr<GraphicsPipeline> m_pipeline;
-    };
+        private:
+            RenderTargetData& m_targetData;
+            const RenderPostProcessData& m_postProcessData;
+
+            std::unique_ptr<Rhi::GraphicsPipeline> m_pipeline;
+        };
+    }
 }

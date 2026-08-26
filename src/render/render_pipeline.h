@@ -1,6 +1,7 @@
 #pragma once
 
-#include "render/render_resource_types.h"
+#include "rhi/frame_info.h"
+#include "resource/types.h"
 #include "render/data/render_target_data.h"
 
 #include <vector>
@@ -8,40 +9,52 @@
 
 namespace Kita::Pbrv
 {
-    class Window;
-    class RenderContext;
-    class RenderResources;
-    class SwapChain;
-    class RenderScene;
-    class RenderPassBase;
-    class RenderTargetData;
-
-    class RenderPipeline
+    namespace Core
     {
-    public:
-        RenderPipeline(const Window& window,
-            const RenderContext& context,
-            RenderResources& resources,
-            const SwapChain& swapChain,
-            const DescriptorAllocator& descriptorAllocator,
-            const RenderScene& scene);
-        ~RenderPipeline();
+        class Window;
+    }
+    namespace Rhi
+    {
+        class RenderContext;
+        class SwapChain;
+    }
+    namespace Resource
+    {
+        class RenderResources;
+    }
 
-        void RecreateResources();
-        void Draw(const FrameInfo& frameInfo) const;
+    namespace Render
+    {
+        class RenderScene;
+        class RenderPassBase;
+        class RenderTargetData;
+        class RenderPipeline
+        {
+        public:
+            RenderPipeline(const Core::Window& window,
+                const Rhi::RenderContext& context,
+                Resource::RenderResources& resources,
+                const Rhi::SwapChain& swapChain,
+                const Resource::DescriptorAllocator& descriptorAllocator,
+                const RenderScene& scene);
+            ~RenderPipeline();
 
-    private:
-        void CreateRenderPasses(const Window& window,
-            const RenderContext& context,
-            RenderResources& resources,
-            const SwapChain& swapChain,
-            const RenderScene& scene);
-        void DestroyRenderPasses();
+            void RecreateResources();
+            void Draw(const Rhi::FrameInfo& frameInfo) const;
 
-    private:
-        const SwapChain& m_swapChain;
+        private:
+            void CreateRenderPasses(const Core::Window& window,
+                const Rhi::RenderContext& context,
+                Resource::RenderResources& resources,
+                const Rhi::SwapChain& swapChain,
+                const RenderScene& scene);
+            void DestroyRenderPasses();
 
-        std::vector<std::unique_ptr<RenderPassBase>> m_passes;
-        RenderTargetData m_targetData;
-    };
+        private:
+            const Rhi::SwapChain& m_swapChain;
+
+            std::vector<std::unique_ptr<RenderPassBase>> m_passes;
+            RenderTargetData m_targetData;
+        };
+    }
 }

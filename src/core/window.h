@@ -7,32 +7,35 @@
 
 namespace Kita::Pbrv
 {
-    class Window
+    namespace Core
     {
-    public:
-        using ScrollCallback = std::function<void(double, double)>;
+        class Window
+        {
+        public:
+            using ScrollCallback = std::function<void(double, double)>;
 
-        Window(int width, int height, const char* title);
-        ~Window();
+            Window(int width, int height, const char* title);
+            ~Window();
 
-        bool ShouldClose() const;
-        void RequestClose() const;
-        void PollEvents() const;
-        void WaitEvents() const;
+            bool ShouldClose() const;
+            void RequestClose() const;
+            void PollEvents() const;
+            void WaitEvents() const;
 
-        std::vector<const char*> GetRequiredInstanceExtensions() const;
-        VkSurfaceKHR CreateSurface(VkInstance instance) const;
-        void GetFramebufferSize(int* width, int* height) const;
+            std::vector<const char*> GetRequiredInstanceExtensions() const;
+            VkSurfaceKHR CreateSurface(VkInstance instance) const;
+            void GetFramebufferSize(int* width, int* height) const;
 
-        bool FramebufferWasResized() const;
-        void ResetFramebufferResized();
+            bool FramebufferWasResized() const;
+            void ResetFramebufferResized();
 
-        void SetScrollCallback(ScrollCallback callback);
+            void SetScrollCallback(ScrollCallback callback);
 
-        void* GetNativeHandle() const;
+            void* GetNativeHandle() const;
 
-    private:
-        class Impl;
-        std::unique_ptr<Impl> m_pImpl;
-    };
+        private:
+            class Impl;
+            std::unique_ptr<Impl> m_pImpl;
+        };
+    }
 }

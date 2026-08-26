@@ -103,7 +103,6 @@ message(STATUS "Shader compiler: glslc (${GLSLC_EXECUTABLE})")
 
 # ===== 可执行文件 =====
 add_executable(VkPbrViewer
-    src/application.cpp
     src/main.cpp
 
     # core
@@ -111,26 +110,30 @@ add_executable(VkPbrViewer
     src/core/log.cpp
     src/core/window.cpp
 
-    # render
-    src/render/compute_conversion.cpp
-    src/render/compute_pipeline.cpp
-    src/render/descriptor_allocator.cpp
-    src/render/descriptor_writer.cpp
-    src/render/frame_sync.cpp
-    src/render/graphics_pipeline.cpp
-    src/render/one_shot_command.cpp
-    src/render/render_context.cpp
-    src/render/render_pipeline.cpp
-    src/render/render_resources.cpp
-    src/render/render_scene.cpp
-    src/render/render_texture.cpp
-    src/render/render_utils.cpp
-    src/render/renderer.cpp
-    src/render/rendering_scope.cpp
-    src/render/shader_module.cpp
-    src/render/swap_chain.cpp
+    # rhi
+    src/rhi/compute_pipeline.cpp
+    src/rhi/context.cpp
+    src/rhi/descriptor_writer.cpp
+    src/rhi/frame_sync.cpp
+    src/rhi/graphics_pipeline.cpp
+    src/rhi/one_shot_command.cpp
+    src/rhi/rendering_scope.cpp
+    src/rhi/shader_module.cpp
+    src/rhi/swap_chain.cpp
+    src/rhi/utils.cpp
 
-    #render data
+    # resource
+    src/resource/compute_conversion.cpp
+    src/resource/descriptor_allocator.cpp
+    src/resource/resources.cpp
+    src/resource/texture.cpp
+
+    # render
+    src/render/render_pipeline.cpp
+    src/render/render_scene.cpp
+    src/render/renderer.cpp
+
+    # render data
     src/render/data/render_frame_data.cpp
     src/render/data/render_ibl_data.cpp
     src/render/data/render_material_data.cpp
@@ -139,16 +142,16 @@ add_executable(VkPbrViewer
     src/render/data/render_skybox_data.cpp
     src/render/data/render_target_data.cpp
 
-    #render passes
+    # render passes
     src/render/passes/lit_pass.cpp
-    src/render/passes/skybox_pass.cpp
     src/render/passes/post_process_pass.cpp
+    src/render/passes/skybox_pass.cpp
     src/render/passes/ui_pass.cpp
 
     # scene
     src/scene/asset_loader.cpp
-    src/scene/camera_controller.cpp
     src/scene/camera.cpp
+    src/scene/camera_controller.cpp
     src/scene/light.cpp
     src/scene/material.cpp
     src/scene/mesh.cpp
@@ -156,9 +159,10 @@ add_executable(VkPbrViewer
     src/scene/skybox.cpp
     src/scene/texture.cpp
 
-    #ui
-    src/ui/ui.cpp
-    src/ui/ui_utils.cpp
+    # application
+    src/application/application.cpp
+    src/application/ui.cpp
+    src/application/ui_utils.cpp
 )
 
 target_include_directories(VkPbrViewer PRIVATE ${CMAKE_SOURCE_DIR}/src)

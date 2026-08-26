@@ -4,18 +4,24 @@
 
 namespace Kita::Pbrv
 {
-    class Window;
-
-    class UIPass : public RenderPassBase
+    namespace Core
     {
-    public:
-        UIPass(const RenderContext& context,
-            RenderResources& resources,
-            const SwapChain& swapChain,
-            const Window& window);
-        ~UIPass();
+        class Window;
+    }
 
-        void RecreateResources() override;
-        void Draw(const FrameInfo& frameInfo) const override;
-    };
+    namespace Render
+    {
+        class UIPass : public RenderPassBase
+        {
+        public:
+            UIPass(const Rhi::RenderContext& context,
+                Resource::RenderResources& resources,
+                const Rhi::SwapChain& swapChain,
+                const Core::Window& window);
+            ~UIPass();
+
+            void RecreateResources() override;
+            void Draw(const Rhi::FrameInfo& frameInfo) const override;
+        };
+    }
 }

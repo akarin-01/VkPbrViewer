@@ -6,37 +6,43 @@
 
 namespace Kita::Pbrv
 {
-    class RenderTargetData;
-    class RenderScene;
-    class RenderFrameData;
-    class RenderMaterialData;
-    class RenderMeshData;
-    class RenderIblData;
-    class GraphicsPipeline;
-
-    class LitPass : public RenderPassBase
+    namespace Rhi
     {
-    public:
-        LitPass(const RenderContext& context,
-            RenderResources& resources,
-            const SwapChain& swapChain,
-            RenderTargetData& targetData,
-            const RenderScene& scene);
-        ~LitPass();
+        class GraphicsPipeline;
+    }
 
-        void RecreateResources() override;
-        void Draw(const FrameInfo& frameInfo) const override;
+    namespace Render
+    {
+        class RenderTargetData;
+        class RenderScene;
+        class RenderFrameData;
+        class RenderMaterialData;
+        class RenderMeshData;
+        class RenderIblData;
+        class LitPass : public RenderPassBase
+        {
+        public:
+            LitPass(const Rhi::RenderContext& context,
+                Resource::RenderResources& resources,
+                const Rhi::SwapChain& swapChain,
+                RenderTargetData& targetData,
+                const RenderScene& scene);
+            ~LitPass();
 
-    private:
-        void CreatePipeline();
+            void RecreateResources() override;
+            void Draw(const Rhi::FrameInfo& frameInfo) const override;
 
-    private:
-        RenderTargetData& m_targetData;
-        const RenderFrameData& m_frameData;
-        const RenderMaterialData& m_materialData;
-        const RenderIblData& m_iblData;
-        const RenderMeshData& m_meshData;
+        private:
+            void CreatePipeline();
 
-        std::unique_ptr<GraphicsPipeline> m_pipeline;
-    };
+        private:
+            RenderTargetData& m_targetData;
+            const RenderFrameData& m_frameData;
+            const RenderMaterialData& m_materialData;
+            const RenderIblData& m_iblData;
+            const RenderMeshData& m_meshData;
+
+            std::unique_ptr<Rhi::GraphicsPipeline> m_pipeline;
+        };
+    }
 }

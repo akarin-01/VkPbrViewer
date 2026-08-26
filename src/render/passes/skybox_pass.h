@@ -6,33 +6,39 @@
 
 namespace Kita::Pbrv
 {
-    class RenderTargetData;
-    class RenderScene;
-    class RenderFrameData;
-    class RenderSkyboxData;
-    class GraphicsPipeline;
-
-    class SkyboxPass : public RenderPassBase
+    namespace Rhi
     {
-    public:
-        SkyboxPass(const RenderContext& context,
-            RenderResources& resources,
-            const SwapChain& swapChain,
-            RenderTargetData& targetData,
-            const RenderScene& scene);
-        ~SkyboxPass();
+        class GraphicsPipeline;
+    }
 
-        void RecreateResources() override;
-        void Draw(const FrameInfo& frameInfo) const override;
+    namespace Render
+    {
+        class RenderTargetData;
+        class RenderScene;
+        class RenderFrameData;
+        class RenderSkyboxData;
+        class SkyboxPass : public RenderPassBase
+        {
+        public:
+            SkyboxPass(const Rhi::RenderContext& context,
+                Resource::RenderResources& resources,
+                const Rhi::SwapChain& swapChain,
+                RenderTargetData& targetData,
+                const RenderScene& scene);
+            ~SkyboxPass();
 
-    private:
-        void CreatePipeline();
+            void RecreateResources() override;
+            void Draw(const Rhi::FrameInfo& frameInfo) const override;
 
-    private:
-        RenderTargetData& m_targetData;
-        const RenderFrameData& m_frameData;
-        const RenderSkyboxData& m_skybox;
+        private:
+            void CreatePipeline();
 
-        std::unique_ptr<GraphicsPipeline> m_pipeline;
-    };
+        private:
+            RenderTargetData& m_targetData;
+            const RenderFrameData& m_frameData;
+            const RenderSkyboxData& m_skybox;
+
+            std::unique_ptr<Rhi::GraphicsPipeline> m_pipeline;
+        };
+    }
 }

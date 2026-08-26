@@ -4,19 +4,22 @@
 
 namespace Kita::Pbrv
 {
-    struct Vertex
+    namespace Scene
     {
-        glm::vec3 position;
-        glm::vec3 normal;
-        glm::vec2 texCoord;
-        glm::vec4 tangent;      // w = handedness
-
-        bool operator==(const Vertex& other) const
+        struct Vertex
         {
-            return position == other.position
-                && normal == other.normal
-                && texCoord == other.texCoord
-                && tangent == other.tangent;
-        }
-    };
+            glm::vec3 position;
+            glm::vec3 normal;
+            glm::vec2 texCoord;
+            glm::vec4 tangent;      // w = handedness
+
+            bool operator==(const Vertex& other) const
+            {
+                return position == other.position
+                    && normal == other.normal
+                    && texCoord == other.texCoord
+                    && tangent == other.tangent;
+            }
+        };
+    }
 }

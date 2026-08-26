@@ -6,31 +6,34 @@
 
 namespace Kita::Pbrv
 {
-    struct Vertex;
-
-    class Mesh
+    namespace Scene
     {
-    public:
-        Mesh();
-        ~Mesh();
+        struct Vertex;
 
-        const std::string& GetName() const { return m_name; }
-        const std::vector<Vertex>& GetVertices() const;
-        size_t GetVertexCount() const;
-        const std::vector<uint32_t>& GetIndices() const;
-        size_t GetIndexCount() const;
+        class Mesh
+        {
+        public:
+            Mesh();
+            ~Mesh();
 
-        uint64_t GetRevision() const { return m_revision; }
+            const std::string& GetName() const { return m_name; }
+            const std::vector<Vertex>& GetVertices() const;
+            size_t GetVertexCount() const;
+            const std::vector<uint32_t>& GetIndices() const;
+            size_t GetIndexCount() const;
 
-        bool IsEmpty() const;
+            uint64_t GetRevision() const { return m_revision; }
 
-        void SetData(const std::string& name, std::vector<Vertex>&& vertices, std::vector<uint32_t>&& indices);
-        void SetEmpty();
+            bool IsEmpty() const;
 
-    private:
-        std::string m_name{ "empty" };
-        std::vector<Vertex> m_vertices;
-        std::vector<uint32_t> m_indices;
-        uint64_t m_revision{ 0 };
-    };
+            void SetData(const std::string& name, std::vector<Vertex>&& vertices, std::vector<uint32_t>&& indices);
+            void SetEmpty();
+
+        private:
+            std::string m_name{ "empty" };
+            std::vector<Vertex> m_vertices;
+            std::vector<uint32_t> m_indices;
+            uint64_t m_revision{ 0 };
+        };
+    }
 }

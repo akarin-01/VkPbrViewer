@@ -1,142 +1,143 @@
 #include "lit_pass.h"
-
 #include "core/log.h"
-
-#include "render/render_context.h"
-#include "render/swap_chain.h"
-#include "render/render_scene.h"
-#include "render/graphics_pipeline.h"
-#include "render/rendering_scope.h"
+#include "rhi/context.h"
+#include "rhi/graphics_pipeline.h"
+#include "rhi/rendering_scope.h"
+#include "rhi/swap_chain.h"
 #include "render/data/render_target_data.h"
+#include "render/render_scene.h"
 
 #include <cassert>
 
 namespace Kita::Pbrv
 {
-    LitPass::LitPass(const RenderContext& context,
-        RenderResources& resources,
-        const SwapChain& swapChain,
-        RenderTargetData& targetData,
-        const RenderScene& scene)
-        : RenderPassBase(context, resources, swapChain),
-        m_targetData(targetData),
-        m_frameData(scene.GetFrameData()),
-        m_materialData(scene.GetMaterialData()),
-        m_meshData(scene.GetMeshData()),
-        m_iblData(scene.GetIblData())
+    namespace Render
     {
-        CreatePipeline();
-    }
-
-    LitPass::~LitPass() = default;
-
-    void LitPass::RecreateResources()
-    {
-        /* Empty */
-    }
-
-    void LitPass::Draw(const FrameInfo& frameInfo) const
-    {
-        assert(m_pipeline && "LitPass: pipeline is null");
-
-        auto& commandBuffer = frameInfo.m_commandBuffer;
-        auto& frameIndex = frameInfo.m_frameIndex;
-
-        // Color image -> COLOR_ATTACHMENT_OPTIMAL
-        m_targetData.TransitionColorImageLayout(commandBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-            VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
-            VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
-
-        // Resolve image -> COLOR_ATTACHMENT_OPTIMAL
-        m_targetData.TransitionResolveImageLayout(commandBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-            VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
-            VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
-
-        // Depth image -> DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-        m_targetData.TransitionDepthImageLayout(commandBuffer, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-            VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
-            VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT);
-
-        // Begin rendering
+        LitPass::LitPass(const Rhi::RenderContext& context,
+            Resource::RenderResources& resources,
+            const Rhi::SwapChain& swapChain,
+            RenderTargetData& targetData,
+            const RenderScene& scene)
+            : RenderPassBase(context, resources, swapChain),
+            m_targetData(targetData),
+            m_frameData(scene.GetFrameData()),
+            m_materialData(scene.GetMaterialData()),
+            m_meshData(scene.GetMeshData()),
+            m_iblData(scene.GetIblData())
         {
-            std::array<VkClearValue, 2> clearValues{};
-            clearValues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
-            clearValues[1].depthStencil = { 1.0f, 0 };
-            VkExtent2D extent = m_swapChain.Extent();
+            CreatePipeline();
+        }
 
-            RenderingAttachmentDesc colorDesc{};
-            colorDesc.m_imageView = m_targetData.GetColorImageView();
-            colorDesc.m_imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-            colorDesc.m_resolveImageView = m_targetData.GetResolveImageView();
-            colorDesc.m_resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-            colorDesc.m_loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-            colorDesc.m_storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-            colorDesc.m_clearValue = clearValues[0];
+        LitPass::~LitPass() = default;
 
-            RenderingAttachmentDesc depthDesc{};
-            depthDesc.m_imageView = m_targetData.GetDepthImageView();
-            depthDesc.m_imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-            depthDesc.m_loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-            depthDesc.m_storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-            depthDesc.m_clearValue = clearValues[1];
+        void LitPass::RecreateResources()
+        {
+            /* Empty */
+        }
 
-            RenderingScope scope(commandBuffer, extent, { colorDesc }, &depthDesc);
+        void LitPass::Draw(const Rhi::FrameInfo& frameInfo) const
+        {
+            assert(m_pipeline && "LitPass: pipeline is null");
 
-            // Bind pipeline
-            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Handle());
+            auto& commandBuffer = frameInfo.m_commandBuffer;
+            auto& frameIndex = frameInfo.m_frameIndex;
 
-            // Draw
-            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                0, 1, &m_frameData.GetSet(frameIndex), 0, nullptr);
+            // Color image -> COLOR_ATTACHMENT_OPTIMAL
+            m_targetData.TransitionColorImageLayout(commandBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
+                VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
+
+            // Resolve image -> COLOR_ATTACHMENT_OPTIMAL
+            m_targetData.TransitionResolveImageLayout(commandBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
+                VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
+
+            // Depth image -> DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+            m_targetData.TransitionDepthImageLayout(commandBuffer, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
+                VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT);
+
+            // Begin rendering
             {
-                vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                    1, 1, &m_iblData.GetBrdfLutSet(frameIndex), 0, nullptr);
-                vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                    2, 1, &m_iblData.GetSet(frameIndex), 0, nullptr);
+                std::array<VkClearValue, 2> clearValues{};
+                clearValues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
+                clearValues[1].depthStencil = { 1.0f, 0 };
+                VkExtent2D extent = m_swapChain.Extent();
 
+                Rhi::RenderingAttachmentDesc colorDesc{};
+                colorDesc.m_imageView = m_targetData.GetColorImageView();
+                colorDesc.m_imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                colorDesc.m_resolveImageView = m_targetData.GetResolveImageView();
+                colorDesc.m_resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                colorDesc.m_loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+                colorDesc.m_storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+                colorDesc.m_clearValue = clearValues[0];
+
+                Rhi::RenderingAttachmentDesc depthDesc{};
+                depthDesc.m_imageView = m_targetData.GetDepthImageView();
+                depthDesc.m_imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+                depthDesc.m_loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+                depthDesc.m_storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+                depthDesc.m_clearValue = clearValues[1];
+
+                Rhi::RenderingScope scope(commandBuffer, extent, { colorDesc }, &depthDesc);
+
+                // Bind pipeline
+                vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Handle());
+
+                // Draw
                 vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                    3, 1, &m_materialData.GetSet(frameIndex), 0, nullptr);
-
-                auto& pushConstant = m_materialData.GetPushConstant();
-                vkCmdPushConstants(commandBuffer, m_pipeline->Layout(),
-                    VK_SHADER_STAGE_FRAGMENT_BIT,
-                    0, sizeof(pushConstant), &pushConstant);
-
-                if (!m_meshData.IsEmpty())
+                    0, 1, &m_frameData.GetSet(frameIndex), 0, nullptr);
                 {
-                    VkBuffer buffers[]{ m_meshData.GetVertexBuffer() };
-                    VkDeviceSize offsets[]{ 0 };
-                    vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
-                    vkCmdBindIndexBuffer(commandBuffer, m_meshData.GetIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+                    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
+                        1, 1, &m_iblData.GetBrdfLutSet(frameIndex), 0, nullptr);
+                    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
+                        2, 1, &m_iblData.GetSet(frameIndex), 0, nullptr);
 
-                    vkCmdDrawIndexed(commandBuffer, m_meshData.GetIndexCount(), 1, 0, 0, 0);
+                    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
+                        3, 1, &m_materialData.GetSet(frameIndex), 0, nullptr);
+
+                    auto& pushConstant = m_materialData.GetPushConstant();
+                    vkCmdPushConstants(commandBuffer, m_pipeline->Layout(),
+                        VK_SHADER_STAGE_FRAGMENT_BIT,
+                        0, sizeof(pushConstant), &pushConstant);
+
+                    if (!m_meshData.IsEmpty())
+                    {
+                        VkBuffer buffers[]{ m_meshData.GetVertexBuffer() };
+                        VkDeviceSize offsets[]{ 0 };
+                        vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
+                        vkCmdBindIndexBuffer(commandBuffer, m_meshData.GetIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+
+                        vkCmdDrawIndexed(commandBuffer, m_meshData.GetIndexCount(), 1, 0, 0, 0);
+                    }
                 }
             }
+            // End rendering
         }
-        // End rendering
-    }
 
-    void LitPass::CreatePipeline()
-    {
-        VkPushConstantRange pushConstant{};
-        pushConstant.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        pushConstant.offset = 0;
-        pushConstant.size = sizeof(MaterialPC);
+        void LitPass::CreatePipeline()
+        {
+            VkPushConstantRange pushConstant{};
+            pushConstant.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+            pushConstant.offset = 0;
+            pushConstant.size = sizeof(MaterialPC);
 
-        GraphicsPipelineBuilder builder(m_context.Device());
-        builder.SetShaders("assets/shaders/lit_vert.spv", "assets/shaders/lit_frag.spv")
-            .SetVertexInput({ RenderMeshData::GetVertexBinding() }, RenderMeshData::GetVertexAttributes())
-            .SetCullMode(VK_CULL_MODE_BACK_BIT)
-            .SetRasterizationSamples(m_context.SampleCount())
-            .SetDepth(true, true, VK_COMPARE_OP_LESS)
-            .SetDescriptorSetLayouts({
-                    m_frameData.GetSetLayout(),
-                    m_iblData.GetBrdfLutSetLayout(),
-                    m_iblData.GetSetLayout(),
-                    m_materialData.GetSetLayout(),
-                })
-                .SetPushConstants({ pushConstant })
-            .SetDynamicRendering({ m_targetData.GetColorFormat() }, m_targetData.GetDepthFormat());
-        m_pipeline = builder.Build();
+            Rhi::GraphicsPipelineBuilder builder(m_context.Device());
+            builder.SetShaders("assets/shaders/lit_vert.spv", "assets/shaders/lit_frag.spv")
+                .SetVertexInput({ RenderMeshData::GetVertexBinding() }, RenderMeshData::GetVertexAttributes())
+                .SetCullMode(VK_CULL_MODE_BACK_BIT)
+                .SetRasterizationSamples(m_context.SampleCount())
+                .SetDepth(true, true, VK_COMPARE_OP_LESS)
+                .SetDescriptorSetLayouts({
+                        m_frameData.GetSetLayout(),
+                        m_iblData.GetBrdfLutSetLayout(),
+                        m_iblData.GetSetLayout(),
+                        m_materialData.GetSetLayout(),
+                    })
+                    .SetPushConstants({ pushConstant })
+                .SetDynamicRendering({ m_targetData.GetColorFormat() }, m_targetData.GetDepthFormat());
+            m_pipeline = builder.Build();
+        }
     }
 }

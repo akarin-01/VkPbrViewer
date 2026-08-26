@@ -1,32 +1,42 @@
 #pragma once
 
-#include "render/render_resource_types.h"
+#include "rhi/frame_info.h"
+#include "resource/types.h"
 
 namespace Kita::Pbrv
 {
-    class RenderContext;
-    class RenderResources;
-    class SwapChain;
-
-    class RenderPassBase
+    namespace Rhi
     {
-    public:
-        RenderPassBase(const RenderContext& context,
-            RenderResources& resources,
-            const SwapChain& swapChain)
-            : m_context(context),
-            m_resources(resources),
-            m_swapChain(swapChain)
+        class RenderContext;
+        class SwapChain;
+    }
+    namespace Resource
+    {
+        class RenderResources;
+    }
+
+    namespace Render
+    {
+        class RenderPassBase
         {
-        }
-        virtual ~RenderPassBase() = default;
+        public:
+            RenderPassBase(const Rhi::RenderContext& context,
+                Resource::RenderResources& resources,
+                const Rhi::SwapChain& swapChain)
+                : m_context(context),
+                m_resources(resources),
+                m_swapChain(swapChain)
+            {
+            }
+            virtual ~RenderPassBase() = default;
 
-        virtual void RecreateResources() = 0;
-        virtual void Draw(const FrameInfo& frameInfo) const = 0;
+            virtual void RecreateResources() = 0;
+            virtual void Draw(const Rhi::FrameInfo& frameInfo) const = 0;
 
-    protected:
-        const RenderContext& m_context;
-        RenderResources& m_resources;
-        const SwapChain& m_swapChain;
-    };
+        protected:
+            const Rhi::RenderContext& m_context;
+            Resource::RenderResources& m_resources;
+            const Rhi::SwapChain& m_swapChain;
+        };
+    }
 }

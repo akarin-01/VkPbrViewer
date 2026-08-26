@@ -1,73 +1,82 @@
 #pragma once
 
-#include "render/render_texture.h"
+#include "resource/texture.h"
 
 #include <vulkan/vulkan.h>
 
 namespace Kita::Pbrv
 {
-    class RenderContext;
-    class RenderResources;
-    class DescriptorAllocator;
-
-    class RenderTargetData
+    namespace Rhi
     {
-    public:
-        RenderTargetData(const RenderContext& context,
-            RenderResources& resources,
-            const DescriptorAllocator& descriptorAllocator,
-            VkExtent2D extent);
-        ~RenderTargetData();
+        class RenderContext;
+    }
+    namespace Resource
+    {
+        class RenderResources;
+        class DescriptorAllocator;
+    }
 
-        void Recreate(VkExtent2D extent);
+    namespace Render
+    {
+        class RenderTargetData
+        {
+        public:
+            RenderTargetData(const Rhi::RenderContext& context,
+                Resource::RenderResources& resources,
+                const Resource::DescriptorAllocator& descriptorAllocator,
+                VkExtent2D extent);
+            ~RenderTargetData();
 
-        const RenderTexture& GetColorTexture() const { return m_colorTex; }
-        VkImageView GetColorImageView() const;
-        VkFormat GetColorFormat() const;
-        const RenderTexture& GetResolveTexture() const { return m_resolveTex; }
-        VkImageView GetResolveImageView() const;
-        VkFormat GetResolveFormat() const;
-        const RenderTexture& GetDepthTexture() const { return m_depthTex; }
-        VkImageView GetDepthImageView() const;
-        VkFormat GetDepthFormat() const;
+            void Recreate(VkExtent2D extent);
 
-        void TransitionColorImageLayout(VkCommandBuffer commandBuffer,
-            VkImageLayout newLayout,
-            VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
-            VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask);
+            const Resource::RenderTexture& GetColorTexture() const { return m_colorTex; }
+            VkImageView GetColorImageView() const;
+            VkFormat GetColorFormat() const;
+            const Resource::RenderTexture& GetResolveTexture() const { return m_resolveTex; }
+            VkImageView GetResolveImageView() const;
+            VkFormat GetResolveFormat() const;
+            const Resource::RenderTexture& GetDepthTexture() const { return m_depthTex; }
+            VkImageView GetDepthImageView() const;
+            VkFormat GetDepthFormat() const;
 
-        void TransitionResolveImageLayout(VkCommandBuffer commandBuffer,
-            VkImageLayout newLayout,
-            VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
-            VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask);
+            void TransitionColorImageLayout(VkCommandBuffer commandBuffer,
+                VkImageLayout newLayout,
+                VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
+                VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask);
 
-        void TransitionDepthImageLayout(VkCommandBuffer commandBuffer,
-            VkImageLayout newLayout,
-            VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
-            VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask);
+            void TransitionResolveImageLayout(VkCommandBuffer commandBuffer,
+                VkImageLayout newLayout,
+                VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
+                VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask);
 
-        VkDescriptorSetLayout GetSetLayout() const { return m_setLayout; }
-        const VkDescriptorSet& GetSet() const { return m_set; }
+            void TransitionDepthImageLayout(VkCommandBuffer commandBuffer,
+                VkImageLayout newLayout,
+                VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
+                VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask);
 
-    private:
-        void Create(VkExtent2D extent);
-        void Destroy();
+            VkDescriptorSetLayout GetSetLayout() const { return m_setLayout; }
+            const VkDescriptorSet& GetSet() const { return m_set; }
 
-    private:
-        const RenderContext& m_context;
-        RenderResources& m_resources;
-        const DescriptorAllocator& m_descriptorAllocator;
+        private:
+            void Create(VkExtent2D extent);
+            void Destroy();
 
-        RenderTexture m_colorTex{};
-        VkImageLayout m_colorLayout{ VK_IMAGE_LAYOUT_UNDEFINED };
+        private:
+            const Rhi::RenderContext& m_context;
+            Resource::RenderResources& m_resources;
+            const Resource::DescriptorAllocator& m_descriptorAllocator;
 
-        RenderTexture m_resolveTex{};
-        VkImageLayout m_resolveLayout{ VK_IMAGE_LAYOUT_UNDEFINED };
+            Resource::RenderTexture m_colorTex{};
+            VkImageLayout m_colorLayout{ VK_IMAGE_LAYOUT_UNDEFINED };
 
-        RenderTexture m_depthTex{};
-        VkImageLayout m_depthLayout{ VK_IMAGE_LAYOUT_UNDEFINED };
+            Resource::RenderTexture m_resolveTex{};
+            VkImageLayout m_resolveLayout{ VK_IMAGE_LAYOUT_UNDEFINED };
 
-        VkDescriptorSetLayout m_setLayout{ VK_NULL_HANDLE };
-        VkDescriptorSet m_set{ VK_NULL_HANDLE };
-    };
+            Resource::RenderTexture m_depthTex{};
+            VkImageLayout m_depthLayout{ VK_IMAGE_LAYOUT_UNDEFINED };
+
+            VkDescriptorSetLayout m_setLayout{ VK_NULL_HANDLE };
+            VkDescriptorSet m_set{ VK_NULL_HANDLE };
+        };
+    }
 }
