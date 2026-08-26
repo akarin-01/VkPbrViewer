@@ -19,7 +19,6 @@ namespace Kita::Pbrv
     {
         namespace
         {
-            constexpr uint32_t kCubemapFaceSize = 2048;
         }
 
         RenderSkyboxData::RenderSkyboxData(const Rhi::RenderContext& context,
@@ -41,7 +40,7 @@ namespace Kita::Pbrv
             m_textureSet.reset();
         }
 
-void RenderSkyboxData::Update(uint32_t frameIndex, const Scene::Skybox& sceneSkybox)
+        void RenderSkyboxData::Update(uint32_t frameIndex, const Scene::Skybox& sceneSkybox)
         {
             const auto& skyboxTex = sceneSkybox.GetSkybox();
             if (skyboxTex.GetId() != m_lastSkyboxId)
@@ -59,7 +58,7 @@ void RenderSkyboxData::Update(uint32_t frameIndex, const Scene::Skybox& sceneSky
 
                     Core::Log::Info("[Renderer] Create skybox cubemap: ", skyboxTex->m_name, ", ",
                         skyboxTex->m_width, "x", skyboxTex->m_height, " -> ",
-                        kCubemapFaceSize, "x", kCubemapFaceSize, "x6");
+                        Resource::kCubemapFaceSize, "x", Resource::kCubemapFaceSize, "x6");
                 }
 
                 m_textureSet->Update(updatedTexs);
@@ -93,7 +92,7 @@ void RenderSkyboxData::Update(uint32_t frameIndex, const Scene::Skybox& sceneSky
 
             // 2.1 Create cubemap (sample)
             Resource::RenderTexture cubemap = Resource::CreateCubemapTexture(m_resources,
-                kCubemapFaceSize, m_context.HdrFormat(), Rhi::CalculateMipLevels(kCubemapFaceSize, kCubemapFaceSize),
+                Resource::kCubemapFaceSize, m_context.HdrFormat(), Rhi::CalculateMipLevels(Resource::kCubemapFaceSize, Resource::kCubemapFaceSize),
                 VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
                 m_resources.CreateSamplerLinearClampMip());
 
@@ -126,7 +125,7 @@ void RenderSkyboxData::Update(uint32_t frameIndex, const Scene::Skybox& sceneSky
             input.m_imageView = equirect.m_imageViewHandle;
             input.m_sampler = equirect.m_samplerHandle;
 
-            m_conversion->Dispatch(output, { (kCubemapFaceSize + 7) / 8, (kCubemapFaceSize + 7) / 8, 6 },
+            m_conversion->Dispatch(output, { (Resource::kCubemapFaceSize + 7) / 8, (Resource::kCubemapFaceSize + 7) / 8, 6 },
                 { input });
 
             // 4. Destroy conversion resources

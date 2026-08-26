@@ -2,8 +2,13 @@
 
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 
-layout(set = 0, binding = 0, rgba16f) uniform writeonly imageCube irradianceMap;
+layout(set = 0, binding = 0, rgba32f) uniform writeonly imageCube irradianceMap;
 layout(set = 0, binding = 1) uniform samplerCube envMap;
+
+layout(push_constant, std430) uniform IrradiancePC
+{
+    float envMip;    // source sampling lod, computed on CPU from cubemap/irradiance sizes
+} pc;
 
 #include "common/constants.glsl"
 #include "common/cubemap_utils.glsl"
@@ -39,9 +44,9 @@ void main()
         vec3 localDir = vec3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
         vec3 sampleDir = mat3(right, up, N) * localDir;
 
-        irradiance += textureLod(envMap, sampleDir, 0.0).rgb;
+        irradiance += textureLod(envMap, sampleDir, pc.envMip).rgb;
     }
-    irradiance /= float(SAMPLE_COUNT);
+    irradiance = PI * irradiance / float(SAMPLE_COUNT);
 
     imageStore(irradianceMap, ivec3(pixelCoord, int(face)), vec4(irradiance, 1.0));
 }

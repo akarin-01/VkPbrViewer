@@ -152,7 +152,7 @@ namespace Kita::Pbrv
             return IsValid() ? m_table->Get(m_id) : nullptr;
         }
 
-        template<typename T>
+        template <typename T>
         inline T* Handle<T>::Get()
         {
             return const_cast<T*>(static_cast<const Handle*>(this)->Get());

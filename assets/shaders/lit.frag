@@ -95,11 +95,11 @@ void main()
     float mip = roughness * (textureQueryLevels(iblMaps[1]) - 1.0);
     vec3 prefilteredColor = textureLod(iblMaps[1], R, mip).rgb;
     vec2 brdf = texture(brdfLut, vec2(NdotV, roughness)).rg;
-
     vec3 fresnelIBL = FresnelSchlickRoughness(NdotV, f0, roughness);
+    vec3 specularIBL = prefilteredColor * (fresnelIBL * brdf.x + brdf.y);
+
     vec3 kdIBL = (vec3(1.0) - fresnelIBL) * (1.0 - metallic);
     vec3 diffuseIBL = kdIBL * albedo.rgb / PI * texture(iblMaps[0], nDir).rgb;
-    vec3 specularIBL = prefilteredColor * (fresnelIBL * brdf.x + brdf.y);
 
     vec3 result = (diffuse + specular) * NdotL * radiance;
     result += (diffuseIBL + specularIBL) * ao;

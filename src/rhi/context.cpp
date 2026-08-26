@@ -435,7 +435,7 @@ namespace Kita::Pbrv
             vkGetPhysicalDeviceProperties(m_physicalDevice, &properties);
 
             m_depthFormat = PickDepthFormat(m_physicalDevice);
-            m_hdrFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
+            m_hdrFormat = VK_FORMAT_R32G32B32A32_SFLOAT;
             m_maxAnisotropy = PickMaxAnisotropy(properties);
             m_supportedSampleCounts = PickSupportedSampleCounts(properties);
             m_maxSampleCount = PickMaxSampleCount(m_supportedSampleCounts);

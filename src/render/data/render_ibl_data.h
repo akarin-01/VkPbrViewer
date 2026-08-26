@@ -24,12 +24,6 @@ namespace Kita::Pbrv
 
     namespace Render
     {
-        struct PrefilterPC
-        {
-            float m_roughness{ 0.0f };  // 0..1, selects the mip level
-            float m_mipCount{ 1.0f };
-        };
-
         class RenderIblData
         {
         public:
