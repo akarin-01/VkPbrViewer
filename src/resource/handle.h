@@ -1,12 +1,15 @@
 #pragma once
 
 #include "resource/resource_id.h"
-#include "resource/resource_table.h"
+#include "resource/entry_table.h"
 
 namespace Kita::Pbrv
 {
     namespace Resource
     {
+        template <typename T>
+        class HandleTable;
+
         template <typename T>
         class Handle
         {
@@ -66,13 +69,13 @@ namespace Kita::Pbrv
             }
 
         private:
-            friend class AssetManager;
+            friend class HandleTable<T>;
 
-            Handle(ResourceId id, ResourceTable<T>* table);
+            Handle(ResourceId id, EntryTable<T>* table);
 
         private:
             ResourceId m_id{ kInvalidId };
-            ResourceTable<T>* m_table{ nullptr };
+            EntryTable<T>* m_table{ nullptr };
         };
 
         template <typename T>
@@ -159,7 +162,7 @@ namespace Kita::Pbrv
         }
 
         template <typename T>
-        inline Handle<T>::Handle(ResourceId id, ResourceTable<T>* table)
+        inline Handle<T>::Handle(ResourceId id, EntryTable<T>* table)
             : m_id(id), m_table(table)
         {
         }
