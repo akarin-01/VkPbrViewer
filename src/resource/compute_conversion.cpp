@@ -2,11 +2,11 @@
 
 #include "rhi/context.h"
 #include "rhi/utils.h"
-#include "resource/resources.h"
-#include "resource/descriptor_allocator.h"
 #include "rhi/compute_pipeline.h"
 #include "rhi/descriptor_writer.h"
 #include "rhi/one_shot_command.h"
+#include "resource/resources.h"
+#include "resource/descriptor_manager.h"
 
 #include <cassert>
 
@@ -16,48 +16,25 @@ namespace Kita::Pbrv
     {
         ComputeConversion::ComputeConversion(const Rhi::RenderContext& context,
             RenderResources& resources,
-            const DescriptorAllocator& descriptorAllocator,
-            uint32_t inputCount,
+            DescriptorManager& descriptorMgr,
+            DescriptorLayoutType layoutType,
             const std::string& shaderPath, uint32_t pushConstantSize)
             : m_context(context),
             m_resources(resources),
-            m_descriptorAllocator(descriptorAllocator),
+            m_descriptorMgr(descriptorMgr),
+            m_layoutType(layoutType),
             m_pushConstantSize(pushConstantSize)
         {
-            // Set layout
-            {
-                std::vector<VkDescriptorSetLayoutBinding> bindings(inputCount + 1);
-                bindings[0].binding = 0;
-                bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-                bindings[0].descriptorCount = 1;
-                bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-
-                for (uint32_t i = 1; i <= inputCount; ++i)
-                {
-                    bindings[i].binding = i;
-                    bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                    bindings[i].descriptorCount = 1;
-                    bindings[i].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-                }
-
-                VkDescriptorSetLayoutCreateInfo createInfo{};
-                createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-                createInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-                createInfo.pBindings = bindings.data();
-
-                m_setLayout = Rhi::CreateDescriptorSetLayout(m_context.Device(), createInfo);
-            }
-
             // Set
             {
-                m_set = m_descriptorAllocator.Allocate(m_setLayout, "Conversion set");
+                m_set = m_descriptorMgr.Allocate(m_layoutType);
             }
 
             // Pipeline
             {
                 Rhi::ComputePipelineBuilder builder(m_context.Device());
                 builder.SetShader(shaderPath)
-                    .SetDescriptorSetLayouts({ m_setLayout });
+                    .SetDescriptorSetLayouts({ m_descriptorMgr.GetLayout(m_layoutType) });
 
                 if (pushConstantSize > 0)
                 {
@@ -78,8 +55,6 @@ namespace Kita::Pbrv
             m_pipeline.reset();
 
             // Sets will be destroyed automatically
-
-            vkDestroyDescriptorSetLayout(m_context.Device(), m_setLayout, nullptr);
         }
 
         void ComputeConversion::Dispatch(const Output& output, VkExtent3D dispatchSize, const std::vector<Input>& inputs, const void* pushData) const

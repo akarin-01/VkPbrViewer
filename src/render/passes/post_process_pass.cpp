@@ -4,7 +4,6 @@
 #include "rhi/rendering_scope.h"
 #include "rhi/swap_chain.h"
 #include "rhi/utils.h"
-#include "resource/descriptor_allocator.h"
 #include "resource/resources.h"
 #include "render/data/render_target_data.h"
 #include "render/render_scene.h"

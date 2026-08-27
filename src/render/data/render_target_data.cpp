@@ -2,45 +2,31 @@
 #include "rhi/context.h"
 #include "rhi/descriptor_writer.h"
 #include "rhi/utils.h"
-#include "resource/descriptor_allocator.h"
+#include "resource/descriptor_manager.h"
 #include "resource/resources.h"
 #include "resource/render_texture.h"
 
-#include <array>
 #include <cassert>
 
 namespace Kita::Pbrv
 {
     namespace Render
     {
+        namespace
+        {
+            constexpr Resource::DescriptorLayoutType kLayoutType = Resource::DescriptorLayoutType::TargetTex;
+        }
+
         RenderTargetData::RenderTargetData(const Rhi::RenderContext& context,
             Resource::RenderResources& resources,
-            const Resource::DescriptorAllocator& descriptorAllocator,
+            Resource::DescriptorManager& descriptorMgr,
             VkExtent2D extent)
             : m_context(context),
             m_resources(resources),
-            m_descriptorAllocator(descriptorAllocator)
+            m_descriptorMgr(descriptorMgr)
         {
-            // Set layout
-            {
-                std::array<VkDescriptorSetLayoutBinding, 1> bindings{};
-                bindings[0].binding = 0;
-                bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                bindings[0].descriptorCount = 1;
-                bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-                VkDescriptorSetLayoutCreateInfo createInfo{};
-                createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-                createInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-                createInfo.pBindings = bindings.data();
-
-                m_setLayout = Rhi::CreateDescriptorSetLayout(m_context.Device(), createInfo);
-            }
-
             // Set
-            {
-                m_set = m_descriptorAllocator.Allocate(m_setLayout, "Target set");
-            }
+            m_set = m_descriptorMgr.Allocate(kLayoutType);
 
             Create(extent);
         }
@@ -48,8 +34,11 @@ namespace Kita::Pbrv
         RenderTargetData::~RenderTargetData()
         {
             Destroy();
+        }
 
-            vkDestroyDescriptorSetLayout(m_context.Device(), m_setLayout, nullptr);
+        VkDescriptorSetLayout RenderTargetData::GetSetLayout() const
+        {
+            return m_descriptorMgr.GetLayout(Resource::DescriptorLayoutType::TargetTex);
         }
 
         void RenderTargetData::Recreate(VkExtent2D extent)

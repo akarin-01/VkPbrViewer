@@ -18,10 +18,10 @@ namespace Kita::Pbrv
             const Rhi::RenderContext& context,
             Resource::RenderResources& resources,
             const Rhi::SwapChain& swapChain,
-            const Resource::DescriptorAllocator& descriptorAllocator,
+            Resource::DescriptorManager& descriptorMgr,
             const RenderScene& scene)
             : m_swapChain(swapChain),
-            m_targetData(context, resources, descriptorAllocator, m_swapChain.Extent())
+            m_targetData(context, resources, descriptorMgr, m_swapChain.Extent())
         {
             CreateRenderPasses(window, context, resources, swapChain, scene);
         }

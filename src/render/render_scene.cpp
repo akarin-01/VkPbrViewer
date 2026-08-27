@@ -1,7 +1,7 @@
 #include "render_scene.h"
 #include "rhi/context.h"
 #include "rhi/swap_chain.h"
-#include "resource/descriptor_allocator.h"
+#include "resource/descriptor_manager.h"
 #include "resource/resources.h"
 #include "scene/scene.h"
 
@@ -12,13 +12,13 @@ namespace Kita::Pbrv
         RenderScene::RenderScene(const Rhi::RenderContext& context,
             Resource::RenderResources& resources,
             const Rhi::SwapChain& swapChain,
-            const Resource::DescriptorAllocator& descriptorAllocator)
-            : m_frameData(context, resources, swapChain, descriptorAllocator),
-            m_materialData(context, resources, descriptorAllocator),
+            Resource::DescriptorManager& descriptorMgr)
+            : m_frameData(context, resources, swapChain, descriptorMgr),
+            m_materialData(context, resources, descriptorMgr),
             m_meshData(resources),
-            m_skyboxData(context, resources, descriptorAllocator),
-            m_postProcessData(context, resources, descriptorAllocator),
-            m_iblData(context, resources, descriptorAllocator)
+            m_skyboxData(context, resources, descriptorMgr),
+            m_postProcessData(context, resources, descriptorMgr),
+            m_iblData(context, resources, descriptorMgr)
         {
         }
 

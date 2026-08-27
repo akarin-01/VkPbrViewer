@@ -2,7 +2,6 @@
 
 #include "core/macro.h"
 #include "rhi/constants.h"
-#include "resource/constants.h"
 #include "resource/types.h"
 
 #include <vulkan/vulkan.h>
@@ -24,7 +23,7 @@ namespace Kita::Pbrv
     namespace Resource
     {
         class RenderResources;
-        class DescriptorAllocator;
+        class DescriptorManager;
     }
 
     namespace Render
@@ -45,22 +44,21 @@ namespace Kita::Pbrv
             RenderFrameData(const Rhi::RenderContext& context,
                 Resource::RenderResources& resources,
                 const Rhi::SwapChain& swapChain,
-                const Resource::DescriptorAllocator& descriptorAllocator);
+                Resource::DescriptorManager& descriptorMgr);
             ~RenderFrameData();
 
             void Update(uint32_t frameIndex, const Scene::Camera& camera, const Scene::Light& light);
 
-            VkDescriptorSetLayout GetSetLayout() const { return m_setLayout; }
+            VkDescriptorSetLayout GetSetLayout() const;
             const VkDescriptorSet& GetSet(uint32_t frameIndex) const { return m_sets[frameIndex]; }
 
         private:
             const Rhi::RenderContext& m_context;
             Resource::RenderResources& m_resources;
             const Rhi::SwapChain& m_swapChain;
-            const Resource::DescriptorAllocator& m_descriptorAllocator;
+            Resource::DescriptorManager& m_descriptorMgr;
 
             std::array<Resource::RenderBufferHandle, Rhi::kMaxFramesInFlight> m_uboHandles{};
-            VkDescriptorSetLayout m_setLayout{ VK_NULL_HANDLE };
             std::array<VkDescriptorSet, Rhi::kMaxFramesInFlight> m_sets{};
         };
     }

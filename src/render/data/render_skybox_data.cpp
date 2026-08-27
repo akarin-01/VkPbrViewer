@@ -1,6 +1,7 @@
 #include "render_skybox_data.h"
 #include "core/log.h"
 #include "rhi/context.h"
+#include "rhi/utils.h"
 #include "resource/compute_conversion.h"
 #include "resource/handle.h"
 #include "resource/resources.h"
@@ -8,9 +9,6 @@
 #include "resource/texture_set.h"
 #include "scene/skybox.h"
 
-#include <array>
-#include <algorithm>
-#include <cmath>
 #include <cassert>
 
 namespace Kita::Pbrv
@@ -19,19 +17,23 @@ namespace Kita::Pbrv
     {
         namespace
         {
+            constexpr Resource::DescriptorLayoutType kTextureLayoutType = Resource::DescriptorLayoutType::SkyboxTex;
+            constexpr Resource::DescriptorLayoutType kConversionLayoutType = Resource::DescriptorLayoutType::ComputeSample;
         }
 
         RenderSkyboxData::RenderSkyboxData(const Rhi::RenderContext& context,
             Resource::RenderResources& resources,
-            const Resource::DescriptorAllocator& descriptorAllocator)
+            Resource::DescriptorManager& descriptorMgr)
             : m_context(context),
             m_resources(resources),
-            m_descriptorAllocator(descriptorAllocator)
+            m_descriptorMgr(descriptorMgr)
         {
-            m_textureSet = std::make_unique<TextureSet>(m_context, m_resources, m_descriptorAllocator,
+            m_textureSet = std::make_unique<TextureSet>(m_context, m_resources,
+                m_descriptorMgr, kTextureLayoutType,
                 TextureArray{ Resource::CreateCubemapFallback(m_resources, m_context.HdrFormat()) });
-            m_conversion = std::make_unique<Resource::ComputeConversion>(m_context, m_resources, m_descriptorAllocator,
-                1, "assets/shaders/equirect_to_cubemap_comp.spv", 0);
+            m_conversion = std::make_unique<Resource::ComputeConversion>(m_context, m_resources,
+                m_descriptorMgr, kConversionLayoutType,
+                "assets/shaders/equirect_to_cubemap_comp.spv", 0);
         }
 
         RenderSkyboxData::~RenderSkyboxData()

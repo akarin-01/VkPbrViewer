@@ -1,7 +1,6 @@
 #pragma once
 
 #include "rhi/constants.h"
-#include "resource/constants.h"
 #include "resource/render_texture.h"
 
 #include <vulkan/vulkan.h>
@@ -17,7 +16,7 @@ namespace Kita::Pbrv
     namespace Resource
     {
         class RenderResources;
-        class DescriptorAllocator;
+        class DescriptorManager;
         class ComputeConversion;
         template<uint32_t, uint32_t> class RenderTextureSet;
     }
@@ -29,7 +28,7 @@ namespace Kita::Pbrv
         public:
             RenderIblData(const Rhi::RenderContext& context,
                 Resource::RenderResources& resources,
-                const Resource::DescriptorAllocator& descriptorAllocator);
+                Resource::DescriptorManager& descriptorMgr);
             ~RenderIblData();
 
             void Update(uint32_t frameIndex, const Resource::RenderTexture& sourceCubemap);
@@ -52,7 +51,7 @@ namespace Kita::Pbrv
         private:
             const Rhi::RenderContext& m_context;
             Resource::RenderResources& m_resources;
-            const Resource::DescriptorAllocator& m_descriptorAllocator;
+            Resource::DescriptorManager& m_descriptorMgr;
 
             Resource::RenderTexture m_lastCubemap{};
 

@@ -20,7 +20,7 @@ namespace Kita::Pbrv
     namespace Resource
     {
         class RenderResources;
-        class DescriptorAllocator;
+        class DescriptorManager;
     }
 
     namespace Scene
@@ -43,11 +43,11 @@ namespace Kita::Pbrv
 
         private:
             std::unique_ptr<Rhi::RenderContext> m_context;
+            std::unique_ptr<Resource::RenderResources> m_resources;
             std::unique_ptr<Rhi::SwapChain> m_swapChain;
             std::unique_ptr<Rhi::FrameSync> m_frameSync;
-            std::unique_ptr<Resource::RenderResources> m_resources;
 
-            std::unique_ptr<Resource::DescriptorAllocator> m_descriptorAllocator;
+            std::unique_ptr<Resource::DescriptorManager> m_descriptorMgr;
 
             std::unique_ptr<RenderScene> m_renderScene;
             std::unique_ptr<RenderPipeline> m_pipeline;

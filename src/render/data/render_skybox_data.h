@@ -18,7 +18,7 @@ namespace Kita::Pbrv
     namespace Resource
     {
         class RenderResources;
-        class DescriptorAllocator;
+        class DescriptorManager;
         class ComputeConversion;
         struct Texture;
         template<uint32_t, uint32_t> class RenderTextureSet;
@@ -35,7 +35,7 @@ namespace Kita::Pbrv
         public:
             RenderSkyboxData(const Rhi::RenderContext& context,
                 Resource::RenderResources& resources,
-                const Resource::DescriptorAllocator& descriptorAllocator);
+                Resource::DescriptorManager& descriptorMgr);
             ~RenderSkyboxData();
 
             void Update(uint32_t frameIndex, const Scene::Skybox& sceneSkybox);
@@ -54,7 +54,7 @@ namespace Kita::Pbrv
         private:
             const Rhi::RenderContext& m_context;
             Resource::RenderResources& m_resources;
-            const Resource::DescriptorAllocator& m_descriptorAllocator;
+            Resource::DescriptorManager& m_descriptorMgr;
 
             Resource::ResourceId m_lastSkyboxId{ Resource::kInvalidId };
 

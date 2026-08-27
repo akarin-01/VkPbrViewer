@@ -2,8 +2,7 @@
 #include "rhi/context.h"
 #include "rhi/descriptor_writer.h"
 #include "rhi/swap_chain.h"
-#include "rhi/utils.h"
-#include "resource/descriptor_allocator.h"
+#include "resource/descriptor_manager.h"
 #include "resource/resources.h"
 #include "scene/camera.h"
 #include "scene/light.h"
@@ -14,14 +13,19 @@ namespace Kita::Pbrv
 {
     namespace Render
     {
+        namespace
+        {
+            constexpr Resource::DescriptorLayoutType kLayoutType = Resource::DescriptorLayoutType::Frame;
+        }
+
         RenderFrameData::RenderFrameData(const Rhi::RenderContext& context,
             Resource::RenderResources& resources,
             const Rhi::SwapChain& swapChain,
-            const Resource::DescriptorAllocator& descriptorAllocator)
+            Resource::DescriptorManager& descriptorMgr)
             : m_context(context),
             m_resources(resources),
             m_swapChain(swapChain),
-            m_descriptorAllocator(descriptorAllocator)
+            m_descriptorMgr(descriptorMgr)
         {
             // UBO
             {
@@ -36,26 +40,10 @@ namespace Kita::Pbrv
                 }
             }
 
-            // Set layout
-            {
-                std::array<VkDescriptorSetLayoutBinding, 1> bindings{};
-                bindings[0].binding = 0;
-                bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-                bindings[0].descriptorCount = 1;
-                bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-
-                VkDescriptorSetLayoutCreateInfo createInfo{};
-                createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-                createInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-                createInfo.pBindings = bindings.data();
-
-                m_setLayout = Rhi::CreateDescriptorSetLayout(m_context.Device(), createInfo);
-            }
-
             // Set
             for (size_t i = 0; i < m_sets.size(); ++i)
             {
-                m_sets[i] = m_descriptorAllocator.Allocate(m_setLayout, "Frame set");
+                m_sets[i] = m_descriptorMgr.Allocate(kLayoutType);
 
                 Rhi::DescriptorWriter writer(m_resources, m_context.Device());
                 writer.WriteBuffer(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -67,8 +55,6 @@ namespace Kita::Pbrv
         RenderFrameData::~RenderFrameData()
         {
             // Sets will be released automatically
-
-            vkDestroyDescriptorSetLayout(m_context.Device(), m_setLayout, nullptr);
 
             for (auto& handle : m_uboHandles)
             {
@@ -88,6 +74,11 @@ namespace Kita::Pbrv
             ubo.m_lightColor = glm::vec4(light.GetColor(), light.GetIntensity());
 
             m_resources.WriteBuffer(m_uboHandles[frameIndex], &ubo, sizeof(ubo));
+        }
+
+        VkDescriptorSetLayout RenderFrameData::GetSetLayout() const
+        {
+            return m_descriptorMgr.GetLayout(kLayoutType);
         }
     }
 }

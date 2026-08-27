@@ -1,11 +1,12 @@
 #include "render_ibl_data.h"
 #include "core/log.h"
 #include "rhi/context.h"
+#include "rhi/utils.h"
 #include "resource/compute_conversion.h"
+#include "resource/descriptor_manager.h"
 #include "resource/resources.h"
 #include "resource/texture_set.h"
 
-#include <cassert>
 #include <cmath>
 
 namespace Kita::Pbrv
@@ -14,6 +15,11 @@ namespace Kita::Pbrv
     {
         namespace
         {
+            constexpr Resource::DescriptorLayoutType kBrdfLayoutType = Resource::DescriptorLayoutType::BrdfLut;
+            constexpr Resource::DescriptorLayoutType kTextureLayoutType = Resource::DescriptorLayoutType::IblTex;
+            constexpr Resource::DescriptorLayoutType kBrdfConversionLayoutType = Resource::DescriptorLayoutType::ComputeWrite;
+            constexpr Resource::DescriptorLayoutType kSampleConversionLayoutType = Resource::DescriptorLayoutType::ComputeSample;
+
             // Push constants, only used by the conversion dispatches below
             struct PrefilterPC
             {
@@ -29,24 +35,26 @@ namespace Kita::Pbrv
 
         RenderIblData::RenderIblData(const Rhi::RenderContext& context,
             Resource::RenderResources& resources,
-            const Resource::DescriptorAllocator& descriptorAllocator)
+            Resource::DescriptorManager& descriptorMgr)
             : m_context(context),
             m_resources(resources),
-            m_descriptorAllocator(descriptorAllocator)
+            m_descriptorMgr(descriptorMgr)
         {
-            m_brdfConversion = std::make_unique<Resource::ComputeConversion>(m_context, m_resources, m_descriptorAllocator,
-                0, "assets/shaders/brdf_integration_comp.spv", 0);
-            m_irradianceConversion = std::make_unique<Resource::ComputeConversion>(m_context, m_resources, m_descriptorAllocator,
-                1, "assets/shaders/irradiance_convolution_comp.spv", static_cast<uint32_t>(sizeof(IrradiancePC)));
-            m_prefilterConversion = std::make_unique<Resource::ComputeConversion>(m_context, m_resources, m_descriptorAllocator,
-                1, "assets/shaders/prefilter_comp.spv", static_cast<uint32_t>(sizeof(PrefilterPC)));
+            m_brdfConversion = std::make_unique<Resource::ComputeConversion>(m_context, m_resources, m_descriptorMgr,
+                kBrdfConversionLayoutType, "assets/shaders/brdf_integration_comp.spv", 0);
+            m_irradianceConversion = std::make_unique<Resource::ComputeConversion>(m_context, m_resources, m_descriptorMgr,
+                kSampleConversionLayoutType, "assets/shaders/irradiance_convolution_comp.spv", static_cast<uint32_t>(sizeof(IrradiancePC)));
+            m_prefilterConversion = std::make_unique<Resource::ComputeConversion>(m_context, m_resources, m_descriptorMgr,
+                kSampleConversionLayoutType, "assets/shaders/prefilter_comp.spv", static_cast<uint32_t>(sizeof(PrefilterPC)));
 
-            m_brdfLutSet = std::make_unique<BrdfLutSet>(m_context, m_resources, m_descriptorAllocator,
+            m_brdfLutSet = std::make_unique<BrdfLutSet>(m_context, m_resources,
+                m_descriptorMgr, kBrdfLayoutType,
                 BrdfLutArray{ CreateBrdfLut() });
 
             Core::Log::Info("[Renderer] Create BRDF LUT: ", Resource::kBrdfLutSize, "x", Resource::kBrdfLutSize, " RG16F");
 
-            m_textureSet = std::make_unique<TextureSet>(m_context, m_resources, m_descriptorAllocator,
+            m_textureSet = std::make_unique<TextureSet>(m_context, m_resources,
+                m_descriptorMgr, kTextureLayoutType,
                 TextureArray{ Resource::CreateCubemapFallback(m_resources, m_context.HdrFormat()), Resource::CreateCubemapFallback(m_resources, m_context.HdrFormat()) });
         }
 

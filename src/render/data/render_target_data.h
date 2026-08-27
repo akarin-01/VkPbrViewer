@@ -13,7 +13,7 @@ namespace Kita::Pbrv
     namespace Resource
     {
         class RenderResources;
-        class DescriptorAllocator;
+        class DescriptorManager;
     }
 
     namespace Render
@@ -23,7 +23,7 @@ namespace Kita::Pbrv
         public:
             RenderTargetData(const Rhi::RenderContext& context,
                 Resource::RenderResources& resources,
-                const Resource::DescriptorAllocator& descriptorAllocator,
+                Resource::DescriptorManager& descriptorMgr,
                 VkExtent2D extent);
             ~RenderTargetData();
 
@@ -54,7 +54,7 @@ namespace Kita::Pbrv
                 VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
                 VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask);
 
-            VkDescriptorSetLayout GetSetLayout() const { return m_setLayout; }
+            VkDescriptorSetLayout GetSetLayout() const;
             const VkDescriptorSet& GetSet() const { return m_set; }
 
         private:
@@ -64,7 +64,7 @@ namespace Kita::Pbrv
         private:
             const Rhi::RenderContext& m_context;
             Resource::RenderResources& m_resources;
-            const Resource::DescriptorAllocator& m_descriptorAllocator;
+            Resource::DescriptorManager& m_descriptorMgr;
 
             Resource::RenderTexture m_colorTex{};
             VkImageLayout m_colorLayout{ VK_IMAGE_LAYOUT_UNDEFINED };
@@ -75,7 +75,6 @@ namespace Kita::Pbrv
             Resource::RenderTexture m_depthTex{};
             VkImageLayout m_depthLayout{ VK_IMAGE_LAYOUT_UNDEFINED };
 
-            VkDescriptorSetLayout m_setLayout{ VK_NULL_HANDLE };
             VkDescriptorSet m_set{ VK_NULL_HANDLE };
         };
     }

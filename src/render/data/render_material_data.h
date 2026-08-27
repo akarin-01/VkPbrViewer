@@ -21,7 +21,7 @@ namespace Kita::Pbrv
     namespace Resource
     {
         class RenderResources;
-        class DescriptorAllocator;
+        class DescriptorManager;
         struct Texture;
         template<uint32_t, uint32_t> class RenderTextureSet;
     }
@@ -45,7 +45,7 @@ namespace Kita::Pbrv
         public:
             RenderMaterialData(const Rhi::RenderContext& context,
                 Resource::RenderResources& resources,
-                const Resource::DescriptorAllocator& descriptorAllocator);
+                Resource::DescriptorManager& descriptorMgr);
             ~RenderMaterialData();
 
             void Update(uint32_t frameIndex, const Scene::Material& sceneMat);
@@ -64,7 +64,7 @@ namespace Kita::Pbrv
         private:
             const Rhi::RenderContext& m_context;
             Resource::RenderResources& m_resources;
-            const Resource::DescriptorAllocator& m_descriptorAllocator;
+            Resource::DescriptorManager& m_descriptorMgr;
 
             MaterialPC m_pushConstant{ {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f} };
 

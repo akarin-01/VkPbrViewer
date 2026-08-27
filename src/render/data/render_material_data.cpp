@@ -1,6 +1,7 @@
 #include "render_material_data.h"
 #include "core/log.h"
 #include "rhi/context.h"
+#include "rhi/utils.h"
 #include "resource/handle.h"
 #include "resource/resources.h"
 #include "resource/texture.h"
@@ -16,6 +17,8 @@ namespace Kita::Pbrv
     {
         namespace
         {
+            constexpr Resource::DescriptorLayoutType kTextureLayoutType = Resource::DescriptorLayoutType::MaterialTex;
+
             VkFormat ToFormat(Resource::TextureType type)
             {
                 switch (type)
@@ -55,12 +58,13 @@ namespace Kita::Pbrv
 
         RenderMaterialData::RenderMaterialData(const Rhi::RenderContext& context,
             Resource::RenderResources& resources,
-            const Resource::DescriptorAllocator& descriptorAllocator)
+            Resource::DescriptorManager& descriptorMgr)
             : m_context(context),
             m_resources(resources),
-            m_descriptorAllocator(descriptorAllocator)
+            m_descriptorMgr(descriptorMgr)
         {
-            m_textureSet = std::make_unique<TextureSet>(m_context, m_resources, m_descriptorAllocator,
+            m_textureSet = std::make_unique<TextureSet>(m_context, m_resources,
+                m_descriptorMgr, kTextureLayoutType,
                 TextureArray{ CreateFallbacks() });
         }
 

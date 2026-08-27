@@ -21,6 +21,7 @@ namespace Kita::Pbrv
     namespace Resource
     {
         class RenderResources;
+        class DescriptorManager;
     }
 
     namespace Render
@@ -35,7 +36,7 @@ namespace Kita::Pbrv
                 const Rhi::RenderContext& context,
                 Resource::RenderResources& resources,
                 const Rhi::SwapChain& swapChain,
-                const Resource::DescriptorAllocator& descriptorAllocator,
+                Resource::DescriptorManager& descriptorMgr,
                 const RenderScene& scene);
             ~RenderPipeline();
 

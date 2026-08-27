@@ -1,10 +1,9 @@
 #pragma once
 
 #include "rhi/context.h"
-#include "resource/resources.h"
-#include "resource/descriptor_allocator.h"
 #include "rhi/descriptor_writer.h"
-#include "rhi/utils.h"
+#include "resource/resources.h"
+#include "resource/descriptor_manager.h"
 #include "resource/render_texture.h"
 
 #include <vulkan/vulkan.h>
@@ -23,34 +22,20 @@ namespace Kita::Pbrv
         public:
             RenderTextureSet(const Rhi::RenderContext& context,
                 RenderResources& resources,
-                const DescriptorAllocator& descriptorAllocator,
+                DescriptorManager& descriptorMgr,
+                DescriptorLayoutType layoutType,
                 const std::array<RenderTexture, SlotCount>& fallbacks)
                 : m_context(context),
                 m_resources(resources),
-                m_descriptorAllocator(descriptorAllocator),
+                m_descriptorMgr(descriptorMgr),
+                m_layoutType(layoutType),
                 m_fallbacks(fallbacks),
                 m_textures(fallbacks)
             {
-                // Set layout
-                {
-                    std::array<VkDescriptorSetLayoutBinding, 1> bindings{};
-                    bindings[0].binding = 0;
-                    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                    bindings[0].descriptorCount = static_cast<uint32_t>(m_textures.size());
-                    bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-                    VkDescriptorSetLayoutCreateInfo createInfo{};
-                    createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-                    createInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-                    createInfo.pBindings = bindings.data();
-
-                    m_layout = Rhi::CreateDescriptorSetLayout(m_context.Device(), createInfo);
-                }
-
                 // Sets
                 for (auto& set : m_sets)
                 {
-                    set = m_descriptorAllocator.Allocate(m_layout, "Texture set");
+                    set = m_descriptorMgr.Allocate(m_layoutType);
                     WriteSet(set);
                 }
             }
@@ -58,9 +43,6 @@ namespace Kita::Pbrv
             ~RenderTextureSet()
             {
                 // Sets will be destroyed automatically
-
-                // Set layout
-                vkDestroyDescriptorSetLayout(m_context.Device(), m_layout, nullptr);
 
                 // Textures
                 for (uint32_t i = 0; i < SlotCount; ++i)
@@ -124,7 +106,7 @@ namespace Kita::Pbrv
 
             const std::array<RenderTexture, SlotCount>& GetFallbacks() const { return m_fallbacks; }
             const std::array<RenderTexture, SlotCount>& GetTextures() const { return m_textures; }
-            VkDescriptorSetLayout GetLayout() const { return m_layout; }
+            VkDescriptorSetLayout GetLayout() const { return m_descriptorMgr.GetLayout(m_layoutType); }
             const VkDescriptorSet& GetSet(uint32_t frameIndex) const { return m_sets[frameIndex % SetCount]; }
 
         private:
@@ -145,12 +127,15 @@ namespace Kita::Pbrv
         private:
             const Rhi::RenderContext& m_context;
             RenderResources& m_resources;
-            const DescriptorAllocator& m_descriptorAllocator;
+            DescriptorManager& m_descriptorMgr;
+
+            // Count as the default: an unset layout type fails the manager's assert
+            // instead of silently binding to a real layout
+            DescriptorLayoutType m_layoutType{ DescriptorLayoutType::Count };
 
             std::array<RenderTexture, SlotCount> m_fallbacks{};
             std::array<RenderTexture, SlotCount> m_textures{};
 
-            VkDescriptorSetLayout m_layout{ VK_NULL_HANDLE };
             std::array<VkDescriptorSet, SetCount> m_sets{};
             uint32_t m_refreshCount{ 0 };
         };

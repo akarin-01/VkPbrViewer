@@ -1,5 +1,6 @@
 #pragma once
 
+#include "resource/descriptor_manager.h"
 #include "resource/types.h"
 
 #include <vulkan/vulkan.h>
@@ -18,7 +19,7 @@ namespace Kita::Pbrv
     namespace Resource
     {
         class RenderResources;
-        class DescriptorAllocator;
+        class DescriptorManager;
 
         class ComputeConversion
         {
@@ -43,8 +44,8 @@ namespace Kita::Pbrv
 
             ComputeConversion(const Rhi::RenderContext& context,
                 RenderResources& resources,
-                const DescriptorAllocator& descriptorAllocator,
-                uint32_t inputCount,
+                DescriptorManager& descriptorMgr,
+                DescriptorLayoutType layoutType,
                 const std::string& shaderPath, uint32_t pushConstantSize);
             ~ComputeConversion();
 
@@ -62,11 +63,14 @@ namespace Kita::Pbrv
         private:
             const Rhi::RenderContext& m_context;
             RenderResources& m_resources;
-            const DescriptorAllocator& m_descriptorAllocator;
+            DescriptorManager& m_descriptorMgr;
+
+            // Count as the default: an unset layout type fails the manager's assert
+            // instead of silently binding to a real layout
+            DescriptorLayoutType m_layoutType{ DescriptorLayoutType::Count };
 
             uint32_t m_pushConstantSize{ 0 };
 
-            VkDescriptorSetLayout m_setLayout{ VK_NULL_HANDLE };
             VkDescriptorSet m_set{ VK_NULL_HANDLE };
             std::unique_ptr<Rhi::ComputePipeline> m_pipeline;
         };
