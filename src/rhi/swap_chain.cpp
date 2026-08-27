@@ -68,7 +68,7 @@ namespace Kita::Pbrv
             }
         }
 
-        SwapChain::SwapChain(Core::Window& window, const RenderContext& context, Resource::RenderResources& resources)
+        SwapChain::SwapChain(Core::Window& window, const Context& context, Resource::Resources& resources)
             : m_window(window), m_context(context), m_resources(resources)
         {
             CreateSwapChain();

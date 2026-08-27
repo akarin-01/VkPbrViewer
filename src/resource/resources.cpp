@@ -12,7 +12,7 @@ namespace Kita::Pbrv
 {
     namespace Resource
     {
-        RenderResources::RenderResources(const Rhi::RenderContext& context)
+        Resources::Resources(const Rhi::Context& context)
             : m_context(context),
             m_buffers([this](RenderBuffer& b) { DestroyBufferHelper(b); }),
             m_images([this](RenderImage& i) { DestroyImageHelper(i); }),
@@ -25,7 +25,7 @@ namespace Kita::Pbrv
         {
         }
 
-        RenderResources::~RenderResources()
+        Resources::~Resources()
         {
             for (uint32_t i = 0; i < Rhi::kMaxFramesInFlight; ++i)
             {
@@ -38,7 +38,7 @@ namespace Kita::Pbrv
             m_samplers.Clear();
         }
 
-        void RenderResources::FlushDeferred(uint32_t frameIndex)
+        void Resources::FlushDeferred(uint32_t frameIndex)
         {
             size_t bufferCount = m_bufferQueue.Flush(frameIndex);
             size_t imageCount = m_imageQueue.Flush(frameIndex);
@@ -63,7 +63,7 @@ namespace Kita::Pbrv
             m_frameIndex = frameIndex;
         }
 
-        RenderBufferHandle RenderResources::CreateBuffer(const VkBufferCreateInfo& bufferInfo, VkMemoryPropertyFlags properties, bool mapped)
+        RenderBufferHandle Resources::CreateBuffer(const VkBufferCreateInfo& bufferInfo, VkMemoryPropertyFlags properties, bool mapped)
         {
             auto renderBuffer = CreateBufferHelper(bufferInfo, properties, mapped);
             RenderBufferHandle handle = m_buffers.Add(std::move(renderBuffer));
@@ -71,7 +71,7 @@ namespace Kita::Pbrv
             return handle;
         }
 
-        RenderBufferHandle RenderResources::CreateBufferWithData(const VkBufferCreateInfo& bufferInfo, VkMemoryPropertyFlags properties, const void* data, size_t size)
+        RenderBufferHandle Resources::CreateBufferWithData(const VkBufferCreateInfo& bufferInfo, VkMemoryPropertyFlags properties, const void* data, size_t size)
         {
             auto buffer = CreateBufferHelper(bufferInfo, properties);
 
@@ -97,12 +97,12 @@ namespace Kita::Pbrv
             return handle;
         }
 
-        RenderBuffer* RenderResources::GetBuffer(RenderBufferHandle handle) const
+        RenderBuffer* Resources::GetBuffer(RenderBufferHandle handle) const
         {
             return m_buffers.Get(handle);
         }
 
-        void RenderResources::DestroyBuffer(RenderBufferHandle handle)
+        void Resources::DestroyBuffer(RenderBufferHandle handle)
         {
             auto buffer = m_buffers.Remove(handle);
             if (!buffer)
@@ -115,7 +115,7 @@ namespace Kita::Pbrv
             KITA_LOG_DEBUG("[Resources] Defer destroy buffer(", handle, ") -> frame ", m_frameIndex);
         }
 
-        void RenderResources::WriteBuffer(RenderBufferHandle handle, const void* data, size_t size, size_t offset)
+        void Resources::WriteBuffer(RenderBufferHandle handle, const void* data, size_t size, size_t offset)
         {
             RenderBuffer* buffer = GetBuffer(handle);
 
@@ -123,7 +123,7 @@ namespace Kita::Pbrv
             WriteBufferHelper(*buffer, data, size, offset);
         }
 
-        RenderImageHandle RenderResources::CreateImage(VkImageCreateInfo imageInfo, VkMemoryPropertyFlags properties)
+        RenderImageHandle Resources::CreateImage(VkImageCreateInfo imageInfo, VkMemoryPropertyFlags properties)
         {
             auto renderImage = CreateImageHelper(imageInfo, properties);
             RenderImageHandle handle = m_images.Add(std::move(renderImage));
@@ -132,7 +132,7 @@ namespace Kita::Pbrv
             return handle;
         }
 
-        RenderImageHandle RenderResources::CreateImageWithData(VkImageCreateInfo imageInfo, VkMemoryPropertyFlags properties, const void* data, size_t size, VkImageAspectFlags aspect)
+        RenderImageHandle Resources::CreateImageWithData(VkImageCreateInfo imageInfo, VkMemoryPropertyFlags properties, const void* data, size_t size, VkImageAspectFlags aspect)
         {
             auto image = CreateImageHelper(imageInfo, properties);
 
@@ -184,12 +184,12 @@ namespace Kita::Pbrv
             return handle;
         }
 
-        RenderImage* RenderResources::GetImage(RenderImageHandle handle) const
+        RenderImage* Resources::GetImage(RenderImageHandle handle) const
         {
             return m_images.Get(handle);
         }
 
-        void RenderResources::DestroyImage(RenderImageHandle handle)
+        void Resources::DestroyImage(RenderImageHandle handle)
         {
             auto image = m_images.Remove(handle);
             if (!image)
@@ -202,7 +202,7 @@ namespace Kita::Pbrv
             KITA_LOG_DEBUG("[Resources] Defer destroy image(", handle, ") -> frame ", m_frameIndex);
         }
 
-        void RenderResources::GenerateImageMipmaps(RenderImageHandle handle, VkImageAspectFlags aspectMask, VkImageLayout finalLayout, VkPipelineStageFlags2 finalStageMask) const
+        void Resources::GenerateImageMipmaps(RenderImageHandle handle, VkImageAspectFlags aspectMask, VkImageLayout finalLayout, VkPipelineStageFlags2 finalStageMask) const
         {
             RenderImage* image = GetImage(handle);
             if (!image)
@@ -219,7 +219,7 @@ namespace Kita::Pbrv
             }
         }
 
-        void RenderResources::TransitionImageLayout(RenderImageHandle handle, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask, VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask, VkImageAspectFlags aspectMask)
+        void Resources::TransitionImageLayout(RenderImageHandle handle, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask, VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask, VkImageAspectFlags aspectMask)
         {
             RenderImage* image = GetImage(handle);
             if (!image)
@@ -242,7 +242,7 @@ namespace Kita::Pbrv
                 range);
         }
 
-        void RenderResources::TransitionImageLayout(RenderImageHandle handle, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask, VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask, const VkImageSubresourceRange& range)
+        void Resources::TransitionImageLayout(RenderImageHandle handle, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask, VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask, const VkImageSubresourceRange& range)
         {
             RenderImage* image = GetImage(handle);
             if (!image)
@@ -262,7 +262,7 @@ namespace Kita::Pbrv
             }
         }
 
-        RenderImageViewHandle RenderResources::CreateImageView(const VkImageViewCreateInfo& createInfo)
+        RenderImageViewHandle Resources::CreateImageView(const VkImageViewCreateInfo& createInfo)
         {
             auto imageView = CreateImageViewHelper(createInfo);
             RenderImageViewHandle handle = m_imageViews.Add(std::move(imageView));
@@ -270,7 +270,7 @@ namespace Kita::Pbrv
             return handle;
         }
 
-        RenderImageViewHandle RenderResources::CreateImageView(RenderImageHandle imageHandle, VkImageViewType viewType, VkImageAspectFlags aspectMask)
+        RenderImageViewHandle Resources::CreateImageView(RenderImageHandle imageHandle, VkImageViewType viewType, VkImageAspectFlags aspectMask)
         {
             RenderImage* image = GetImage(imageHandle);
             if (!image)
@@ -293,7 +293,7 @@ namespace Kita::Pbrv
             return CreateImageView(imageViewInfo);
         }
 
-        RenderImageViewHandle RenderResources::CreateImageView(RenderImageHandle imageHandle, VkImageViewType viewType, const VkImageSubresourceRange& range)
+        RenderImageViewHandle Resources::CreateImageView(RenderImageHandle imageHandle, VkImageViewType viewType, const VkImageSubresourceRange& range)
         {
             RenderImage* image = GetImage(imageHandle);
             if (!image)
@@ -312,12 +312,12 @@ namespace Kita::Pbrv
             return CreateImageView(imageViewInfo);
         }
 
-        RenderImageView* RenderResources::GetImageView(RenderImageViewHandle handle) const
+        RenderImageView* Resources::GetImageView(RenderImageViewHandle handle) const
         {
             return m_imageViews.Get(handle);
         }
 
-        void RenderResources::DestroyImageView(RenderImageViewHandle handle)
+        void Resources::DestroyImageView(RenderImageViewHandle handle)
         {
             auto imageView = m_imageViews.Remove(handle);
             if (!imageView)
@@ -330,7 +330,7 @@ namespace Kita::Pbrv
             KITA_LOG_DEBUG("[Resources] Defer destroy image view(", handle, ") -> frame ", m_frameIndex);
         }
 
-        RenderSamplerHandle RenderResources::CreateSampler(const VkSamplerCreateInfo& createInfo)
+        RenderSamplerHandle Resources::CreateSampler(const VkSamplerCreateInfo& createInfo)
         {
             auto sampler = CreateSamplerHelper(createInfo);
             RenderSamplerHandle handle = m_samplers.Add(std::move(sampler));
@@ -338,7 +338,7 @@ namespace Kita::Pbrv
             return handle;
         }
 
-        RenderSamplerHandle RenderResources::CreateSamplerLinearRepeatMip()
+        RenderSamplerHandle Resources::CreateSamplerLinearRepeatMip()
         {
             VkSamplerCreateInfo samplerInfo{};
             samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -361,7 +361,7 @@ namespace Kita::Pbrv
             return CreateSampler(samplerInfo);
         }
 
-        RenderSamplerHandle RenderResources::CreateSamplerLinearClampNoMip()
+        RenderSamplerHandle Resources::CreateSamplerLinearClampNoMip()
         {
             VkSamplerCreateInfo samplerInfo{};
             samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -383,7 +383,7 @@ namespace Kita::Pbrv
             return CreateSampler(samplerInfo);
         }
 
-        RenderSamplerHandle RenderResources::CreateSamplerLinearClampMip()
+        RenderSamplerHandle Resources::CreateSamplerLinearClampMip()
         {
             VkSamplerCreateInfo samplerInfo{};
             samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -406,7 +406,7 @@ namespace Kita::Pbrv
             return CreateSampler(samplerInfo);
         }
 
-        RenderSamplerHandle RenderResources::CreateSamplerNearestClampNoMip()
+        RenderSamplerHandle Resources::CreateSamplerNearestClampNoMip()
         {
             VkSamplerCreateInfo samplerInfo{};
             samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -428,7 +428,7 @@ namespace Kita::Pbrv
             return CreateSampler(samplerInfo);
         }
 
-        RenderSamplerHandle RenderResources::CreateSamplerEquirect()
+        RenderSamplerHandle Resources::CreateSamplerEquirect()
         {
             VkSamplerCreateInfo samplerInfo{};
             samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -451,12 +451,12 @@ namespace Kita::Pbrv
             return CreateSampler(samplerInfo);
         }
 
-        RenderSampler* RenderResources::GetSampler(RenderSamplerHandle handle) const
+        RenderSampler* Resources::GetSampler(RenderSamplerHandle handle) const
         {
             return m_samplers.Get(handle);
         }
 
-        void RenderResources::DestroySampler(RenderSamplerHandle handle)
+        void Resources::DestroySampler(RenderSamplerHandle handle)
         {
             auto sampler = m_samplers.Remove(handle);
             if (!sampler)
@@ -469,7 +469,7 @@ namespace Kita::Pbrv
             KITA_LOG_DEBUG("[Resources] Defer destroy sampler(", handle, ") -> frame ", m_frameIndex);
         }
 
-        std::unique_ptr<RenderBuffer> RenderResources::CreateBufferHelper(const VkBufferCreateInfo& bufferInfo, VkMemoryPropertyFlags properties, bool mapped) const
+        std::unique_ptr<RenderBuffer> Resources::CreateBufferHelper(const VkBufferCreateInfo& bufferInfo, VkMemoryPropertyFlags properties, bool mapped) const
         {
             // Buffer
             VkBuffer buffer{};
@@ -505,7 +505,7 @@ namespace Kita::Pbrv
             return std::make_unique<RenderBuffer>(RenderBuffer{ buffer, memory, data });
         }
 
-        void RenderResources::DestroyBufferHelper(const RenderBuffer& buffer) const
+        void Resources::DestroyBufferHelper(const RenderBuffer& buffer) const
         {
             if (buffer.m_mapped)
             {
@@ -515,7 +515,7 @@ namespace Kita::Pbrv
             vkFreeMemory(m_context.Device(), buffer.m_memory, nullptr);
         }
 
-        void RenderResources::WriteBufferHelper(const RenderBuffer& buffer, const void* data, size_t size, size_t offset) const
+        void Resources::WriteBufferHelper(const RenderBuffer& buffer, const void* data, size_t size, size_t offset) const
         {
             if (!buffer.m_mapped)
             {
@@ -525,7 +525,7 @@ namespace Kita::Pbrv
             memcpy(static_cast<char*>(buffer.m_mapped) + offset, data, size);
         }
 
-        std::unique_ptr<RenderImage> RenderResources::CreateImageHelper(const VkImageCreateInfo& imageInfo, VkMemoryPropertyFlags properties) const
+        std::unique_ptr<RenderImage> Resources::CreateImageHelper(const VkImageCreateInfo& imageInfo, VkMemoryPropertyFlags properties) const
         {
             RenderImage image{};
             image.m_format = imageInfo.format;
@@ -558,13 +558,13 @@ namespace Kita::Pbrv
             return std::make_unique<RenderImage>(std::move(image));
         }
 
-        void RenderResources::DestroyImageHelper(const RenderImage& image) const
+        void Resources::DestroyImageHelper(const RenderImage& image) const
         {
             vkDestroyImage(m_context.Device(), image.m_image, nullptr);
             vkFreeMemory(m_context.Device(), image.m_memory, nullptr);
         }
 
-        std::unique_ptr<RenderImageView> RenderResources::CreateImageViewHelper(const VkImageViewCreateInfo& createInfo) const
+        std::unique_ptr<RenderImageView> Resources::CreateImageViewHelper(const VkImageViewCreateInfo& createInfo) const
         {
             VkImageView imageView;
 
@@ -576,12 +576,12 @@ namespace Kita::Pbrv
             return std::make_unique<RenderImageView>(RenderImageView{ imageView });
         }
 
-        void RenderResources::DestroyImageViewHelper(const RenderImageView& imageView) const
+        void Resources::DestroyImageViewHelper(const RenderImageView& imageView) const
         {
             vkDestroyImageView(m_context.Device(), imageView.m_imageView, nullptr);
         }
 
-        std::unique_ptr<RenderSampler> RenderResources::CreateSamplerHelper(const VkSamplerCreateInfo& createInfo) const
+        std::unique_ptr<RenderSampler> Resources::CreateSamplerHelper(const VkSamplerCreateInfo& createInfo) const
         {
             VkSampler sampler;
 
@@ -593,7 +593,7 @@ namespace Kita::Pbrv
             return std::make_unique<RenderSampler>(RenderSampler{ sampler });
         }
 
-        void RenderResources::DestroySamplerHelper(const RenderSampler& sampler) const
+        void Resources::DestroySamplerHelper(const RenderSampler& sampler) const
         {
             vkDestroySampler(m_context.Device(), sampler.m_sampler, nullptr);
         }

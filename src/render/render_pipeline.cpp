@@ -15,8 +15,8 @@ namespace Kita::Pbrv
     namespace Render
     {
         RenderPipeline::RenderPipeline(const Core::Window& window,
-            const Rhi::RenderContext& context,
-            Resource::RenderResources& resources,
+            const Rhi::Context& context,
+            Resource::Resources& resources,
             const Rhi::SwapChain& swapChain,
             Resource::DescriptorManager& descriptorMgr,
             const RenderScene& scene)
@@ -76,8 +76,8 @@ namespace Kita::Pbrv
         }
 
         void RenderPipeline::CreateRenderPasses(const Core::Window& window,
-            const Rhi::RenderContext& context,
-            Resource::RenderResources& resources,
+            const Rhi::Context& context,
+            Resource::Resources& resources,
             const Rhi::SwapChain& swapChain,
             const RenderScene& scene)
         {

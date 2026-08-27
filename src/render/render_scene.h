@@ -12,12 +12,12 @@ namespace Kita::Pbrv
 {
     namespace Rhi
     {
-        class RenderContext;
+        class Context;
         class SwapChain;
     }
     namespace Resource
     {
-        class RenderResources;
+        class Resources;
         class DescriptorManager;
     }
     namespace Scene
@@ -32,8 +32,8 @@ namespace Kita::Pbrv
         class RenderScene
         {
         public:
-            RenderScene(const Rhi::RenderContext& context,
-                Resource::RenderResources& resources,
+            RenderScene(const Rhi::Context& context,
+                Resource::Resources& resources,
                 const Rhi::SwapChain& swapChain,
                 Resource::DescriptorManager& descriptorMgr);
             ~RenderScene();

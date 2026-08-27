@@ -22,8 +22,8 @@ namespace Kita::Pbrv
         class LitPass : public RenderPassBase
         {
         public:
-            LitPass(const Rhi::RenderContext& context,
-                Resource::RenderResources& resources,
+            LitPass(const Rhi::Context& context,
+                Resource::Resources& resources,
                 const Rhi::SwapChain& swapChain,
                 RenderTargetData& targetData,
                 const RenderScene& scene);

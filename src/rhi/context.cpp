@@ -247,7 +247,7 @@ namespace Kita::Pbrv
             }
         }
 
-        RenderContext::RenderContext(const Core::Window& window)
+        Context::Context(const Core::Window& window)
             : m_window(window)
         {
             CreateInstance();
@@ -258,7 +258,7 @@ namespace Kita::Pbrv
             CreateCommandPool();
         }
 
-        RenderContext::~RenderContext()
+        Context::~Context()
         {
             vkDestroyCommandPool(m_device, m_commandPool, nullptr);
             vkDestroyDevice(m_device, nullptr);
@@ -267,7 +267,7 @@ namespace Kita::Pbrv
             vkDestroyInstance(m_instance, nullptr);
         }
 
-        void RenderContext::CreateInstance()
+        void Context::CreateInstance()
         {
             if (enableValidationLayers && !CheckValidationLayerSupport())
             {
@@ -314,7 +314,7 @@ namespace Kita::Pbrv
             }
         }
 
-        void RenderContext::SetupDebugMessenger()
+        void Context::SetupDebugMessenger()
         {
             if (!enableValidationLayers)
             {
@@ -330,12 +330,12 @@ namespace Kita::Pbrv
             }
         }
 
-        void RenderContext::CreateSurface()
+        void Context::CreateSurface()
         {
             m_surface = m_window.CreateSurface(m_instance);
         }
 
-        void RenderContext::PickPhysicalDevice()
+        void Context::PickPhysicalDevice()
         {
             uint32_t deviceCount = 0;
             vkEnumeratePhysicalDevices(m_instance, &deviceCount, nullptr);
@@ -365,7 +365,7 @@ namespace Kita::Pbrv
             CachePhysicalDeviceCaps();
         }
 
-        void RenderContext::CreateLogicalDevice()
+        void Context::CreateLogicalDevice()
         {
             QueueFamilyIndices indices = FindQueueFamilies(m_physicalDevice, m_surface);
 
@@ -414,7 +414,7 @@ namespace Kita::Pbrv
             m_presentFamily = indices.m_presentFamily.value();
         }
 
-        void RenderContext::CreateCommandPool()
+        void Context::CreateCommandPool()
         {
             QueueFamilyIndices queueFamilyIndices = FindQueueFamilies(m_physicalDevice, m_surface);
 
@@ -429,7 +429,7 @@ namespace Kita::Pbrv
             }
         }
 
-        void RenderContext::CachePhysicalDeviceCaps()
+        void Context::CachePhysicalDeviceCaps()
         {
             VkPhysicalDeviceProperties properties{};
             vkGetPhysicalDeviceProperties(m_physicalDevice, &properties);

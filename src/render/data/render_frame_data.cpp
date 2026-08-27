@@ -18,8 +18,8 @@ namespace Kita::Pbrv
             constexpr Resource::DescriptorLayoutType kLayoutType = Resource::DescriptorLayoutType::Frame;
         }
 
-        RenderFrameData::RenderFrameData(const Rhi::RenderContext& context,
-            Resource::RenderResources& resources,
+        RenderFrameData::RenderFrameData(const Rhi::Context& context,
+            Resource::Resources& resources,
             const Rhi::SwapChain& swapChain,
             Resource::DescriptorManager& descriptorMgr)
             : m_context(context),

@@ -33,8 +33,8 @@ namespace Kita::Pbrv
             };
         }
 
-        RenderIblData::RenderIblData(const Rhi::RenderContext& context,
-            Resource::RenderResources& resources,
+        RenderIblData::RenderIblData(const Rhi::Context& context,
+            Resource::Resources& resources,
             Resource::DescriptorManager& descriptorMgr)
             : m_context(context),
             m_resources(resources),
@@ -53,9 +53,9 @@ namespace Kita::Pbrv
 
             Core::Log::Info("[Renderer] Create BRDF LUT: ", Resource::kBrdfLutSize, "x", Resource::kBrdfLutSize, " RG16F");
 
-            m_textureSet = std::make_unique<TextureSet>(m_context, m_resources,
+            m_iblTextureSet = std::make_unique<IblTextureSet>(m_context, m_resources,
                 m_descriptorMgr, kTextureLayoutType,
-                TextureArray{ Resource::CreateCubemapFallback(m_resources, m_context.HdrFormat()), Resource::CreateCubemapFallback(m_resources, m_context.HdrFormat()) });
+                IblTextureArray{ Resource::CreateCubemapFallback(m_resources, m_context.HdrFormat()), Resource::CreateCubemapFallback(m_resources, m_context.HdrFormat()) });
         }
 
         RenderIblData::~RenderIblData() = default;
@@ -67,11 +67,11 @@ namespace Kita::Pbrv
                 m_lastCubemap = sourceCubemap;
 
                 // Source changed: convolve a new irradiance map, or restore the placeholder
-                TextureArray updatedTexs{};
+                IblTextureArray updatedTexs{};
 
                 if (sourceCubemap.IsEmpty())
                 {
-                    updatedTexs = m_textureSet->GetFallbacks();
+                    updatedTexs = m_iblTextureSet->GetFallbacks();
                 }
                 else
                 {
@@ -84,21 +84,21 @@ namespace Kita::Pbrv
                         Resource::kPrefilterBaseSize, "x", Resource::kPrefilterBaseSize, "x6");
                 }
 
-                m_textureSet->Update(updatedTexs);
+                m_iblTextureSet->Update(updatedTexs);
                 KITA_LOG_DEBUG("[Renderer] Update IBL descriptor set: textures changed");
             }
 
-            m_textureSet->RefreshSet(frameIndex);
+            m_iblTextureSet->RefreshSet(frameIndex);
         }
 
         VkDescriptorSetLayout RenderIblData::GetSetLayout() const
         {
-            return m_textureSet->GetLayout();
+            return m_iblTextureSet->GetLayout();
         }
 
         const VkDescriptorSet& RenderIblData::GetSet(uint32_t frameIndex) const
         {
-            return m_textureSet->GetSet(frameIndex);
+            return m_iblTextureSet->GetSet(frameIndex);
         }
 
         VkDescriptorSetLayout RenderIblData::GetBrdfLutSetLayout() const

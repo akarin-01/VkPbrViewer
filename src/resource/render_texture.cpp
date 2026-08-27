@@ -8,7 +8,7 @@ namespace Kita::Pbrv
 {
     namespace Resource
     {
-        RenderTexture CreateCubemapFallback(RenderResources& resources, VkFormat format)
+        RenderTexture CreateCubemapFallback(Resources& resources, VkFormat format)
         {
             RenderTexture fallback{};
 
@@ -42,7 +42,7 @@ namespace Kita::Pbrv
             return fallback;
         }
 
-        RenderTexture Create2DTexture(RenderResources& resources, uint32_t width, uint32_t height, VkFormat format, uint32_t mipLevels, VkImageUsageFlags usage, RenderSamplerHandle sampler)
+        RenderTexture Create2DTexture(Resources& resources, uint32_t width, uint32_t height, VkFormat format, uint32_t mipLevels, VkImageUsageFlags usage, RenderSamplerHandle sampler)
         {
             RenderTexture texture{};
 
@@ -70,7 +70,7 @@ namespace Kita::Pbrv
             return texture;
         }
 
-        RenderTexture Create2DTextureWithData(RenderResources& resources, const void* data, size_t size, uint32_t width, uint32_t height, VkFormat format, uint32_t mipLevels, RenderSamplerHandle sampler)
+        RenderTexture Create2DTextureWithData(Resources& resources, const void* data, size_t size, uint32_t width, uint32_t height, VkFormat format, uint32_t mipLevels, RenderSamplerHandle sampler)
         {
             RenderTexture texture{};
 
@@ -100,7 +100,7 @@ namespace Kita::Pbrv
             return texture;
         }
 
-        RenderTexture CreateCubemapTexture(RenderResources& resources, uint32_t faceSize, VkFormat format, uint32_t mipLevels, VkImageUsageFlags usage, RenderSamplerHandle sampler)
+        RenderTexture CreateCubemapTexture(Resources& resources, uint32_t faceSize, VkFormat format, uint32_t mipLevels, VkImageUsageFlags usage, RenderSamplerHandle sampler)
         {
             RenderTexture cubemap{};
 
@@ -127,7 +127,7 @@ namespace Kita::Pbrv
             return cubemap;
         }
 
-        void DestroyTexture(RenderResources& resources, RenderTexture& texture)
+        void DestroyTexture(Resources& resources, RenderTexture& texture)
         {
             resources.DestroySampler(texture.m_samplerHandle);
             resources.DestroyImageView(texture.m_imageViewHandle);

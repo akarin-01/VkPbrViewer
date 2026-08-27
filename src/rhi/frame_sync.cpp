@@ -12,7 +12,7 @@ namespace Kita::Pbrv
 {
     namespace Rhi
     {
-        FrameSync::FrameSync(const RenderContext& context, SwapChain& swapChain)
+        FrameSync::FrameSync(const Context& context, SwapChain& swapChain)
             : m_context(context), m_swapChain(swapChain)
         {
             CreateCommandBuffers();

@@ -8,7 +8,7 @@ namespace Kita::Pbrv
 {
     namespace Rhi
     {
-        DescriptorWriter::DescriptorWriter(const Resource::RenderResources& resources, VkDevice device)
+        DescriptorWriter::DescriptorWriter(const Resource::Resources& resources, VkDevice device)
             : m_resources(resources), m_device(device)
         {
         }

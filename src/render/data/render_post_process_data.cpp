@@ -17,8 +17,8 @@ namespace Kita::Pbrv
             constexpr Resource::DescriptorLayoutType kLayoutType = Resource::DescriptorLayoutType::PostProcess;
         }
 
-        RenderPostProcessData::RenderPostProcessData(const Rhi::RenderContext& context,
-            Resource::RenderResources& resources,
+        RenderPostProcessData::RenderPostProcessData(const Rhi::Context& context,
+            Resource::Resources& resources,
             Resource::DescriptorManager& descriptorMgr)
             : m_context(context),
             m_resources(resources),

@@ -19,8 +19,8 @@ namespace Kita::Pbrv
         class PostProcessPass : public RenderPassBase
         {
         public:
-            PostProcessPass(const Rhi::RenderContext& context,
-                Resource::RenderResources& resources,
+            PostProcessPass(const Rhi::Context& context,
+                Resource::Resources& resources,
                 const Rhi::SwapChain& swapChain,
                 RenderTargetData& targetData,
                 const RenderScene& scene);

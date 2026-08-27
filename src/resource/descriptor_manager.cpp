@@ -31,7 +31,7 @@ namespace Kita::Pbrv
             }
         }
 
-        DescriptorSetPool::DescriptorSetPool(const Rhi::RenderContext& context,
+        DescriptorSetPool::DescriptorSetPool(const Rhi::Context& context,
             const std::vector<BindingDesc>& bindingDescs,
             const std::string& name)
             : m_context(context), m_name(name)
@@ -140,7 +140,7 @@ namespace Kita::Pbrv
             return pool;
         }
 
-        DescriptorManager::DescriptorManager(const Rhi::RenderContext& context)
+        DescriptorManager::DescriptorManager(const Rhi::Context& context)
         {
             CreateSetPool(Type::Frame, context,
                 { { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1,
@@ -184,7 +184,7 @@ namespace Kita::Pbrv
             return GetPool(type).Allocate();
         }
 
-        void DescriptorManager::CreateSetPool(Type type, const Rhi::RenderContext& context, const std::vector<BindingDesc>& bindingDescs)
+        void DescriptorManager::CreateSetPool(Type type, const Rhi::Context& context, const std::vector<BindingDesc>& bindingDescs)
         {
             auto& poolPtr = m_pools[static_cast<size_t>(type)];
 

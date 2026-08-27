@@ -14,8 +14,8 @@ namespace Kita::Pbrv
 {
     namespace Render
     {
-        PostProcessPass::PostProcessPass(const Rhi::RenderContext& context,
-            Resource::RenderResources& resources,
+        PostProcessPass::PostProcessPass(const Rhi::Context& context,
+            Resource::Resources& resources,
             const Rhi::SwapChain& swapChain,
             RenderTargetData& targetData,
             const RenderScene& scene)

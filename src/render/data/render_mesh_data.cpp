@@ -49,7 +49,7 @@ namespace Kita::Pbrv
             return attributeDescriptions;
         }
 
-        RenderMeshData::RenderMeshData(Resource::RenderResources& resources)
+        RenderMeshData::RenderMeshData(Resource::Resources& resources)
             : m_resources(resources)
         {
         }

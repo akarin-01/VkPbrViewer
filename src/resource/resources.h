@@ -15,7 +15,7 @@ namespace Kita::Pbrv
 {
     namespace Rhi
     {
-        class RenderContext;
+        class Context;
     }
 
     namespace Resource
@@ -126,11 +126,11 @@ namespace Kita::Pbrv
         };
 
         /// Manages low-level rendering resources, independent of business logic types
-        class RenderResources
+        class Resources
         {
         public:
-            RenderResources(const Rhi::RenderContext& context);
-            ~RenderResources();
+            Resources(const Rhi::Context& context);
+            ~Resources();
 
             void FlushDeferred(uint32_t frameIndex);
 
@@ -189,7 +189,7 @@ namespace Kita::Pbrv
             void DestroySamplerHelper(const RenderSampler& sampler) const;
 
         private:
-            const Rhi::RenderContext& m_context;
+            const Rhi::Context& m_context;
 
             ResourcePool<RenderBuffer> m_buffers;
             ResourcePool<RenderImage> m_images;

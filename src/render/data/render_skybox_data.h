@@ -13,15 +13,15 @@ namespace Kita::Pbrv
 {
     namespace Rhi
     {
-        class RenderContext;
+        class Context;
     }
     namespace Resource
     {
-        class RenderResources;
+        class Resources;
         class DescriptorManager;
         class ComputeConversion;
         struct Texture;
-        template<uint32_t, uint32_t> class RenderTextureSet;
+        template<uint32_t, uint32_t> class TextureSet;
     }
     namespace Scene
     {
@@ -33,8 +33,8 @@ namespace Kita::Pbrv
         class RenderSkyboxData
         {
         public:
-            RenderSkyboxData(const Rhi::RenderContext& context,
-                Resource::RenderResources& resources,
+            RenderSkyboxData(const Rhi::Context& context,
+                Resource::Resources& resources,
                 Resource::DescriptorManager& descriptorMgr);
             ~RenderSkyboxData();
 
@@ -45,15 +45,15 @@ namespace Kita::Pbrv
             Resource::RenderTexture GetCubemap() const;
 
         private:
-            using TextureSet = Resource::RenderTextureSet<1, Rhi::kMaxFramesInFlight>;
+            using TextureSet = Resource::TextureSet<1, Rhi::kMaxFramesInFlight>;
             using TextureArray = std::array<Resource::RenderTexture, 1>;
 
             Resource::RenderTexture CreateCubemap(const Resource::Texture& texture) const;
             Resource::RenderTexture CreateEquirectTexture(const Resource::Texture& texture, VkFormat format) const;
 
         private:
-            const Rhi::RenderContext& m_context;
-            Resource::RenderResources& m_resources;
+            const Rhi::Context& m_context;
+            Resource::Resources& m_resources;
             Resource::DescriptorManager& m_descriptorMgr;
 
             Resource::ResourceId m_lastSkyboxId{ Resource::kInvalidId };

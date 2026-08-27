@@ -7,12 +7,12 @@ namespace Kita::Pbrv
 {
     namespace Rhi
     {
-        class RenderContext;
+        class Context;
         class SwapChain;
     }
     namespace Resource
     {
-        class RenderResources;
+        class Resources;
     }
 
     namespace Render
@@ -20,8 +20,8 @@ namespace Kita::Pbrv
         class RenderPassBase
         {
         public:
-            RenderPassBase(const Rhi::RenderContext& context,
-                Resource::RenderResources& resources,
+            RenderPassBase(const Rhi::Context& context,
+                Resource::Resources& resources,
                 const Rhi::SwapChain& swapChain)
                 : m_context(context),
                 m_resources(resources),
@@ -34,8 +34,8 @@ namespace Kita::Pbrv
             virtual void Draw(const Rhi::FrameInfo& frameInfo) const = 0;
 
         protected:
-            const Rhi::RenderContext& m_context;
-            Resource::RenderResources& m_resources;
+            const Rhi::Context& m_context;
+            Resource::Resources& m_resources;
             const Rhi::SwapChain& m_swapChain;
         };
     }

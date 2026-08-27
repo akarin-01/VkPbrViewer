@@ -10,7 +10,7 @@ namespace Kita::Pbrv
 {
     namespace Resource
     {
-        class RenderResources;
+        class Resources;
     }
 
     namespace Render
@@ -21,7 +21,7 @@ namespace Kita::Pbrv
             static VkVertexInputBindingDescription GetVertexBinding();
             static std::vector<VkVertexInputAttributeDescription> GetVertexAttributes();
 
-            explicit RenderMeshData(Resource::RenderResources& resources);
+            explicit RenderMeshData(Resource::Resources& resources);
             ~RenderMeshData();
 
             void Update(const Resource::Mesh::Handle& meshHandle);
@@ -36,7 +36,7 @@ namespace Kita::Pbrv
             void Destroy();
 
         private:
-            Resource::RenderResources& m_resources;
+            Resource::Resources& m_resources;
 
             Resource::RenderBufferHandle m_vertexBufferHandle{ 0 };
             Resource::RenderBufferHandle m_indexBufferHandle{ 0 };

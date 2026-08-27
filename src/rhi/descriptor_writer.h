@@ -10,7 +10,7 @@ namespace Kita::Pbrv
 {
     namespace Resource
     {
-        class RenderResources;
+        class Resources;
     }
 
     namespace Rhi
@@ -18,7 +18,7 @@ namespace Kita::Pbrv
         class DescriptorWriter
         {
         public:
-            explicit DescriptorWriter(const Resource::RenderResources& resources, VkDevice device);
+            explicit DescriptorWriter(const Resource::Resources& resources, VkDevice device);
             ~DescriptorWriter();
 
             DescriptorWriter(const DescriptorWriter&) = delete;
@@ -49,7 +49,7 @@ namespace Kita::Pbrv
                 Resource::RenderSamplerHandle samplerHandle) const;
 
         private:
-            const Resource::RenderResources& m_resources;
+            const Resource::Resources& m_resources;
             VkDevice m_device{ VK_NULL_HANDLE };
 
             std::map<uint32_t, BindingEntry> m_bindingEntries{};

@@ -17,11 +17,11 @@ namespace Kita::Pbrv
         /// Owns all textures (including fallbacks); the caller only creates textures
         /// and passes them in. Sets are seeded at construction and stay valid forever.
         template<uint32_t SlotCount, uint32_t SetCount>
-        class RenderTextureSet
+        class TextureSet
         {
         public:
-            RenderTextureSet(const Rhi::RenderContext& context,
-                RenderResources& resources,
+            TextureSet(const Rhi::Context& context,
+                Resources& resources,
                 DescriptorManager& descriptorMgr,
                 DescriptorLayoutType layoutType,
                 const std::array<RenderTexture, SlotCount>& fallbacks)
@@ -40,7 +40,7 @@ namespace Kita::Pbrv
                 }
             }
 
-            ~RenderTextureSet()
+            ~TextureSet()
             {
                 // Sets will be destroyed automatically
 
@@ -56,10 +56,10 @@ namespace Kita::Pbrv
                 }
             }
 
-            RenderTextureSet(const RenderTextureSet&) = delete;
-            RenderTextureSet& operator=(const RenderTextureSet&) = delete;
-            RenderTextureSet(RenderTextureSet&&) = delete;
-            RenderTextureSet& operator=(RenderTextureSet&&) = delete;
+            TextureSet(const TextureSet&) = delete;
+            TextureSet& operator=(const TextureSet&) = delete;
+            TextureSet(TextureSet&&) = delete;
+            TextureSet& operator=(TextureSet&&) = delete;
 
             /// Replaces the changed slots. Old non-fallback textures are destroyed here.
             /// Empty slots in `textures` mean "keep current"; sets are written by RefreshSet.
@@ -125,8 +125,8 @@ namespace Kita::Pbrv
             }
 
         private:
-            const Rhi::RenderContext& m_context;
-            RenderResources& m_resources;
+            const Rhi::Context& m_context;
+            Resources& m_resources;
             DescriptorManager& m_descriptorMgr;
 
             // Count as the default: an unset layout type fails the manager's assert

@@ -16,11 +16,11 @@ namespace Kita::Pbrv
     }
     namespace Rhi
     {
-        class RenderContext;
+        class Context;
     }
     namespace Resource
     {
-        class RenderResources;
+        class Resources;
         class DescriptorManager;
     }
 
@@ -35,8 +35,8 @@ namespace Kita::Pbrv
         class RenderPostProcessData
         {
         public:
-            RenderPostProcessData(const Rhi::RenderContext& context,
-                Resource::RenderResources& resources,
+            RenderPostProcessData(const Rhi::Context& context,
+                Resource::Resources& resources,
                 Resource::DescriptorManager& descriptorMgr);
             ~RenderPostProcessData();
 
@@ -46,8 +46,8 @@ namespace Kita::Pbrv
             const VkDescriptorSet& GetSet(uint32_t frameIndex) const { return m_sets[frameIndex]; }
 
         private:
-            const Rhi::RenderContext& m_context;
-            Resource::RenderResources& m_resources;
+            const Rhi::Context& m_context;
+            Resource::Resources& m_resources;
             Resource::DescriptorManager& m_descriptorMgr;
 
             std::array<Resource::RenderBufferHandle, Rhi::kMaxFramesInFlight> m_uboHandles{};

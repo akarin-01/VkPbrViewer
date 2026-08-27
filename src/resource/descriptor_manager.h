@@ -11,7 +11,7 @@ namespace Kita::Pbrv
 {
     namespace Rhi
     {
-        class RenderContext;
+        class Context;
     }
 
     namespace Resource
@@ -27,7 +27,7 @@ namespace Kita::Pbrv
         class DescriptorSetPool
         {
         public:
-            DescriptorSetPool(const Rhi::RenderContext& context,
+            DescriptorSetPool(const Rhi::Context& context,
                 const std::vector<BindingDesc>& bindingDescs,
                 const std::string& name);
             ~DescriptorSetPool();
@@ -44,7 +44,7 @@ namespace Kita::Pbrv
             VkDescriptorPool CreatePool() const;
 
         private:
-            const Rhi::RenderContext& m_context;
+            const Rhi::Context& m_context;
 
             std::string m_name{ "default" };
             VkDescriptorSetLayout m_layout{ VK_NULL_HANDLE };
@@ -71,7 +71,7 @@ namespace Kita::Pbrv
                 Count
             };
 
-            explicit DescriptorManager(const Rhi::RenderContext& context);
+            explicit DescriptorManager(const Rhi::Context& context);
             ~DescriptorManager();
 
             DescriptorManager(const DescriptorManager&) = delete;
@@ -84,7 +84,7 @@ namespace Kita::Pbrv
 
         private:
             void CreateSetPool(Type type,
-                const Rhi::RenderContext& context,
+                const Rhi::Context& context,
                 const std::vector<BindingDesc>& bindingDescs);
             const DescriptorSetPool& GetPool(Type type) const;
             DescriptorSetPool& GetPool(Type type);

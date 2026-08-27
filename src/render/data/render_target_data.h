@@ -8,11 +8,11 @@ namespace Kita::Pbrv
 {
     namespace Rhi
     {
-        class RenderContext;
+        class Context;
     }
     namespace Resource
     {
-        class RenderResources;
+        class Resources;
         class DescriptorManager;
     }
 
@@ -21,8 +21,8 @@ namespace Kita::Pbrv
         class RenderTargetData
         {
         public:
-            RenderTargetData(const Rhi::RenderContext& context,
-                Resource::RenderResources& resources,
+            RenderTargetData(const Rhi::Context& context,
+                Resource::Resources& resources,
                 Resource::DescriptorManager& descriptorMgr,
                 VkExtent2D extent);
             ~RenderTargetData();
@@ -62,8 +62,8 @@ namespace Kita::Pbrv
             void Destroy();
 
         private:
-            const Rhi::RenderContext& m_context;
-            Resource::RenderResources& m_resources;
+            const Rhi::Context& m_context;
+            Resource::Resources& m_resources;
             Resource::DescriptorManager& m_descriptorMgr;
 
             Resource::RenderTexture m_colorTex{};

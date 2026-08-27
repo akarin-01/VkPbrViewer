@@ -15,12 +15,12 @@ namespace Kita::Pbrv
     }
     namespace Rhi
     {
-        class RenderContext;
+        class Context;
         class SwapChain;
     }
     namespace Resource
     {
-        class RenderResources;
+        class Resources;
         class DescriptorManager;
     }
 
@@ -33,8 +33,8 @@ namespace Kita::Pbrv
         {
         public:
             RenderPipeline(const Core::Window& window,
-                const Rhi::RenderContext& context,
-                Resource::RenderResources& resources,
+                const Rhi::Context& context,
+                Resource::Resources& resources,
                 const Rhi::SwapChain& swapChain,
                 Resource::DescriptorManager& descriptorMgr,
                 const RenderScene& scene);
@@ -45,8 +45,8 @@ namespace Kita::Pbrv
 
         private:
             void CreateRenderPasses(const Core::Window& window,
-                const Rhi::RenderContext& context,
-                Resource::RenderResources& resources,
+                const Rhi::Context& context,
+                Resource::Resources& resources,
                 const Rhi::SwapChain& swapChain,
                 const RenderScene& scene);
             void DestroyRenderPasses();

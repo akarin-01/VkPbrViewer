@@ -9,7 +9,7 @@ namespace Kita::Pbrv
 {
     namespace Rhi
     {
-        OneShotCommand::OneShotCommand(const RenderContext& context)
+        OneShotCommand::OneShotCommand(const Context& context)
             : m_context(context)
         {
             // Allocate command buffer

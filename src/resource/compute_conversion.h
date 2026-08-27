@@ -12,13 +12,13 @@ namespace Kita::Pbrv
 {
     namespace Rhi
     {
-        class RenderContext;
+        class Context;
         class ComputePipeline;
     }
 
     namespace Resource
     {
-        class RenderResources;
+        class Resources;
         class DescriptorManager;
 
         class ComputeConversion
@@ -42,8 +42,8 @@ namespace Kita::Pbrv
                 VkAccessFlags2 m_finalAccess{ VK_ACCESS_2_SHADER_READ_BIT };
             };
 
-            ComputeConversion(const Rhi::RenderContext& context,
-                RenderResources& resources,
+            ComputeConversion(const Rhi::Context& context,
+                Resources& resources,
                 DescriptorManager& descriptorMgr,
                 DescriptorLayoutType layoutType,
                 const std::string& shaderPath, uint32_t pushConstantSize);
@@ -61,8 +61,8 @@ namespace Kita::Pbrv
                 const void* pushData = nullptr) const;
 
         private:
-            const Rhi::RenderContext& m_context;
-            RenderResources& m_resources;
+            const Rhi::Context& m_context;
+            Resources& m_resources;
             DescriptorManager& m_descriptorMgr;
 
             // Count as the default: an unset layout type fails the manager's assert

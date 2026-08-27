@@ -16,14 +16,14 @@ namespace Kita::Pbrv
 {
     namespace Rhi
     {
-        class RenderContext;
+        class Context;
     }
     namespace Resource
     {
-        class RenderResources;
+        class Resources;
         class DescriptorManager;
         struct Texture;
-        template<uint32_t, uint32_t> class RenderTextureSet;
+        template<uint32_t, uint32_t> class TextureSet;
     }
     namespace Scene
     {
@@ -43,8 +43,8 @@ namespace Kita::Pbrv
         class RenderMaterialData
         {
         public:
-            RenderMaterialData(const Rhi::RenderContext& context,
-                Resource::RenderResources& resources,
+            RenderMaterialData(const Rhi::Context& context,
+                Resource::Resources& resources,
                 Resource::DescriptorManager& descriptorMgr);
             ~RenderMaterialData();
 
@@ -55,15 +55,15 @@ namespace Kita::Pbrv
             const MaterialPC& GetPushConstant() const { return m_pushConstant; }
 
         private:
-            using TextureSet = Resource::RenderTextureSet<Resource::kMaterialTextureCount, Rhi::kMaxFramesInFlight>;
+            using TextureSet = Resource::TextureSet<Resource::kMaterialTextureCount, Rhi::kMaxFramesInFlight>;
             using TextureArray = std::array<Resource::RenderTexture, Resource::kMaterialTextureCount>;
 
             TextureArray CreateFallbacks() const;
             Resource::RenderTexture CreateTexture(const Resource::Texture& texture) const;
 
         private:
-            const Rhi::RenderContext& m_context;
-            Resource::RenderResources& m_resources;
+            const Rhi::Context& m_context;
+            Resource::Resources& m_resources;
             Resource::DescriptorManager& m_descriptorMgr;
 
             MaterialPC m_pushConstant{ {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f} };

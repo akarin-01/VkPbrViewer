@@ -8,7 +8,7 @@ namespace Kita::Pbrv
 {
     namespace Resource
     {
-        class RenderResources;
+        class Resources;
 
         struct RenderTexture
         {
@@ -34,27 +34,27 @@ namespace Kita::Pbrv
             RenderSamplerHandle m_samplerHandle{ 0 };
         };
 
-        RenderTexture CreateCubemapFallback(RenderResources& resources, VkFormat format);
+        RenderTexture CreateCubemapFallback(Resources& resources, VkFormat format);
 
         /// Creates an empty 2D texture in UNDEFINED layout (e.g. a storage write
         /// target for conversion passes).
-        RenderTexture Create2DTexture(RenderResources& resources,
+        RenderTexture Create2DTexture(Resources& resources,
             uint32_t width, uint32_t height, VkFormat format, uint32_t mipLevels,
             VkImageUsageFlags usage, RenderSamplerHandle sampler);
 
         /// Creates a 2D texture (upload + mip chain); the result is left in SHADER_READ_ONLY_OPTIMAL
         /// (mipLevels = 1 performs only the final layout transition).
-        RenderTexture Create2DTextureWithData(RenderResources& resources,
+        RenderTexture Create2DTextureWithData(Resources& resources,
             const void* data, size_t size,
             uint32_t width, uint32_t height, VkFormat format, uint32_t mipLevels,
             RenderSamplerHandle sampler);
 
         /// Creates an empty cubemap in UNDEFINED layout (e.g. a storage write target
         /// for conversion passes).
-        RenderTexture CreateCubemapTexture(RenderResources& resources,
+        RenderTexture CreateCubemapTexture(Resources& resources,
             uint32_t faceSize, VkFormat format, uint32_t mipLevels, VkImageUsageFlags usage,
             RenderSamplerHandle sampler);
 
-        void DestroyTexture(RenderResources& resources, RenderTexture& texture);
+        void DestroyTexture(Resources& resources, RenderTexture& texture);
     }
 }

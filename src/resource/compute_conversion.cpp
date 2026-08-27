@@ -14,8 +14,8 @@ namespace Kita::Pbrv
 {
     namespace Resource
     {
-        ComputeConversion::ComputeConversion(const Rhi::RenderContext& context,
-            RenderResources& resources,
+        ComputeConversion::ComputeConversion(const Rhi::Context& context,
+            Resources& resources,
             DescriptorManager& descriptorMgr,
             DescriptorLayoutType layoutType,
             const std::string& shaderPath, uint32_t pushConstantSize)

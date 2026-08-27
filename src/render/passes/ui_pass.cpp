@@ -14,8 +14,8 @@ namespace Kita::Pbrv
 {
     namespace Render
     {
-        UIPass::UIPass(const Rhi::RenderContext& context,
-            Resource::RenderResources& resources,
+        UIPass::UIPass(const Rhi::Context& context,
+            Resource::Resources& resources,
             const Rhi::SwapChain& swapChain,
             const Core::Window& window)
             : RenderPassBase(context, resources, swapChain)

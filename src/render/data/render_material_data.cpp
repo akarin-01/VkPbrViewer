@@ -56,8 +56,8 @@ namespace Kita::Pbrv
             }
         }
 
-        RenderMaterialData::RenderMaterialData(const Rhi::RenderContext& context,
-            Resource::RenderResources& resources,
+        RenderMaterialData::RenderMaterialData(const Rhi::Context& context,
+            Resource::Resources& resources,
             Resource::DescriptorManager& descriptorMgr)
             : m_context(context),
             m_resources(resources),

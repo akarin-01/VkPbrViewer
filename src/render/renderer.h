@@ -13,13 +13,13 @@ namespace Kita::Pbrv
     }
     namespace Rhi
     {
-        class RenderContext;
+        class Context;
         class SwapChain;
         class FrameSync;
     }
     namespace Resource
     {
-        class RenderResources;
+        class Resources;
         class DescriptorManager;
     }
 
@@ -42,8 +42,8 @@ namespace Kita::Pbrv
             void DrawFrame(const Scene::Scene& scene);
 
         private:
-            std::unique_ptr<Rhi::RenderContext> m_context;
-            std::unique_ptr<Resource::RenderResources> m_resources;
+            std::unique_ptr<Rhi::Context> m_context;
+            std::unique_ptr<Resource::Resources> m_resources;
             std::unique_ptr<Rhi::SwapChain> m_swapChain;
             std::unique_ptr<Rhi::FrameSync> m_frameSync;
 

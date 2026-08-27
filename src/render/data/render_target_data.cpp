@@ -17,8 +17,8 @@ namespace Kita::Pbrv
             constexpr Resource::DescriptorLayoutType kLayoutType = Resource::DescriptorLayoutType::TargetTex;
         }
 
-        RenderTargetData::RenderTargetData(const Rhi::RenderContext& context,
-            Resource::RenderResources& resources,
+        RenderTargetData::RenderTargetData(const Rhi::Context& context,
+            Resource::Resources& resources,
             Resource::DescriptorManager& descriptorMgr,
             VkExtent2D extent)
             : m_context(context),

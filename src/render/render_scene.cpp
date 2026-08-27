@@ -9,8 +9,8 @@ namespace Kita::Pbrv
 {
     namespace Render
     {
-        RenderScene::RenderScene(const Rhi::RenderContext& context,
-            Resource::RenderResources& resources,
+        RenderScene::RenderScene(const Rhi::Context& context,
+            Resource::Resources& resources,
             const Rhi::SwapChain& swapChain,
             Resource::DescriptorManager& descriptorMgr)
             : m_frameData(context, resources, swapChain, descriptorMgr),

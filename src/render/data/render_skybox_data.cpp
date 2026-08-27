@@ -21,8 +21,8 @@ namespace Kita::Pbrv
             constexpr Resource::DescriptorLayoutType kConversionLayoutType = Resource::DescriptorLayoutType::ComputeSample;
         }
 
-        RenderSkyboxData::RenderSkyboxData(const Rhi::RenderContext& context,
-            Resource::RenderResources& resources,
+        RenderSkyboxData::RenderSkyboxData(const Rhi::Context& context,
+            Resource::Resources& resources,
             Resource::DescriptorManager& descriptorMgr)
             : m_context(context),
             m_resources(resources),

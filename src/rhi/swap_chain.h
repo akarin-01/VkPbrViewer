@@ -13,17 +13,17 @@ namespace Kita::Pbrv
     }
     namespace Resource
     {
-        class RenderResources;
+        class Resources;
     }
 
     namespace Rhi
     {
-        class RenderContext;
+        class Context;
 
         class SwapChain
         {
         public:
-            SwapChain(Core::Window& window, const RenderContext& context, Resource::RenderResources& resources);
+            SwapChain(Core::Window& window, const Context& context, Resource::Resources& resources);
             ~SwapChain();
 
             bool AcquireNextImage(uint64_t timeout, VkSemaphore semaphore, VkFence fence, uint32_t* pImageIndex);
@@ -44,8 +44,8 @@ namespace Kita::Pbrv
 
         private:
             Core::Window& m_window;
-            const RenderContext& m_context;
-            Resource::RenderResources& m_resources;
+            const Context& m_context;
+            Resource::Resources& m_resources;
 
             VkSwapchainKHR m_swapChain{ VK_NULL_HANDLE };
             std::vector<VkImage> m_images;

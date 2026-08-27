@@ -11,13 +11,13 @@ namespace Kita::Pbrv
 {
     namespace Rhi
     {
-        class RenderContext;
+        class Context;
         class SwapChain;
 
         class FrameSync
         {
         public:
-            FrameSync(const RenderContext& context, SwapChain& swapChain);
+            FrameSync(const Context& context, SwapChain& swapChain);
             ~FrameSync();
 
             FrameInfo BeginFrame();
@@ -32,7 +32,7 @@ namespace Kita::Pbrv
             void RecreatePresentSyncObjects();
 
         private:
-            const RenderContext& m_context;
+            const Context& m_context;
             SwapChain& m_swapChain;
 
             std::vector<VkCommandBuffer> m_commandBuffers;

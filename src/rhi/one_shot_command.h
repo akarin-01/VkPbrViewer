@@ -6,12 +6,12 @@ namespace Kita::Pbrv
 {
     namespace Rhi
     {
-        class RenderContext;
+        class Context;
 
         class OneShotCommand
         {
         public:
-            OneShotCommand(const RenderContext& context);
+            OneShotCommand(const Context& context);
             ~OneShotCommand();
 
             OneShotCommand(const OneShotCommand&) = delete;
@@ -22,7 +22,7 @@ namespace Kita::Pbrv
             VkCommandBuffer Handle() const { return m_commandBuffer; }
 
         private:
-            const RenderContext& m_context;
+            const Context& m_context;
 
             VkCommandBuffer m_commandBuffer{ VK_NULL_HANDLE };
         };

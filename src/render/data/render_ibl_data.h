@@ -11,14 +11,14 @@ namespace Kita::Pbrv
 {
     namespace Rhi
     {
-        class RenderContext;
+        class Context;
     }
     namespace Resource
     {
-        class RenderResources;
+        class Resources;
         class DescriptorManager;
         class ComputeConversion;
-        template<uint32_t, uint32_t> class RenderTextureSet;
+        template<uint32_t, uint32_t> class TextureSet;
     }
 
     namespace Render
@@ -26,8 +26,8 @@ namespace Kita::Pbrv
         class RenderIblData
         {
         public:
-            RenderIblData(const Rhi::RenderContext& context,
-                Resource::RenderResources& resources,
+            RenderIblData(const Rhi::Context& context,
+                Resource::Resources& resources,
                 Resource::DescriptorManager& descriptorMgr);
             ~RenderIblData();
 
@@ -39,18 +39,18 @@ namespace Kita::Pbrv
             const VkDescriptorSet& GetBrdfLutSet(uint32_t frameIndex) const;
 
         private:
-            using BrdfLutSet = Resource::RenderTextureSet<1, 1>;
+            using BrdfLutSet = Resource::TextureSet<1, 1>;
             using BrdfLutArray = std::array<Resource::RenderTexture, 1>;
-            using TextureSet = Resource::RenderTextureSet<2, Rhi::kMaxFramesInFlight>;
-            using TextureArray = std::array<Resource::RenderTexture, 2>;
+            using IblTextureSet = Resource::TextureSet<2, Rhi::kMaxFramesInFlight>;
+            using IblTextureArray = std::array<Resource::RenderTexture, 2>;
 
             Resource::RenderTexture CreateIrradianceMap(const Resource::RenderTexture& sourceCubemap) const;
             Resource::RenderTexture CreatePrefilterEnvMap(const Resource::RenderTexture& sourceCubemap) const;
             Resource::RenderTexture CreateBrdfLut() const;
 
         private:
-            const Rhi::RenderContext& m_context;
-            Resource::RenderResources& m_resources;
+            const Rhi::Context& m_context;
+            Resource::Resources& m_resources;
             Resource::DescriptorManager& m_descriptorMgr;
 
             Resource::RenderTexture m_lastCubemap{};
@@ -59,7 +59,7 @@ namespace Kita::Pbrv
             std::unique_ptr<Resource::ComputeConversion> m_irradianceConversion;
             std::unique_ptr<Resource::ComputeConversion> m_prefilterConversion;
             std::unique_ptr<BrdfLutSet> m_brdfLutSet;
-            std::unique_ptr<TextureSet> m_textureSet;
+            std::unique_ptr<IblTextureSet> m_iblTextureSet;
         };
     }
 }

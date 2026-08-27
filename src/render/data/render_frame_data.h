@@ -17,12 +17,12 @@ namespace Kita::Pbrv
     }
     namespace Rhi
     {
-        class RenderContext;
+        class Context;
         class SwapChain;
     }
     namespace Resource
     {
-        class RenderResources;
+        class Resources;
         class DescriptorManager;
     }
 
@@ -41,8 +41,8 @@ namespace Kita::Pbrv
         class RenderFrameData
         {
         public:
-            RenderFrameData(const Rhi::RenderContext& context,
-                Resource::RenderResources& resources,
+            RenderFrameData(const Rhi::Context& context,
+                Resource::Resources& resources,
                 const Rhi::SwapChain& swapChain,
                 Resource::DescriptorManager& descriptorMgr);
             ~RenderFrameData();
@@ -53,8 +53,8 @@ namespace Kita::Pbrv
             const VkDescriptorSet& GetSet(uint32_t frameIndex) const { return m_sets[frameIndex]; }
 
         private:
-            const Rhi::RenderContext& m_context;
-            Resource::RenderResources& m_resources;
+            const Rhi::Context& m_context;
+            Resource::Resources& m_resources;
             const Rhi::SwapChain& m_swapChain;
             Resource::DescriptorManager& m_descriptorMgr;
 

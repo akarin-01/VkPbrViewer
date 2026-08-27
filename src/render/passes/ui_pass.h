@@ -14,8 +14,8 @@ namespace Kita::Pbrv
         class UIPass : public RenderPassBase
         {
         public:
-            UIPass(const Rhi::RenderContext& context,
-                Resource::RenderResources& resources,
+            UIPass(const Rhi::Context& context,
+                Resource::Resources& resources,
                 const Rhi::SwapChain& swapChain,
                 const Core::Window& window);
             ~UIPass();

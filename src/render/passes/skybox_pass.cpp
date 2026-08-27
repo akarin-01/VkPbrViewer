@@ -14,8 +14,8 @@ namespace Kita::Pbrv
 {
     namespace Render
     {
-        SkyboxPass::SkyboxPass(const Rhi::RenderContext& context,
-            Resource::RenderResources& resources,
+        SkyboxPass::SkyboxPass(const Rhi::Context& context,
+            Resource::Resources& resources,
             const Rhi::SwapChain& swapChain,
             RenderTargetData& targetData,
             const RenderScene& scene)

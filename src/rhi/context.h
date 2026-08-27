@@ -11,11 +11,11 @@ namespace Kita::Pbrv
 
     namespace Rhi
     {
-        class RenderContext
+        class Context
         {
         public:
-            RenderContext(const Core::Window& window);
-            ~RenderContext();
+            Context(const Core::Window& window);
+            ~Context();
 
             VkInstance Instance() const { return m_instance; }
             VkSurfaceKHR Surface() const { return m_surface; }
