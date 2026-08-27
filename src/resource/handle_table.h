@@ -16,7 +16,7 @@ namespace Kita::Pbrv
         public:
             using DestroyFn = std::function<void(T&&)>;
 
-            explicit HandleTable(DestroyFn destroyer = {})
+            explicit HandleTable(DestroyFn destroyer = [](T&&) {})
                 : m_table(std::move(destroyer))
             {
             }

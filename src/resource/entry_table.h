@@ -13,7 +13,7 @@ namespace Kita::Pbrv
         /// Add() creates an entry with count 1; Handle copies AddRef, Handle
         /// destruction Releases. Count 0 removes the entry and invokes the
         /// injected destroyer (immediate cleanup, or deferred transfer via
-        /// ContentTable / DeferredTable depending on the deployment).
+        /// MappingTable / MappingDeferredTable depending on the deployment).
         template <typename T>
         class EntryTable
         {
@@ -29,7 +29,10 @@ namespace Kita::Pbrv
             {
                 for (auto& [id, entry] : m_entries)
                 {
-                    m_destroyer(std::move(entry.m_resource));
+                    if (m_destroyer)
+                    {
+                        m_destroyer(std::move(entry.m_resource));
+                    }
                 }
             }
 
@@ -81,7 +84,10 @@ namespace Kita::Pbrv
 
                 auto resource = std::move(entry.m_resource);
                 m_entries.erase(it);
-                m_destroyer(std::move(resource));
+                if (m_destroyer)
+                {
+                    m_destroyer(std::move(resource));
+                }
             }
 
             size_t Size() const

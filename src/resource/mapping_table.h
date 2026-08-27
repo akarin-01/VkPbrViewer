@@ -20,8 +20,8 @@ namespace Kita::Pbrv
             using DestroyFn = typename HandleTable<T>::DestroyFn;
 
             explicit MappingTable(CreateFn creator,
-                ReuseFn reuser = {},
-                DestroyFn destroyer = {})
+                ReuseFn reuser = [](const TKey&) {},
+                DestroyFn destroyer = [](T&&) {})
                 : m_creator(std::move(creator)),
                 m_reuser(std::move(reuser)),
                 m_table(std::move(destroyer))
@@ -36,10 +36,7 @@ namespace Kita::Pbrv
                 if (it != m_keyToId.end() && m_table.Has(it->second))
                 {
                     // Cache hit
-                    if (m_reuser)
-                    {
-                        m_reuser(key);
-                    }
+                    m_reuser(key);
                     return m_table.GetShared(it->second);
                 }
 

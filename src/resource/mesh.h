@@ -19,7 +19,9 @@ namespace Kita::Pbrv
             std::vector<uint32_t> m_indices;
 
             size_t GetVertexCount() const { return m_vertices.size(); }
+            size_t GetVertexDataSize() const { return sizeof(Vertex) * m_vertices.size(); }
             size_t GetIndexCount() const { return m_indices.size(); }
+            size_t GetIndexDataSize() const { return sizeof(uint32_t) * m_indices.size(); }
         };
     }
 }
