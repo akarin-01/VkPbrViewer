@@ -2,7 +2,7 @@
 
 #include "core/log.h"
 #include "resource/asset_manager.h"
-#include "resource/mesh.h"
+#include "resource/asset_types.h"
 #include "resource/resource_utils.h"
 
 #include <stdexcept>
@@ -13,9 +13,9 @@ namespace Kita::Pbrv
     {
         namespace
         {
-            MeshData CreateMeshData(const Rhi::Context& context, const Mesh& mesh)
+            MeshResource CreateMeshResource(const Rhi::Context& context, const MeshAsset& mesh)
             {
-                MeshData data{};
+                MeshResource data{};
 
                 size_t vertexDataSize = mesh.GetVertexDataSize();
                 data.m_vertexBuffer = ResourceUtils::CreateBufferData(context,
@@ -32,7 +32,7 @@ namespace Kita::Pbrv
                 return data;
             }
 
-            void DestroyMeshData(const Rhi::Context& context, MeshData& mesh)
+            void DestroyMeshResource(const Rhi::Context& context, MeshResource& mesh)
             {
                 ResourceUtils::DestroyBufferData(context, mesh.m_vertexBuffer);
                 ResourceUtils::DestroyBufferData(context, mesh.m_indexBuffer);
@@ -46,35 +46,34 @@ namespace Kita::Pbrv
             m_assetMgr(assetMgr),
             m_meshTable([this](const ResourceId& id)
                 {
-                    const Mesh* mesh = m_assetMgr.GetMesh(id);
+                    const MeshAsset* mesh = m_assetMgr.GetMesh(id);
                     if (!mesh)
                     {
-                        throw std::runtime_error("Mesh asset not found: " + std::to_string(id));
+                        throw std::runtime_error("MeshAsset asset not found: " + std::to_string(id));
                     }
 
-                    MeshData data = CreateMeshData(m_context, *mesh);
-                    Core::Log::Info("[Resource] Create mesh data: ", mesh->m_name, ", vb ",
+                    MeshResource data = CreateMeshResource(m_context, *mesh);
+                    Core::Log::Info("[Resource] Create mesh resource: ", mesh->m_name, ", vb ",
                         mesh->GetVertexDataSize(), " bytes, ib ", mesh->GetIndexDataSize(), " bytes");
                     return data;
                 },
                 [this](const ResourceId& id)
                 {
-                    KITA_LOG_DEBUG("[Resource] Reuse mesh data: ", m_assetMgr.GetMesh(id)->m_name);
+                    KITA_LOG_DEBUG("[Resource] Reuse mesh resource: ", m_assetMgr.GetMesh(id)->m_name);
                 },
-                [this](MeshData& mesh)
+                [this](MeshResource& mesh)
                 {
-                    Core::Log::Info("[Resource] Release mesh data: ",
+                    Core::Log::Info("[Resource] Release mesh resource: ",
                         mesh.m_vertexBuffer.m_size, " + ", mesh.m_indexBuffer.m_size, " bytes");
-                    DestroyMeshData(m_context, mesh);
+                    DestroyMeshResource(m_context, mesh);
                 })
         {
         }
 
         ResourceManager::~ResourceManager() = default;
 
-        Handle<MeshData> ResourceManager::GetOrCreateMeshData(ResourceId meshId)
+        MeshResource::Handle ResourceManager::GetOrCreateMeshResource(ResourceId meshId)
         {
-            // Content addressing: same mesh id -> shared block; factory runs on miss only.
             return m_meshTable.GetOrCreate(meshId);
         }
 

@@ -9,11 +9,8 @@ namespace Kita::Pbrv
 {
     namespace Resource
     {
-        /// Reference-counted entry table: the backing store for Handle<T>.
-        /// Add() creates an entry with count 1; Handle copies AddRef, Handle
-        /// destruction Releases. Count 0 removes the entry and invokes the
-        /// injected destroyer (immediate cleanup, or deferred transfer via
-        /// MappingTable / MappingDeferredTable depending on the deployment).
+        /// Refcounted entries; the backing store of Handle<T>.
+        /// An entry dies when its count hits zero (via the injected destroyer).
         template <typename T>
         class EntryTable
         {
@@ -29,10 +26,7 @@ namespace Kita::Pbrv
             {
                 for (auto& [id, entry] : m_entries)
                 {
-                    if (m_destroyer)
-                    {
-                        m_destroyer(std::move(entry.m_resource));
-                    }
+                    m_destroyer(std::move(entry.m_resource));
                 }
             }
 
@@ -84,10 +78,7 @@ namespace Kita::Pbrv
 
                 auto resource = std::move(entry.m_resource);
                 m_entries.erase(it);
-                if (m_destroyer)
-                {
-                    m_destroyer(std::move(resource));
-                }
+                m_destroyer(std::move(resource));
             }
 
             size_t Size() const

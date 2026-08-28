@@ -1,7 +1,7 @@
 #pragma once
 
-#include "resource/mapping_deferred_table.h"
-#include "resource/blocks.h"
+#include "resource/deferred_key_table.h"
+#include "resource/resource_types.h"
 #include "resource/resource_id.h"
 #include "resource/handle.h"
 
@@ -24,7 +24,7 @@ namespace Kita::Pbrv
                 AssetManager& assetMgr);
             ~ResourceManager();
 
-            Handle<MeshData> GetOrCreateMeshData(ResourceId meshId);
+            MeshResource::Handle GetOrCreateMeshResource(ResourceId meshId);
 
             void FlushDeferred(uint32_t frameIndex);
 
@@ -32,7 +32,7 @@ namespace Kita::Pbrv
             const Rhi::Context& m_context;
             AssetManager& m_assetMgr;
 
-            MappingDeferredTable<ResourceId, MeshData> m_meshTable;
+            DeferredKeyTable<ResourceId, MeshResource> m_meshTable;
         };
     }
 }

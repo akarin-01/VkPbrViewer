@@ -1,9 +1,8 @@
 #pragma once
 
-#include "resource/mapping_table.h"
+#include "resource/key_table.h"
 #include "resource/handle.h"
-#include "resource/mesh.h"
-#include "resource/texture.h"
+#include "resource/asset_types.h"
 
 #include <string>
 
@@ -14,24 +13,21 @@ namespace Kita::Pbrv
         class AssetManager
         {
         public:
-            using MeshHandle = Mesh::Handle;
-            using TextureHandle = Texture::Handle;
-
             AssetManager();
             ~AssetManager();
 
-            MeshHandle LoadMesh(const std::string& path);
-            TextureHandle LoadTexture(const std::string& path, TextureType type);
+            MeshAsset::Handle LoadMesh(const std::string& path);
+            TextureAsset::Handle LoadTexture(const std::string& path, TextureAsset::Type type);
 
-            const Mesh* GetMesh(ResourceId id) { return m_meshTable.Get(id); }
-            const Texture* GetTexture(ResourceId id) { return m_textureTable.Get(id); }
+            const MeshAsset* GetMesh(ResourceId id) { return m_meshTable.Get(id); }
+            const TextureAsset* GetTexture(ResourceId id) { return m_textureTable.Get(id); }
 
             size_t GetMeshCount() const { return m_meshTable.Size(); }
             size_t GetTextureCount() const { return m_textureTable.Size(); }
 
         private:
-            MappingTable<std::string, Mesh>          m_meshTable;
-            MappingTable<TextureKey, Texture, TextureKeyHash> m_textureTable;
+            KeyTable<std::string, MeshAsset> m_meshTable;
+            KeyTable<TextureKey, TextureAsset, TextureKey::Hash> m_textureTable;
         };
     }
 }

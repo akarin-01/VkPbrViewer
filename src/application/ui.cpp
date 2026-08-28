@@ -19,7 +19,7 @@ namespace Kita::Pbrv
             constexpr float kDragSpeed = 0.005f;
 
             void DrawTextureRaw(const char* title, Scene::Material& mat, uint32_t slot,
-                Resource::TextureType type, Resource::AssetManager& assets)
+                Resource::TextureAsset::Type type, Resource::AssetManager& assets)
             {
                 const auto tex = mat.GetTexture(slot);
 
@@ -39,7 +39,7 @@ namespace Kita::Pbrv
                 ImGui::PushID(title);
                 if (ImGui::Button("Open"))
                 {
-                    auto path = OpenFileDialog("Texture Files\0*.jpg;*.png;*.tga\0All Files\0*.*\0");
+                    auto path = OpenFileDialog("TextureAsset Files\0*.jpg;*.png;*.tga\0All Files\0*.*\0");
                     if (path)
                     {
                         try
@@ -94,7 +94,7 @@ namespace Kita::Pbrv
                                 {
                                     try
                                     {
-                                        skybox.SetSkybox(assets.LoadTexture(path.value(), Resource::TextureType::Hdr));
+                                        skybox.SetSkybox(assets.LoadTexture(path.value(), Resource::TextureAsset::Type::Hdr));
                                     }
                                     catch (const std::exception& e)
                                     {
@@ -105,7 +105,7 @@ namespace Kita::Pbrv
                             ImGui::SameLine();
                             if (ImGui::Button("Delete##Skybox"))
                             {
-                                skybox.SetSkybox(Scene::Skybox::TextureHandle{});
+                                skybox.SetSkybox(Resource::TextureAsset::Handle{});
                             }
                         });
 
@@ -167,7 +167,7 @@ namespace Kita::Pbrv
                             ImGui::SameLine();
                             if (ImGui::Button("Delete##Mesh"))
                             {
-                                object.SetMesh(Scene::Object::MeshHandle{});
+                                object.SetMesh(Resource::MeshAsset::Handle{});
                             }
                         });
 
@@ -210,11 +210,11 @@ namespace Kita::Pbrv
 
                             DrawBox("##TexturesBox", "Textures", [&mat, &assets]()
                                 {
-                                    DrawTextureRaw("Albedo:   ", mat, Resource::MaterialTextureSlot::Albedo, Resource::TextureType::Srgb, assets);
-                                    DrawTextureRaw("Normal:   ", mat, Resource::MaterialTextureSlot::Normal, Resource::TextureType::Normal, assets);
-                                    DrawTextureRaw("MR:       ", mat, Resource::MaterialTextureSlot::MetallicRoughness, Resource::TextureType::MetallicRoughness, assets);
-                                    DrawTextureRaw("AO:       ", mat, Resource::MaterialTextureSlot::AO, Resource::TextureType::Linear, assets);
-                                    DrawTextureRaw("Emissive: ", mat, Resource::MaterialTextureSlot::Emissive, Resource::TextureType::Srgb, assets);
+                                    DrawTextureRaw("Albedo:   ", mat, Resource::MaterialTextureSlot::Albedo, Resource::TextureAsset::Type::Srgb, assets);
+                                    DrawTextureRaw("Normal:   ", mat, Resource::MaterialTextureSlot::Normal, Resource::TextureAsset::Type::Normal, assets);
+                                    DrawTextureRaw("MR:       ", mat, Resource::MaterialTextureSlot::MetallicRoughness, Resource::TextureAsset::Type::MetallicRoughness, assets);
+                                    DrawTextureRaw("AO:       ", mat, Resource::MaterialTextureSlot::AO, Resource::TextureAsset::Type::Linear, assets);
+                                    DrawTextureRaw("Emissive: ", mat, Resource::MaterialTextureSlot::Emissive, Resource::TextureAsset::Type::Srgb, assets);
                                 });
                         });
                 }

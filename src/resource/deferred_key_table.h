@@ -1,6 +1,6 @@
 #pragma once
 
-#include "resource/mapping_table.h"
+#include "resource/key_table.h"
 #include "resource/deferred_queue.h"
 #include "resource/handle.h"
 
@@ -12,15 +12,18 @@ namespace Kita::Pbrv
 {
     namespace Resource
     {
+        /// Key-addressed entries with deferred destruction: a dead entry (count 0)
+        /// is queued and destroyed on FlushDeferred — call it after the frame's
+        /// waitFence.
         template <typename TKey, typename T, typename Hash = std::hash<TKey>>
-        class MappingDeferredTable
+        class DeferredKeyTable
         {
         public:
-            using CreateFn = typename MappingTable<TKey, T, Hash>::CreateFn;
-            using ReuseFn = typename MappingTable<TKey, T, Hash>::ReuseFn;
+            using CreateFn = typename KeyTable<TKey, T, Hash>::CreateFn;
+            using ReuseFn = typename KeyTable<TKey, T, Hash>::ReuseFn;
             using DestroyFn = typename DeferredQueue<T>::DestroyFn;
 
-            explicit MappingDeferredTable(CreateFn creator,
+            explicit DeferredKeyTable(CreateFn creator,
                 ReuseFn reuser = [](const TKey&) {},
                 DestroyFn destroyer = [](T&) {})
                 : m_table(creator, reuser, [this](T&& res)
@@ -31,7 +34,7 @@ namespace Kita::Pbrv
             {
             }
 
-            ~MappingDeferredTable() = default;
+            ~DeferredKeyTable() = default;
 
             Handle<T> GetOrCreate(const TKey& key)
             {
@@ -45,7 +48,7 @@ namespace Kita::Pbrv
             }
 
         private:
-            MappingTable<TKey, T, Hash> m_table;
+            KeyTable<TKey, T, Hash> m_table;
             DeferredQueue<T> m_queue;
             uint32_t m_frameIndex{ 0 };
         };

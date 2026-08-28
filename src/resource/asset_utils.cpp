@@ -18,28 +18,28 @@ namespace Kita::Pbrv
     {
         namespace
         {
-            int GetTextureChannels(TextureType type)
+            int GetTextureChannels(TextureAsset::Type type)
             {
                 switch (type)
                 {
-                case TextureType::Srgb:                 return 4;
-                case TextureType::Normal:               return 4;
-                case TextureType::MetallicRoughness:    return 4;
-                case TextureType::Linear:               return 1;
-                case TextureType::Hdr:                  return 4;
+                case TextureAsset::Type::Srgb:                 return 4;
+                case TextureAsset::Type::Normal:               return 4;
+                case TextureAsset::Type::MetallicRoughness:    return 4;
+                case TextureAsset::Type::Linear:               return 1;
+                case TextureAsset::Type::Hdr:                  return 4;
                 default: throw std::runtime_error("Invalid texture type!");
                 }
             }
 
-            size_t GetBytesPerPixel(TextureType type)
+            size_t GetBytesPerPixel(TextureAsset::Type type)
             {
                 switch (type)
                 {
-                case TextureType::Srgb:                 return 4;
-                case TextureType::Normal:               return 4;
-                case TextureType::MetallicRoughness:    return 4;
-                case TextureType::Linear:               return 1;
-                case TextureType::Hdr:                  return 4 * sizeof(float);
+                case TextureAsset::Type::Srgb:                 return 4;
+                case TextureAsset::Type::Normal:               return 4;
+                case TextureAsset::Type::MetallicRoughness:    return 4;
+                case TextureAsset::Type::Linear:               return 1;
+                case TextureAsset::Type::Hdr:                  return 4 * sizeof(float);
                 default: throw std::runtime_error("Invalid texture type!");
                 }
             }
@@ -180,7 +180,7 @@ namespace Kita::Pbrv
 
         namespace AssetUtils
         {
-            Mesh AssetUtils::LoadGltfMesh(const std::string& path)
+            MeshAsset AssetUtils::LoadGltfMesh(const std::string& path)
             {
                 Core::Log::Info("[Resource] Load glTF: ", path);
 
@@ -280,14 +280,14 @@ namespace Kita::Pbrv
                 return { name, std::move(vertices), std::move(indices) };
             }
 
-            Texture LoadTexture(const std::string& path, TextureType type)
+            TextureAsset LoadTexture(const std::string& path, TextureAsset::Type type)
             {
                 Core::Log::Info("[Resource] Load texture: ", path);
 
                 void* data = nullptr;
                 int desiredChannels = GetTextureChannels(type);
                 int texWidth = 0, texHeight = 0, texChannels = 0;
-                if (type == TextureType::Hdr)
+                if (type == TextureAsset::Type::Hdr)
                 {
                     data = stbi_loadf(path.c_str(), &texWidth, &texHeight, &texChannels, desiredChannels);
                 }
@@ -304,7 +304,7 @@ namespace Kita::Pbrv
                 );
                 stbi_image_free(data);
 
-                Texture tex{};
+                TextureAsset tex{};
                 tex.m_name = std::filesystem::path(path).stem().string();
                 tex.m_bytes = std::move(bytes);
                 tex.m_width = static_cast<uint32_t>(texWidth);

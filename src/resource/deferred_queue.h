@@ -12,13 +12,14 @@ namespace Kita::Pbrv
 {
     namespace Resource
     {
+        /// Per-frame slots of entries awaiting destruction; Flush clears one slot.
         template <typename T>
         class DeferredQueue
         {
         public:
             using DestroyFn = std::function<void(T&)>;
 
-            explicit DeferredQueue(DestroyFn destroyer = [](TResource&) {})
+            explicit DeferredQueue(DestroyFn destroyer = [](T&) {})
                 : m_destroyer(destroyer)
             {
             }

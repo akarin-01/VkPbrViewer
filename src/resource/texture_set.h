@@ -16,7 +16,7 @@ namespace Kita::Pbrv
         /// Descriptor sets for a bundle of sampled textures.
         /// Owns all textures (including fallbacks); the caller only creates textures
         /// and passes them in. Sets are seeded at construction and stay valid forever.
-        template<uint32_t SlotCount, uint32_t SetCount>
+        template <uint32_t SlotCount, uint32_t SetCount>
         class TextureSet
         {
         public:

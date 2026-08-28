@@ -4,7 +4,7 @@
 #include "rhi/utils.h"
 #include "resource/handle.h"
 #include "resource/resources.h"
-#include "resource/texture.h"
+#include "resource/asset_types.h"
 #include "resource/texture_set.h"
 #include "scene/material.h"
 
@@ -19,17 +19,17 @@ namespace Kita::Pbrv
         {
             constexpr Resource::DescriptorLayoutType kTextureLayoutType = Resource::DescriptorLayoutType::MaterialTex;
 
-            VkFormat ToFormat(Resource::TextureType type)
+            VkFormat ToFormat(Resource::TextureAsset::Type type)
             {
                 switch (type)
                 {
-                case Resource::TextureType::Srgb:
+                case Resource::TextureAsset::Type::Srgb:
                     return VK_FORMAT_R8G8B8A8_SRGB;
-                case Resource::TextureType::Normal:
+                case Resource::TextureAsset::Type::Normal:
                     return VK_FORMAT_R8G8B8A8_UNORM;
-                case Resource::TextureType::MetallicRoughness:
+                case Resource::TextureAsset::Type::MetallicRoughness:
                     return VK_FORMAT_R8G8B8A8_UNORM;
-                case Resource::TextureType::Linear:
+                case Resource::TextureAsset::Type::Linear:
                     return VK_FORMAT_R8_UNORM;
                 default:
                     throw std::runtime_error("Invalid texture type!");
@@ -138,59 +138,59 @@ namespace Kita::Pbrv
 
             // Albedo: white sRGB
             {
-                Resource::Texture tex{};
+                Resource::TextureAsset tex{};
                 tex.m_name = "fallback";
                 tex.m_bytes = std::vector<uint8_t>(white, white + 4);
                 tex.m_width = width;
                 tex.m_height = height;
-                tex.m_type = Resource::TextureType::Srgb;
+                tex.m_type = Resource::TextureAsset::Type::Srgb;
                 fallbacks[Resource::Albedo] = CreateTexture(tex);
             }
             // Normal: flat (128, 128, 255)
             {
-                Resource::Texture tex{};
+                Resource::TextureAsset tex{};
                 tex.m_name = "fallback";
                 tex.m_bytes = std::vector<uint8_t>(flat, flat + 4);
                 tex.m_width = width;
                 tex.m_height = height;
-                tex.m_type = Resource::TextureType::Normal;
+                tex.m_type = Resource::TextureAsset::Type::Normal;
                 fallbacks[Resource::Normal] = CreateTexture(tex);
             }
             // MR: white (metallic 255, roughness 255)
             {
-                Resource::Texture tex{};
+                Resource::TextureAsset tex{};
                 tex.m_name = "fallback";
                 tex.m_bytes = std::vector<uint8_t>(white, white + 4);
                 tex.m_width = width;
                 tex.m_height = height;
-                tex.m_type = Resource::TextureType::MetallicRoughness;
+                tex.m_type = Resource::TextureAsset::Type::MetallicRoughness;
                 fallbacks[Resource::MetallicRoughness] = CreateTexture(tex);
             }
             // AO: white, single channel
             {
-                Resource::Texture tex{};
+                Resource::TextureAsset tex{};
                 tex.m_name = "fallback";
                 tex.m_bytes = std::vector<uint8_t>(white, white + 1);
                 tex.m_width = width;
                 tex.m_height = height;
-                tex.m_type = Resource::TextureType::Linear;
+                tex.m_type = Resource::TextureAsset::Type::Linear;
                 fallbacks[Resource::AO] = CreateTexture(tex);
             }
             // Emissive: black
             {
-                Resource::Texture tex{};
+                Resource::TextureAsset tex{};
                 tex.m_name = "fallback";
                 tex.m_bytes = std::vector<uint8_t>(black, black + 4);
                 tex.m_width = width;
                 tex.m_height = height;
-                tex.m_type = Resource::TextureType::Srgb;
+                tex.m_type = Resource::TextureAsset::Type::Srgb;
                 fallbacks[Resource::Emissive] = CreateTexture(tex);
             }
 
             return fallbacks;
         }
 
-        Resource::RenderTexture RenderMaterialData::CreateTexture(const Resource::Texture& texture) const
+        Resource::RenderTexture RenderMaterialData::CreateTexture(const Resource::TextureAsset& texture) const
         {
             const VkFormat format = ToFormat(texture.m_type);
             const uint32_t mipLevels = Rhi::CalculateMipLevels(texture.m_width, texture.m_height);

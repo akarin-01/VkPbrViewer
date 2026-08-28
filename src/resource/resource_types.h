@@ -4,7 +4,6 @@
 #include "resource/constants.h"
 #include "resource/handle.h"
 #include "resource/resource_id.h"
-#include "resource/resource_utils.h"
 #include "resource/ubo.h"
 
 #include <vulkan/vulkan.h>
@@ -13,14 +12,9 @@
 
 namespace Kita::Pbrv
 {
-    namespace Rhi
-    {
-        class Context;
-    }
-
     namespace Resource
     {
-        struct BufferData
+        struct BufferResource
         {
             VkBuffer m_buffer{ VK_NULL_HANDLE };
             VkDeviceMemory m_memory{ VK_NULL_HANDLE };
@@ -28,8 +22,10 @@ namespace Kita::Pbrv
             VkDeviceSize m_size{ 0 };
         };
 
-        struct TextureData
+        struct TextureResource
         {
+            using Handle = Resource::Handle<TextureResource>;
+
             VkImage m_image{ VK_NULL_HANDLE };
             VkDeviceMemory m_memory{ VK_NULL_HANDLE };
             VkImageView m_imageView{ VK_NULL_HANDLE };
@@ -40,9 +36,11 @@ namespace Kita::Pbrv
             uint32_t m_arrayLayers{ 1 };
         };
 
-        struct FrameData
+        struct FrameResource
         {
-            std::array<BufferData, Rhi::kMaxFramesInFlight> m_ubos{};
+            using Handle = Resource::Handle<FrameResource>;
+
+            std::array<BufferResource, Rhi::kMaxFramesInFlight> m_ubos{};
             std::array<VkDescriptorSet, Rhi::kMaxFramesInFlight> m_sets{};
 
             void Write(uint32_t frameIndex, const FrameUbo& ubo)
@@ -51,9 +49,11 @@ namespace Kita::Pbrv
             }
         };
 
-        struct ObjectData
+        struct ObjectResource
         {
-            std::array<BufferData, Rhi::kMaxFramesInFlight> m_ubos{};
+            using Handle = Resource::Handle<ObjectResource>;
+
+            std::array<BufferResource, Rhi::kMaxFramesInFlight> m_ubos{};
             std::array<VkDescriptorSet, Rhi::kMaxFramesInFlight> m_sets{};
 
             void Write(uint32_t frameIndex, const ObjectUbo& ubo)
@@ -62,45 +62,31 @@ namespace Kita::Pbrv
             }
         };
 
-        struct MeshData
+        struct MeshResource
         {
-            MeshData() = default;
-            explicit MeshData(const Rhi::Context& context) : m_context(&context) {}
+            using Handle = Resource::Handle<MeshResource>;
 
-            ~MeshData()
-            {
-                if (m_context)
-                {
-                    ResourceUtils::DestroyBufferData(*m_context, m_vertexBuffer);
-                    ResourceUtils::DestroyBufferData(*m_context, m_indexBuffer);
-                }
-            }
-
-            MeshData(const MeshData&) = delete;             // GPU buffers are not copyable
-            MeshData& operator=(const MeshData&) = delete;
-            MeshData(MeshData&&) = default;                 // owned by table entries
-            MeshData& operator=(MeshData&&) = default;
-
-            BufferData m_vertexBuffer{};
-            BufferData m_indexBuffer{};
+            BufferResource m_vertexBuffer{};
+            BufferResource m_indexBuffer{};
             uint32_t m_indexCount{ 0 };
-
-        private:
-            const Rhi::Context* m_context{ nullptr };       // destroy entry
         };
 
-        struct MaterialData
+        struct MaterialResource
         {
-            std::array<Handle<TextureData>, Resource::kMaterialTextureCount> m_textures{};
+            using Handle = Resource::Handle<MaterialResource>;
+
+            std::array<TextureResource::Handle, kMaterialTextureCount> m_textures{};
             VkDescriptorSet m_set{ VK_NULL_HANDLE };        // Allocate new one when textures changed
         };
 
-        struct EnvironmentData
+        struct EnvironmentResource
         {
-            Handle<TextureData> m_skyboxCubemap{};
-            Handle<TextureData> m_irradiance{};
-            Handle<TextureData> m_prefilter{};
-            Handle<TextureData> m_brdfLut{};
+            using Handle = Resource::Handle<EnvironmentResource>;
+
+            TextureResource::Handle m_skyboxCubemap{};
+            TextureResource::Handle m_irradiance{};
+            TextureResource::Handle m_prefilter{};
+            TextureResource::Handle m_brdfLut{};
             VkDescriptorSet m_set{ VK_NULL_HANDLE };        // Allocate new one when textures changed
         };
 
@@ -112,20 +98,20 @@ namespace Kita::Pbrv
             {
                 return m_textureIds == other.m_textureIds;
             }
-        };
 
-        struct MaterialDescHash
-        {
-            size_t operator()(const MaterialDesc& desc) const
+            struct Hash
             {
-                size_t h = 1469598103934665603ull;             // FNV-1a
-                for (ResourceId id : desc.m_textureIds)
+                size_t operator()(const MaterialDesc& desc) const
                 {
-                    h ^= static_cast<size_t>(id);
-                    h *= 1099511628211ull;
+                    size_t h = 1469598103934665603ull;
+                    for (ResourceId id : desc.m_textureIds)
+                    {
+                        h ^= static_cast<size_t>(id);
+                        h *= 1099511628211ull;
+                    }
+                    return h;
                 }
-                return h;
-            }
+            };
         };
     }
 }

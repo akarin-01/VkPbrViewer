@@ -10,20 +10,21 @@ namespace Kita::Pbrv
 {
     namespace Resource
     {
+        /// Handle-shaped API over EntryTable: creates entries and produces
+        /// refcounted handles. Handle constructs here only (IdTable is its friend).
         template <typename T>
-        class HandleTable
+        class IdTable
         {
         public:
             using DestroyFn = std::function<void(T&&)>;
 
-            explicit HandleTable(DestroyFn destroyer = [](T&&) {})
+            explicit IdTable(DestroyFn destroyer = [](T&&) {})
                 : m_table(std::move(destroyer))
             {
             }
 
-            ~HandleTable() = default;
+            ~IdTable() = default;
 
-            /// Insert a resource and return its first handle (refcount 1).
             Handle<T> Create(T&& res)
             {
                 const ResourceId id = m_table.Add(std::move(res));

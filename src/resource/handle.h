@@ -8,7 +8,7 @@ namespace Kita::Pbrv
     namespace Resource
     {
         template <typename T>
-        class HandleTable;
+        class IdTable;
 
         template <typename T>
         class Handle
@@ -69,7 +69,7 @@ namespace Kita::Pbrv
             }
 
         private:
-            friend class HandleTable<T>;
+            friend class IdTable<T>;
 
             Handle(ResourceId id, EntryTable<T>* table);
 

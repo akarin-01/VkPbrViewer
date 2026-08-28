@@ -24,14 +24,14 @@ namespace Kita::Pbrv
                 object.SetMesh(assetMgr.LoadMesh("assets/models/DamagedHelmet.gltf"));
 
                 auto& mat = object.GetMaterial();
-                mat.SetAlbedoTex(assetMgr.LoadTexture("assets/models/Default_albedo.jpg", Resource::TextureType::Srgb));
-                mat.SetNormalTex(assetMgr.LoadTexture("assets/models/Default_normal.jpg", Resource::TextureType::Normal));
-                mat.SetMRTex(assetMgr.LoadTexture("assets/models/Default_metalRoughness.jpg", Resource::TextureType::MetallicRoughness));
-                mat.SetAOTex(assetMgr.LoadTexture("assets/models/Default_AO.jpg", Resource::TextureType::Linear));
-                mat.SetEmissiveTex(assetMgr.LoadTexture("assets/models/Default_Emissive.jpg", Resource::TextureType::Srgb));
+                mat.SetAlbedoTex(assetMgr.LoadTexture("assets/models/Default_albedo.jpg", Resource::TextureAsset::Type::Srgb));
+                mat.SetNormalTex(assetMgr.LoadTexture("assets/models/Default_normal.jpg", Resource::TextureAsset::Type::Normal));
+                mat.SetMRTex(assetMgr.LoadTexture("assets/models/Default_metalRoughness.jpg", Resource::TextureAsset::Type::MetallicRoughness));
+                mat.SetAOTex(assetMgr.LoadTexture("assets/models/Default_AO.jpg", Resource::TextureAsset::Type::Linear));
+                mat.SetEmissiveTex(assetMgr.LoadTexture("assets/models/Default_Emissive.jpg", Resource::TextureAsset::Type::Srgb));
 
                 auto& skybox = scene.GetSkybox();
-                skybox.SetSkybox(assetMgr.LoadTexture("assets/hdr/qwantani_moon_noon_puresky_4k.hdr", Resource::TextureType::Hdr));
+                skybox.SetSkybox(assetMgr.LoadTexture("assets/hdr/qwantani_moon_noon_puresky_4k.hdr", Resource::TextureAsset::Type::Hdr));
 
                 scene.GetPostProcess().SetEV(-1.0f);
             }

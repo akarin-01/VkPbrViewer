@@ -1,7 +1,6 @@
 #pragma once
 
-#include "resource/mesh.h"
-#include "resource/texture.h"
+#include "resource/asset_types.h"
 
 #include <string>
 
@@ -11,8 +10,8 @@ namespace Kita::Pbrv
     {
         namespace AssetUtils
         {
-            Mesh LoadGltfMesh(const std::string& path);
-            Texture LoadTexture(const std::string& path, TextureType type);
+            MeshAsset LoadGltfMesh(const std::string& path);
+            TextureAsset LoadTexture(const std::string& path, TextureAsset::Type type);
         }
     }
 }

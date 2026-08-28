@@ -22,7 +22,7 @@ namespace Kita::Pbrv
     {
         class Resources;
         class DescriptorManager;
-        struct Texture;
+        struct TextureAsset;
         template<uint32_t, uint32_t> class TextureSet;
     }
     namespace Scene
@@ -59,7 +59,7 @@ namespace Kita::Pbrv
             using TextureArray = std::array<Resource::RenderTexture, Resource::kMaterialTextureCount>;
 
             TextureArray CreateFallbacks() const;
-            Resource::RenderTexture CreateTexture(const Resource::Texture& texture) const;
+            Resource::RenderTexture CreateTexture(const Resource::TextureAsset& texture) const;
 
         private:
             const Rhi::Context& m_context;

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "resource/mesh.h"
+#include "resource/asset_types.h"
 #include "resource/types.h"
 
 #include <vector>
@@ -24,7 +24,7 @@ namespace Kita::Pbrv
             explicit RenderMeshData(Resource::Resources& resources);
             ~RenderMeshData();
 
-            void Update(const Resource::Mesh::Handle& meshHandle);
+            void Update(const Resource::MeshAsset::Handle& meshHandle);
 
             VkBuffer GetVertexBuffer() const;
             VkBuffer GetIndexBuffer() const;
@@ -32,7 +32,7 @@ namespace Kita::Pbrv
             bool IsEmpty() const { return m_vertexBufferHandle == 0; }
 
         private:
-            void Create(const Resource::Mesh& mesh);
+            void Create(const Resource::MeshAsset& mesh);
             void Destroy();
 
         private:

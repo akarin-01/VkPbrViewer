@@ -1,7 +1,7 @@
 #pragma once
 
 #include "resource/constants.h"
-#include "resource/texture.h"
+#include "resource/asset_types.h"
 
 #include <glm/glm.hpp>
 #include <stdexcept>
@@ -13,8 +13,6 @@ namespace Kita::Pbrv
         class Material
         {
         public:
-            using TextureHandle = Resource::Texture::Handle;
-
             Material();
             ~Material();
 
@@ -30,18 +28,18 @@ namespace Kita::Pbrv
             float GetAO() const { return m_ao; }
             glm::vec3 GetEmissive() const { return m_emissive; }
 
-            void SetAlbedoTex(TextureHandle texture) { m_albedoTex = texture; }
-            TextureHandle GetAlbedoTex() const { return m_albedoTex; }
-            void SetNormalTex(TextureHandle texture) { m_normalTex = texture; }
-            TextureHandle GetNormalTex() const { return m_normalTex; }
-            void SetMRTex(TextureHandle texture) { m_mrTex = texture; }
-            TextureHandle GetMRTex() const { return m_mrTex; }
-            void SetAOTex(TextureHandle texture) { m_aoTex = texture; }
-            TextureHandle GetAOTex() const { return m_aoTex; }
-            void SetEmissiveTex(TextureHandle texture) { m_emissiveTex = texture; }
-            TextureHandle GetEmissiveTex() const { return m_emissiveTex; }
+            void SetAlbedoTex(Resource::TextureAsset::Handle texture) { m_albedoTex = texture; }
+            Resource::TextureAsset::Handle GetAlbedoTex() const { return m_albedoTex; }
+            void SetNormalTex(Resource::TextureAsset::Handle texture) { m_normalTex = texture; }
+            Resource::TextureAsset::Handle GetNormalTex() const { return m_normalTex; }
+            void SetMRTex(Resource::TextureAsset::Handle texture) { m_mrTex = texture; }
+            Resource::TextureAsset::Handle GetMRTex() const { return m_mrTex; }
+            void SetAOTex(Resource::TextureAsset::Handle texture) { m_aoTex = texture; }
+            Resource::TextureAsset::Handle GetAOTex() const { return m_aoTex; }
+            void SetEmissiveTex(Resource::TextureAsset::Handle texture) { m_emissiveTex = texture; }
+            Resource::TextureAsset::Handle GetEmissiveTex() const { return m_emissiveTex; }
 
-            TextureHandle GetTexture(uint32_t slot) const
+            Resource::TextureAsset::Handle GetTexture(uint32_t slot) const
             {
                 switch (slot)
                 {
@@ -60,7 +58,7 @@ namespace Kita::Pbrv
                 }
             }
 
-            void SetTexture(uint32_t slot, TextureHandle texture)
+            void SetTexture(uint32_t slot, Resource::TextureAsset::Handle texture)
             {
                 switch (slot)
                 {
@@ -91,11 +89,11 @@ namespace Kita::Pbrv
             float m_ao{ 1.0f };
             glm::vec3 m_emissive{ 1.0f, 1.0f, 1.0f };
 
-            TextureHandle m_albedoTex;
-            TextureHandle m_normalTex;
-            TextureHandle m_mrTex;
-            TextureHandle m_aoTex;
-            TextureHandle m_emissiveTex;
+            Resource::TextureAsset::Handle m_albedoTex;
+            Resource::TextureAsset::Handle m_normalTex;
+            Resource::TextureAsset::Handle m_mrTex;
+            Resource::TextureAsset::Handle m_aoTex;
+            Resource::TextureAsset::Handle m_emissiveTex;
         };
     }
 }

@@ -1,7 +1,7 @@
 #include "render_mesh_data.h"
 #include "core/log.h"
 #include "resource/handle.h"
-#include "resource/mesh.h"
+#include "resource/asset_types.h"
 #include "resource/resources.h"
 #include "resource/vertex.h"
 
@@ -59,7 +59,7 @@ namespace Kita::Pbrv
             Destroy();
         }
 
-        void RenderMeshData::Update(const Resource::Mesh::Handle& meshHandle)
+        void RenderMeshData::Update(const Resource::MeshAsset::Handle& meshHandle)
         {
             if (meshHandle.GetId() != m_lastMeshId)
             {
@@ -95,7 +95,7 @@ namespace Kita::Pbrv
             return buffer->m_buffer;
         }
 
-        void RenderMeshData::Create(const Resource::Mesh& mesh)
+        void RenderMeshData::Create(const Resource::MeshAsset& mesh)
         {
             const auto& vertices = mesh.m_vertices;
             const auto& indices = mesh.m_indices;

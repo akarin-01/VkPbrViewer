@@ -1,6 +1,6 @@
 #include "resource_utils.h"
 
-#include "blocks.h"
+#include "resource_types.h"
 #include "rhi/context.h"
 #include "rhi/one_shot_command.h"
 #include "rhi/utils.h"
@@ -14,11 +14,11 @@ namespace Kita::Pbrv
     {
         namespace ResourceUtils
         {
-            BufferData CreateBufferData(const Rhi::Context& context,
+            BufferResource CreateBufferData(const Rhi::Context& context,
                 VkDeviceSize size, VkBufferUsageFlags usages, VkMemoryPropertyFlags properties,
                 bool mapped)
             {
-                BufferData buffer{};
+                BufferResource buffer{};
 
                 VkBufferCreateInfo bufferInfo{ VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
                 bufferInfo.size = size;
@@ -51,7 +51,7 @@ namespace Kita::Pbrv
                 return buffer;
             }
 
-            BufferData CreateBufferData(const Rhi::Context& context,
+            BufferResource CreateBufferData(const Rhi::Context& context,
                 VkDeviceSize size, VkBufferUsageFlags usages, VkMemoryPropertyFlags properties,
                 const void* data, size_t dataSize)
             {
@@ -60,16 +60,16 @@ namespace Kita::Pbrv
                 // Host-visible: map and write directly into memory.
                 if (hostVisible)
                 {
-                    BufferData buffer = CreateBufferData(context, size, usages, properties, true);
+                    BufferResource buffer = CreateBufferData(context, size, usages, properties, true);
                     std::memcpy(buffer.m_mapped, data, dataSize);
                     return buffer;
                 }
 
                 // Device-local: add the transfer flag and upload through a staging buffer.
-                BufferData buffer = CreateBufferData(context, size,
+                BufferResource buffer = CreateBufferData(context, size,
                     usages | VK_BUFFER_USAGE_TRANSFER_DST_BIT, properties, false);
 
-                BufferData staging = CreateBufferData(context, dataSize,
+                BufferResource staging = CreateBufferData(context, dataSize,
                     VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                     data, dataSize);
@@ -86,7 +86,7 @@ namespace Kita::Pbrv
                 return buffer;
             }
 
-            void DestroyBufferData(const Rhi::Context& context, BufferData& data)
+            void DestroyBufferData(const Rhi::Context& context, BufferResource& data)
             {
                 if (data.m_mapped)
                 {
@@ -95,7 +95,7 @@ namespace Kita::Pbrv
                 vkDestroyBuffer(context.Device(), data.m_buffer, nullptr);
                 vkFreeMemory(context.Device(), data.m_memory, nullptr);
 
-                data = BufferData{};
+                data = BufferResource{};
             }
         }
     }

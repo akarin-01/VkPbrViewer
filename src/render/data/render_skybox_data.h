@@ -20,7 +20,7 @@ namespace Kita::Pbrv
         class Resources;
         class DescriptorManager;
         class ComputeConversion;
-        struct Texture;
+        struct TextureAsset;
         template<uint32_t, uint32_t> class TextureSet;
     }
     namespace Scene
@@ -48,8 +48,8 @@ namespace Kita::Pbrv
             using TextureSet = Resource::TextureSet<1, Rhi::kMaxFramesInFlight>;
             using TextureArray = std::array<Resource::RenderTexture, 1>;
 
-            Resource::RenderTexture CreateCubemap(const Resource::Texture& texture) const;
-            Resource::RenderTexture CreateEquirectTexture(const Resource::Texture& texture, VkFormat format) const;
+            Resource::RenderTexture CreateCubemap(const Resource::TextureAsset& texture) const;
+            Resource::RenderTexture CreateEquirectTexture(const Resource::TextureAsset& texture, VkFormat format) const;
 
         private:
             const Rhi::Context& m_context;

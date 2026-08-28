@@ -1,7 +1,6 @@
 #pragma once
 
-#include "resource/handle.h"
-#include "resource/texture.h"
+#include "resource/asset_types.h"
 
 namespace Kita::Pbrv
 {
@@ -10,19 +9,17 @@ namespace Kita::Pbrv
         class Skybox
         {
         public:
-            using TextureHandle = Resource::Texture::Handle;
-
             Skybox() = default;
             ~Skybox() = default;
 
-            void SetSkybox(TextureHandle skybox)
+            void SetSkybox(Resource::TextureAsset::Handle skybox)
             {
                 m_skybox = std::move(skybox);
             }
-            TextureHandle GetSkybox() const { return m_skybox; }
+            Resource::TextureAsset::Handle GetSkybox() const { return m_skybox; }
 
         private:
-            TextureHandle m_skybox{};
+            Resource::TextureAsset::Handle m_skybox{};
         };
     }
 }

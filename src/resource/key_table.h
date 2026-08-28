@@ -1,6 +1,6 @@
 #pragma once
 
-#include "resource/handle_table.h"
+#include "resource/id_table.h"
 #include "resource/handle.h"
 #include "resource/resource_id.h"
 
@@ -11,15 +11,18 @@ namespace Kita::Pbrv
 {
     namespace Resource
     {
+        /// Key-addressed entries on top of IdTable: the same key always yields the
+        /// same shared handle. GetOrCreate builds via the creator on miss,
+        /// fires the reuser on hit.
         template <typename TKey, typename T, typename Hash = std::hash<TKey>>
-        class MappingTable
+        class KeyTable
         {
         public:
             using CreateFn = std::function<T(const TKey&)>;
             using ReuseFn = std::function<void(const TKey&)>;
-            using DestroyFn = typename HandleTable<T>::DestroyFn;
+            using DestroyFn = typename IdTable<T>::DestroyFn;
 
-            explicit MappingTable(CreateFn creator,
+            explicit KeyTable(CreateFn creator,
                 ReuseFn reuser = [](const TKey&) {},
                 DestroyFn destroyer = [](T&&) {})
                 : m_creator(std::move(creator)),
@@ -28,7 +31,7 @@ namespace Kita::Pbrv
             {
             }
 
-            ~MappingTable() = default;
+            ~KeyTable() = default;
 
             Handle<T> GetOrCreate(const TKey& key)
             {
@@ -54,7 +57,7 @@ namespace Kita::Pbrv
         private:
             CreateFn m_creator;
             ReuseFn m_reuser;
-            HandleTable<T> m_table;
+            IdTable<T> m_table;
             std::unordered_map<TKey, ResourceId, Hash> m_keyToId{};
         };
     }

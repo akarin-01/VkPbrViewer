@@ -1,6 +1,6 @@
 #pragma once
 
-#include "resource/mesh.h"
+#include "resource/asset_types.h"
 #include "scene/material.h"
 
 namespace Kita::Pbrv
@@ -10,22 +10,20 @@ namespace Kita::Pbrv
         class Object
         {
         public:
-            using MeshHandle = Resource::Mesh::Handle;
-
             Object() = default;
             ~Object() = default;
 
-            void SetMesh(MeshHandle mesh)
+            void SetMesh(Resource::MeshAsset::Handle mesh)
             {
                 m_mesh = std::move(mesh);
             }
-            MeshHandle GetMesh() const { return m_mesh; }
+            Resource::MeshAsset::Handle GetMesh() const { return m_mesh; }
 
             const Material& GetMaterial() const { return m_material; }
             Material& GetMaterial() { return const_cast<Material&>(static_cast<const Object*>(this)->GetMaterial()); }
 
         private:
-            MeshHandle m_mesh{};
+            Resource::MeshAsset::Handle m_mesh{};
             Material m_material{};
         };
     }

@@ -5,7 +5,7 @@
 #include "resource/compute_conversion.h"
 #include "resource/handle.h"
 #include "resource/resources.h"
-#include "resource/texture.h"
+#include "resource/asset_types.h"
 #include "resource/texture_set.h"
 #include "scene/skybox.h"
 
@@ -85,7 +85,7 @@ namespace Kita::Pbrv
             return m_textureSet->GetTextures()[0];
         }
 
-        Resource::RenderTexture RenderSkyboxData::CreateCubemap(const Resource::Texture& texture) const
+        Resource::RenderTexture RenderSkyboxData::CreateCubemap(const Resource::TextureAsset& texture) const
         {
             const VkFormat equirectFormat = VK_FORMAT_R32G32B32A32_SFLOAT;
 
@@ -150,7 +150,7 @@ namespace Kita::Pbrv
             return cubemap;
         }
 
-        Resource::RenderTexture RenderSkyboxData::CreateEquirectTexture(const Resource::Texture& texture, VkFormat format) const
+        Resource::RenderTexture RenderSkyboxData::CreateEquirectTexture(const Resource::TextureAsset& texture, VkFormat format) const
         {
             // Hdr asset: m_bytes holds float RGBA pixels
             const float* pixels = reinterpret_cast<const float*>(texture.m_bytes.data());
