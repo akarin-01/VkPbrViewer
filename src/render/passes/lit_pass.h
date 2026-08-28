@@ -17,8 +17,9 @@ namespace Kita::Pbrv
         class RenderScene;
         class RenderFrameData;
         class RenderMaterialData;
-        class RenderMeshData;
         class RenderIblData;
+        struct ObjectData;
+
         class LitPass : public RenderPassBase
         {
         public:
@@ -37,10 +38,10 @@ namespace Kita::Pbrv
 
         private:
             RenderTargetData& m_targetData;
+            const ObjectData& m_object;
             const RenderFrameData& m_frameData;
             const RenderMaterialData& m_materialData;
             const RenderIblData& m_iblData;
-            const RenderMeshData& m_meshData;
 
             std::unique_ptr<Rhi::GraphicsPipeline> m_pipeline;
         };

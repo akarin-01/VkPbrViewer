@@ -142,7 +142,6 @@ add_executable(VkPbrViewer
     src/render/data/render_frame_data.cpp
     src/render/data/render_ibl_data.cpp
     src/render/data/render_material_data.cpp
-    src/render/data/render_mesh_data.cpp
     src/render/data/render_post_process_data.cpp
     src/render/data/render_skybox_data.cpp
     src/render/data/render_target_data.cpp

@@ -4,6 +4,7 @@
 #include "rhi/graphics_pipeline.h"
 #include "rhi/rendering_scope.h"
 #include "rhi/swap_chain.h"
+#include "render/vertex_input.h"
 #include "render/data/render_target_data.h"
 #include "render/render_scene.h"
 
@@ -20,9 +21,9 @@ namespace Kita::Pbrv
             const RenderScene& scene)
             : RenderPassBase(context, resources, swapChain),
             m_targetData(targetData),
+            m_object(scene.GetObjectData()),
             m_frameData(scene.GetFrameData()),
             m_materialData(scene.GetMaterialData()),
-            m_meshData(scene.GetMeshData()),
             m_iblData(scene.GetIblData())
         {
             CreatePipeline();
@@ -102,14 +103,15 @@ namespace Kita::Pbrv
                         VK_SHADER_STAGE_FRAGMENT_BIT,
                         0, sizeof(pushConstant), &pushConstant);
 
-                    if (!m_meshData.IsEmpty())
+                    auto meshHandle = m_object.m_mesh;
+                    if (meshHandle)
                     {
-                        VkBuffer buffers[]{ m_meshData.GetVertexBuffer() };
+                        VkBuffer buffers[]{ meshHandle->GetVertexBuffer() };
                         VkDeviceSize offsets[]{ 0 };
                         vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
-                        vkCmdBindIndexBuffer(commandBuffer, m_meshData.GetIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+                        vkCmdBindIndexBuffer(commandBuffer, meshHandle->GetIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
-                        vkCmdDrawIndexed(commandBuffer, m_meshData.GetIndexCount(), 1, 0, 0, 0);
+                        vkCmdDrawIndexed(commandBuffer, meshHandle->GetIndexCount(), 1, 0, 0, 0);
                     }
                 }
             }
@@ -125,7 +127,7 @@ namespace Kita::Pbrv
 
             Rhi::GraphicsPipelineBuilder builder(m_context.Device());
             builder.SetShaders("assets/shaders/lit_vert.spv", "assets/shaders/lit_frag.spv")
-                .SetVertexInput({ RenderMeshData::GetVertexBinding() }, RenderMeshData::GetVertexAttributes())
+                .SetVertexInput({ VertexInput::Binding() }, VertexInput::Attributes())
                 .SetCullMode(VK_CULL_MODE_BACK_BIT)
                 .SetRasterizationSamples(m_context.SampleCount())
                 .SetDepth(true, true, VK_COMPARE_OP_LESS)

@@ -20,17 +20,17 @@ namespace Kita::Pbrv
         /// is kMaxFramesInFlight: the fence observed at the K-th flush proves
         /// the death frame's submission complete.
         template <typename T>
-        class DeferredQueue
+        class GraveyardQueue
         {
         public:
             using DestroyFn = std::function<void(T&)>;
 
-            explicit DeferredQueue(DestroyFn destroyer = [](T&) {})
+            explicit GraveyardQueue(DestroyFn destroyer = [](T&) {})
                 : m_destroyer(std::move(destroyer))
             {
             }
 
-            ~DeferredQueue()
+            ~GraveyardQueue()
             {
                 for (auto& entry : m_pending)
                 {
@@ -77,7 +77,7 @@ namespace Kita::Pbrv
             DestroyFn m_destroyer;
         };
 
-        /// Owns one DeferredQueue per GPU value type; disposal never cascades
+        /// Owns one GraveyardQueue per GPU value type; disposal never cascades
         /// back into the handle tables — entries are pure Vk values.
         class ResourceGraveyard
         {
@@ -94,8 +94,8 @@ namespace Kita::Pbrv
         private:
             const Rhi::Context& m_context;
 
-            DeferredQueue<BufferResource> m_bufferQueue;
-            DeferredQueue<TextureResource> m_textureQueue;
+            GraveyardQueue<BufferResource> m_bufferQueue;
+            GraveyardQueue<TextureResource> m_textureQueue;
         };
     }
 }

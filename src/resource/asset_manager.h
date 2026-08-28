@@ -20,8 +20,8 @@ namespace Kita::Pbrv
             MeshAsset::Handle LoadMesh(const std::string& path);
             TextureAsset::Handle LoadTexture(const std::string& path, TextureAsset::Type type);
 
-            const MeshAsset* GetMesh(ResourceId id) { return m_meshTable.Get(id); }
-            const TextureAsset* GetTexture(ResourceId id) { return m_textureTable.Get(id); }
+            const MeshAsset* GetMesh(ResourceId id) const { return m_meshTable.Get(id); }
+            const TextureAsset* GetTexture(ResourceId id) const { return m_textureTable.Get(id); }
 
             size_t GetMeshCount() const { return m_meshTable.Size(); }
             size_t GetTextureCount() const { return m_textureTable.Size(); }

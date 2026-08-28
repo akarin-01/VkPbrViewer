@@ -69,6 +69,10 @@ namespace Kita::Pbrv
             BufferResource m_vertexBuffer{};
             BufferResource m_indexBuffer{};
             uint32_t m_indexCount{ 0 };
+
+            VkBuffer GetVertexBuffer() const { return m_vertexBuffer.m_buffer; }
+            VkBuffer GetIndexBuffer() const { return m_indexBuffer.m_buffer; }
+            uint32_t GetIndexCount() const { return m_indexCount; }
         };
 
         struct MaterialResource

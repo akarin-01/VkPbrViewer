@@ -21,6 +21,8 @@ namespace Kita::Pbrv
     {
         class Resources;
         class DescriptorManager;
+        class AssetManager;
+        class ResourceManager;
     }
 
     namespace Scene
@@ -35,7 +37,7 @@ namespace Kita::Pbrv
         class Renderer
         {
         public:
-            Renderer(Core::Window& window);
+            Renderer(Core::Window& window, const Resource::AssetManager& assetMgr);
             ~Renderer();
 
             void NewFrame() const;
@@ -48,6 +50,7 @@ namespace Kita::Pbrv
             std::unique_ptr<Rhi::FrameSync> m_frameSync;
 
             std::unique_ptr<Resource::DescriptorManager> m_descriptorMgr;
+            std::unique_ptr<Resource::ResourceManager> m_resourceMgr;
 
             std::unique_ptr<RenderScene> m_renderScene;
             std::unique_ptr<RenderPipeline> m_pipeline;

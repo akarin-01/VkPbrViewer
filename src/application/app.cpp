@@ -50,7 +50,7 @@ namespace Kita::Pbrv
             m_time = std::make_unique<Core::Time>();
 
             m_assetManager = std::make_unique<Resource::AssetManager>();
-            m_renderer = std::make_unique<Render::Renderer>(*m_window);
+            m_renderer = std::make_unique<Render::Renderer>(*m_window, *m_assetManager);
             m_scene = std::make_unique<Scene::Scene>();
             InitScene(*m_scene, *m_assetManager);
 

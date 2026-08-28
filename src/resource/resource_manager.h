@@ -23,7 +23,7 @@ namespace Kita::Pbrv
         {
         public:
             ResourceManager(const Rhi::Context& context,
-                AssetManager& assetMgr);
+                const AssetManager& assetMgr);
             ~ResourceManager();
 
             MeshResource::Handle GetOrCreateMeshResource(ResourceId meshId);
@@ -32,7 +32,7 @@ namespace Kita::Pbrv
 
         private:
             const Rhi::Context& m_context;
-            AssetManager& m_assetMgr;
+            const AssetManager& m_assetMgr;
 
             ResourceGraveyard m_graveyard;      // Graveyard must be destroyed after table
 

@@ -32,7 +32,7 @@ namespace Kita::Pbrv
         }
 
         ResourceManager::ResourceManager(const Rhi::Context& context,
-            AssetManager& assetMgr)
+            const AssetManager& assetMgr)
             : m_context(context),
             m_assetMgr(assetMgr),
             m_graveyard(context),

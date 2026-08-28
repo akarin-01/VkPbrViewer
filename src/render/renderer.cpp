@@ -7,6 +7,7 @@
 #include "rhi/swap_chain.h"
 #include "rhi/utils.h"
 #include "resource/descriptor_manager.h"
+#include "resource/resource_manager.h"
 #include "resource/resources.h"
 #include "render/render_pipeline.h"
 #include "render/render_scene.h"
@@ -18,7 +19,7 @@ namespace Kita::Pbrv
 {
     namespace Render
     {
-        Renderer::Renderer(Core::Window& window)
+        Renderer::Renderer(Core::Window& window, const Resource::AssetManager& assetMgr)
         {
             m_context = std::make_unique<Rhi::Context>(window);
             m_resources = std::make_unique<Resource::Resources>(*m_context);
@@ -26,8 +27,9 @@ namespace Kita::Pbrv
             m_frameSync = std::make_unique<Rhi::FrameSync>(*m_context, *m_swapChain);
 
             m_descriptorMgr = std::make_unique<Resource::DescriptorManager>(*m_context);
+            m_resourceMgr = std::make_unique<Resource::ResourceManager>(*m_context, assetMgr);
 
-            m_renderScene = std::make_unique<RenderScene>(*m_context, *m_resources, *m_swapChain, *m_descriptorMgr);
+                        m_renderScene = std::make_unique<RenderScene>(*m_context, *m_resources, *m_swapChain, *m_descriptorMgr, *m_resourceMgr);
             m_pipeline = std::make_unique<RenderPipeline>(window, *m_context, *m_resources, *m_swapChain, *m_descriptorMgr, *m_renderScene);
         }
 
@@ -46,6 +48,8 @@ namespace Kita::Pbrv
         void Renderer::DrawFrame(const Scene::Scene& scene)
         {
             auto frameInfo = m_frameSync->BeginFrame();
+
+            m_resourceMgr->FlushGraveyard();
 
             if (frameInfo.m_swapChainRecreated)
             {
