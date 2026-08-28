@@ -33,6 +33,7 @@ namespace Kita::Pbrv
             Type m_type{ Type::None };
 
             size_t GetByteCount() const { return m_bytes.size(); }
+            bool IsEmpty() const { return m_bytes.empty(); }
         };
 
         struct TextureKey
@@ -69,6 +70,7 @@ namespace Kita::Pbrv
             size_t GetVertexDataSize() const { return sizeof(Vertex) * m_vertices.size(); }
             size_t GetIndexCount() const { return m_indices.size(); }
             size_t GetIndexDataSize() const { return sizeof(uint32_t) * m_indices.size(); }
+            bool IsEmpty() const { return m_vertices.empty() || m_indices.empty(); }
         };
     }
 }

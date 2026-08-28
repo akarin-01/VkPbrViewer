@@ -12,17 +12,17 @@ namespace Kita::Pbrv
         /// Refcounted entries; the backing store of Handle<T>.
         /// An entry dies when its count hits zero (via the injected destroyer).
         template <typename T>
-        class EntryTable
+        class RefTable
         {
         public:
             using DestroyFn = std::function<void(T&&)>;
 
-            explicit EntryTable(DestroyFn destroyer = [](T&&) {})
+            explicit RefTable(DestroyFn destroyer = [](T&&) {})
                 : m_destroyer(std::move(destroyer))
             {
             }
 
-            ~EntryTable()
+            ~RefTable()
             {
                 for (auto& [id, entry] : m_entries)
                 {
@@ -39,7 +39,7 @@ namespace Kita::Pbrv
 
             T* Get(ResourceId id)
             {
-                return const_cast<T*>(static_cast<const EntryTable*>(this)->Get(id));
+                return const_cast<T*>(static_cast<const RefTable*>(this)->Get(id));
             }
 
             const T* Get(ResourceId id) const

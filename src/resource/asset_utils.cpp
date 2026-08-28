@@ -273,6 +273,11 @@ namespace Kita::Pbrv
                     }
                 }
 
+                if (vertices.empty() || indices.empty())
+                {
+                    throw std::runtime_error("glTF '" + path + "' contains no valid triangle primitives");
+                }
+
                 ComputeTangents(vertices, indices);
 
                 std::string name = std::filesystem::path(path).stem().string();
@@ -294,6 +299,10 @@ namespace Kita::Pbrv
                 else
                 {
                     data = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, desiredChannels);
+                }
+                if (!data)
+                {
+                    throw std::runtime_error("Failed to load texture '" + path + "'");
                 }
                 const size_t byteSize = static_cast<size_t>(texWidth)
                     * static_cast<size_t>(texHeight)

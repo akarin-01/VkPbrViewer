@@ -43,30 +43,7 @@ namespace Kita::Pbrv
         ResourceManager::ResourceManager(const Rhi::Context& context,
             AssetManager& assetMgr)
             : m_context(context),
-            m_assetMgr(assetMgr),
-            m_meshTable([this](const ResourceId& id)
-                {
-                    const MeshAsset* mesh = m_assetMgr.GetMesh(id);
-                    if (!mesh)
-                    {
-                        throw std::runtime_error("MeshAsset asset not found: " + std::to_string(id));
-                    }
-
-                    MeshResource data = CreateMeshResource(m_context, *mesh);
-                    Core::Log::Info("[Resource] Create mesh resource: ", mesh->m_name, ", vb ",
-                        mesh->GetVertexDataSize(), " bytes, ib ", mesh->GetIndexDataSize(), " bytes");
-                    return data;
-                },
-                [this](const ResourceId& id)
-                {
-                    KITA_LOG_DEBUG("[Resource] Reuse mesh resource: ", m_assetMgr.GetMesh(id)->m_name);
-                },
-                [this](MeshResource& mesh)
-                {
-                    Core::Log::Info("[Resource] Release mesh resource: ",
-                        mesh.m_vertexBuffer.m_size, " + ", mesh.m_indexBuffer.m_size, " bytes");
-                    DestroyMeshResource(m_context, mesh);
-                })
+            m_assetMgr(assetMgr)
         {
         }
 
@@ -74,12 +51,12 @@ namespace Kita::Pbrv
 
         MeshResource::Handle ResourceManager::GetOrCreateMeshResource(ResourceId meshId)
         {
-            return m_meshTable.GetOrCreate(meshId);
+            return MeshResource::Handle();
         }
 
         void ResourceManager::FlushDeferred(uint32_t frameIndex)
         {
-            m_meshTable.FlushDeferred(frameIndex);
+
         }
     }
 }

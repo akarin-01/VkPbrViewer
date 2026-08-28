@@ -1,15 +1,18 @@
 #pragma once
 
 #include "resource/resource_id.h"
-#include "resource/entry_table.h"
+#include "resource/ref_table.h"
 
 namespace Kita::Pbrv
 {
     namespace Resource
     {
         template <typename T>
-        class IdTable;
+        class HandleTable;
 
+        /// RAII refcount handle: either invalid (default) or valid. A valid
+        /// handle holds a ref, so its entry is alive and Get() never returns
+        /// null — there is no "valid handle to an invalid resource" state.
         template <typename T>
         class Handle
         {
@@ -69,13 +72,13 @@ namespace Kita::Pbrv
             }
 
         private:
-            friend class IdTable<T>;
+            friend class HandleTable<T>;
 
-            Handle(ResourceId id, EntryTable<T>* table);
+            Handle(ResourceId id, RefTable<T>* table);
 
         private:
             ResourceId m_id{ kInvalidId };
-            EntryTable<T>* m_table{ nullptr };
+            RefTable<T>* m_table{ nullptr };
         };
 
         template <typename T>
@@ -162,7 +165,7 @@ namespace Kita::Pbrv
         }
 
         template <typename T>
-        inline Handle<T>::Handle(ResourceId id, EntryTable<T>* table)
+        inline Handle<T>::Handle(ResourceId id, RefTable<T>* table)
             : m_id(id), m_table(table)
         {
         }

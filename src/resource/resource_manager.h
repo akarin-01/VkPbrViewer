@@ -1,6 +1,6 @@
 #pragma once
 
-#include "resource/deferred_key_table.h"
+#include "resource/handle_table.h"
 #include "resource/resource_types.h"
 #include "resource/resource_id.h"
 #include "resource/handle.h"
@@ -32,7 +32,7 @@ namespace Kita::Pbrv
             const Rhi::Context& m_context;
             AssetManager& m_assetMgr;
 
-            DeferredKeyTable<ResourceId, MeshResource> m_meshTable;
+
         };
     }
 }

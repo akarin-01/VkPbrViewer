@@ -1,10 +1,11 @@
 #pragma once
 
-#include "resource/key_table.h"
-#include "resource/handle.h"
+#include "resource/handle_table.h"
+#include "resource/resource_id.h"
 #include "resource/asset_types.h"
 
 #include <string>
+#include <unordered_map>
 
 namespace Kita::Pbrv
 {
@@ -26,8 +27,11 @@ namespace Kita::Pbrv
             size_t GetTextureCount() const { return m_textureTable.Size(); }
 
         private:
-            KeyTable<std::string, MeshAsset> m_meshTable;
-            KeyTable<TextureKey, TextureAsset, TextureKey::Hash> m_textureTable;
+            HandleTable<MeshAsset> m_meshTable;
+            HandleTable<TextureAsset> m_textureTable;
+
+            std::unordered_map<std::string, ResourceId> m_meshIds;
+            std::unordered_map<TextureKey, ResourceId, TextureKey::Hash> m_textureIds;
         };
     }
 }
