@@ -3,7 +3,10 @@
 #include "resource/handle_table.h"
 #include "resource/resource_types.h"
 #include "resource/resource_id.h"
-#include "resource/handle.h"
+#include "resource/resource_graveyard.h"
+
+#include <unordered_map>
+#include <cstdint>
 
 namespace Kita::Pbrv
 {
@@ -15,7 +18,6 @@ namespace Kita::Pbrv
     namespace Resource
     {
         class AssetManager;
-        class DescriptorManager;
 
         class ResourceManager
         {
@@ -26,13 +28,16 @@ namespace Kita::Pbrv
 
             MeshResource::Handle GetOrCreateMeshResource(ResourceId meshId);
 
-            void FlushDeferred(uint32_t frameIndex);
+            void FlushGraveyard();
 
         private:
             const Rhi::Context& m_context;
             AssetManager& m_assetMgr;
 
+            ResourceGraveyard m_graveyard;      // Graveyard must be destroyed after table
 
+            HandleTable<MeshResource> m_meshTable;
+            std::unordered_map<ResourceId, ResourceId> m_meshIds;
         };
     }
 }

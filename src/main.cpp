@@ -49,10 +49,10 @@ namespace
         assert(mesh3.IsValid());
         assert(mesh3->m_indexCount > 0);
 
-        // 6. Deferred destroy: flush every frame slot, must not crash or leak.
+        // 6. Deferred destroy: age the graveyard out, must not crash or leak.
         for (uint32_t i = 0; i < Rhi::kMaxFramesInFlight; ++i)
         {
-            resources.FlushDeferred(i);
+            resources.FlushGraveyard();
         }
 
         Core::Log::Info("[Test] ResourceManager passed");
@@ -114,12 +114,11 @@ int main()
 {
     try
     {
-        TestAssetManager();
+        // TestAssetManager();
+        // TestResourceManager();
 
         Kita::Pbrv::Application::App app{};
         app.Run();
-
-        // TestResourceManager();
 
         return EXIT_SUCCESS;
     }

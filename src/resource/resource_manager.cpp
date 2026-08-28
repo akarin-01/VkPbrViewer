@@ -5,8 +5,6 @@
 #include "resource/asset_types.h"
 #include "resource/resource_utils.h"
 
-#include <stdexcept>
-
 namespace Kita::Pbrv
 {
     namespace Resource
@@ -31,19 +29,21 @@ namespace Kita::Pbrv
                 data.m_indexCount = static_cast<uint32_t>(indexCount);
                 return data;
             }
-
-            void DestroyMeshResource(const Rhi::Context& context, MeshResource& mesh)
-            {
-                ResourceUtils::DestroyBufferData(context, mesh.m_vertexBuffer);
-                ResourceUtils::DestroyBufferData(context, mesh.m_indexBuffer);
-                mesh = {};
-            }
         }
 
         ResourceManager::ResourceManager(const Rhi::Context& context,
             AssetManager& assetMgr)
             : m_context(context),
-            m_assetMgr(assetMgr)
+            m_assetMgr(assetMgr),
+            m_graveyard(context),
+            m_meshTable([this](MeshResource&& mesh)
+                {
+                    Core::Log::Info("[Resource] Release mesh resource: vb ",
+                        mesh.m_vertexBuffer.m_size, " + ib ", mesh.m_indexBuffer.m_size, " bytes");
+                    m_graveyard.PushBuffer(std::move(mesh.m_vertexBuffer));
+                    m_graveyard.PushBuffer(std::move(mesh.m_indexBuffer));
+                    mesh = {};
+                })
         {
         }
 
@@ -51,12 +51,42 @@ namespace Kita::Pbrv
 
         MeshResource::Handle ResourceManager::GetOrCreateMeshResource(ResourceId meshId)
         {
-            return MeshResource::Handle();
+            auto it = m_meshIds.find(meshId);
+            if (it != m_meshIds.end())
+            {
+                const ResourceId id = it->second;
+                // The mapping can outlive its entry (every handle released):
+                // a stale id falls through and is rebuilt below.
+                if (m_meshTable.Has(id))
+                {
+                    // Cache hit: add ref
+                    KITA_LOG_DEBUG("[Resource] Reuse mesh resource: mesh asset(", meshId, ")");
+                    return m_meshTable.GetShared(id);
+                }
+            }
+
+            // Cache miss: create
+            auto asset = m_assetMgr.GetMesh(meshId);
+            if (!asset)
+            {
+                // Invalid mesh id, return invalid handle
+                return MeshResource::Handle();
+            }
+
+            MeshResource resource = CreateMeshResource(m_context, *asset);
+
+            KITA_LOG_DEBUG("[Resource] Create mesh resource: mesh asset(", meshId, ")");
+            Core::Log::Info("[Resource] Create mesh resource: ", asset->m_name, ", vb ",
+                asset->GetVertexDataSize(), " bytes, ib ", asset->GetIndexDataSize(), " bytes");
+
+            MeshResource::Handle handle = m_meshTable.Create(std::move(resource));
+            m_meshIds[meshId] = handle.GetId();
+            return handle;
         }
 
-        void ResourceManager::FlushDeferred(uint32_t frameIndex)
+        void ResourceManager::FlushGraveyard()
         {
-
+            m_graveyard.Flush();
         }
     }
 }

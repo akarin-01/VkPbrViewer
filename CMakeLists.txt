@@ -128,6 +128,7 @@ add_executable(VkPbrViewer
     src/resource/compute_conversion.cpp
     src/resource/descriptor_manager.cpp
     src/resource/render_texture.cpp
+    src/resource/resource_graveyard.cpp
     src/resource/resource_manager.cpp
     src/resource/resource_utils.cpp
     src/resource/resources.cpp
