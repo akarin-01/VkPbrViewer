@@ -1,11 +1,14 @@
 #include "render_material_data.h"
+
 #include "core/log.h"
 #include "rhi/context.h"
 #include "rhi/utils.h"
+#include "rhi/descriptor_writer.h"
 #include "resource/handle.h"
 #include "resource/resources.h"
 #include "resource/asset_types.h"
-#include "resource/texture_set.h"
+#include "resource/render_texture.h"
+#include "resource/descriptor_manager.h"
 #include "scene/material.h"
 
 #include <glm/glm.hpp>
@@ -17,7 +20,7 @@ namespace Kita::Pbrv
     {
         namespace
         {
-            constexpr Resource::DescriptorLayoutType kTextureLayoutType = Resource::DescriptorLayoutType::MaterialTex;
+            constexpr Resource::DescriptorLayoutType kLayoutType = Resource::DescriptorLayoutType::PerMaterial;
 
             VkFormat ToFormat(Resource::TextureAsset::Type type)
             {
@@ -36,9 +39,9 @@ namespace Kita::Pbrv
                 }
             }
 
-            const char* ToString(Resource::MaterialTextureSlot tex)
+            const char* ToString(Resource::MaterialTextureSlot slot)
             {
-                switch (tex)
+                switch (slot)
                 {
                 case Resource::Albedo:
                     return "Resource::Albedo";
@@ -63,131 +66,101 @@ namespace Kita::Pbrv
             m_resources(resources),
             m_descriptorMgr(descriptorMgr)
         {
-            m_textureSet = std::make_unique<TextureSet>(m_context, m_resources,
-                m_descriptorMgr, kTextureLayoutType,
-                TextureArray{ CreateFallbacks() });
+            for (uint32_t i = 0; i < Resource::kMaterialTextureCount; ++i)
+            {
+                m_fallbacks[i] = CreateFallback(Resource::MaterialTextureSlot(i));
+                m_textures[i] = m_fallbacks[i];
+            }
+
+            for (size_t i = 0; i < m_sets.size(); ++i)
+            {
+                m_sets[i] = m_descriptorMgr.Allocate(kLayoutType);
+
+                WriteSet(static_cast<uint32_t>(i));
+            }
         }
 
         RenderMaterialData::~RenderMaterialData()
         {
-            m_textureSet.reset();
+            for (uint32_t i = 0; i < Resource::kMaterialTextureCount; ++i)
+            {
+                DestroyTextureSafe(i);
+                Resource::DestroyTexture(m_resources, m_fallbacks[i]);
+            }
         }
 
-        void RenderMaterialData::Update(uint32_t frameIndex, const Scene::Material& sceneMat)
+        void RenderMaterialData::UpdateTextures(const Scene::Material& sceneMat)
         {
-            m_pushConstant.m_albedo = sceneMat.GetAlbedo();
-            m_pushConstant.m_params = glm::vec4(sceneMat.GetMetallic(),
-                sceneMat.GetRoughness(),
-                sceneMat.GetAO(),
-                0.0f);
-            m_pushConstant.m_emissive = glm::vec4(sceneMat.GetEmissive(), 1.0f);
-
             bool anyTexUpdated = false;
-            TextureArray updatedTexs{};
+
             for (uint32_t i = 0; i < Resource::kMaterialTextureCount; ++i)
             {
                 const auto texHandle = sceneMat.GetTexture(i);
-                if (texHandle.GetId() != m_lastSyncedTextureIds[i])
+                if (texHandle.GetId() == m_lastSyncedTextureIds[i])
                 {
-                    m_lastSyncedTextureIds[i] = texHandle.GetId();
-
-                    if (!texHandle.IsValid())
-                    {
-                        updatedTexs[i] = m_textureSet->GetFallbacks()[i];
-                    }
-                    else
-                    {
-                        updatedTexs[i] = CreateTexture(*texHandle);
-
-                        Core::Log::Info("[Renderer] Create texture [", ToString(Resource::MaterialTextureSlot(i)), "]: ",
-                            texHandle->m_name, ", ", texHandle->GetByteCount(), " bytes");
-                    }
-
-                    anyTexUpdated = true;
+                    continue;
                 }
+                m_lastSyncedTextureIds[i] = texHandle.GetId();
+
+                DestroyTextureSafe(i);
+
+                if (!texHandle.IsValid())
+                {
+                    m_textures[i] = m_fallbacks[i];
+                }
+                else
+                {
+                    m_textures[i] = CreateTexture(*texHandle);
+
+                    Core::Log::Info("[Renderer] Create texture [", ToString(Resource::MaterialTextureSlot(i)), "]: ",
+                        texHandle->m_name, ", ", texHandle->GetByteCount(), " bytes");
+                }
+
+                anyTexUpdated = true;
             }
 
             if (anyTexUpdated)
             {
-                m_textureSet->Update(updatedTexs);
+                m_setDirtyCount = Rhi::kMaxFramesInFlight;
+
                 KITA_LOG_DEBUG("[Renderer] Update material descriptor set: textures changed");
             }
+        }
 
-            m_textureSet->RefreshSet(frameIndex);
+        void RenderMaterialData::RefreshSet(uint32_t frameIndex)
+        {
+            if (m_setDirtyCount > 0)
+            {
+                WriteSet(frameIndex);
+                --m_setDirtyCount;
+            }
         }
 
         VkDescriptorSetLayout RenderMaterialData::GetSetLayout() const
         {
-            return m_textureSet->GetLayout();
+            return m_descriptorMgr.GetLayout(kLayoutType);
         }
 
-        const VkDescriptorSet& RenderMaterialData::GetSet(uint32_t frameIndex) const
+        void RenderMaterialData::WriteSet(uint32_t frameIndex) const
         {
-            return m_textureSet->GetSet(frameIndex);
+            Rhi::DescriptorWriter writer(m_resources, m_context.Device());
+            for (uint32_t i = 0; i < Resource::kMaterialTextureCount; ++i)
+            {
+                writer.WriteImage(i, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, m_textures[i].m_imageViewHandle, m_textures[i].m_samplerHandle);
+            }
+
+            writer.UpdateSet(m_sets[frameIndex]);
         }
 
-        RenderMaterialData::TextureArray RenderMaterialData::CreateFallbacks() const
+        void RenderMaterialData::DestroyTextureSafe(uint32_t slot)
         {
-            constexpr uint8_t white[] = { 255, 255, 255, 255 };
-            constexpr uint8_t black[] = { 0, 0, 0, 255 };
-            constexpr uint8_t flat[] = { 128, 128, 255, 255 };
-            constexpr uint32_t width = 1;
-            constexpr uint32_t height = 1;
-
-            TextureArray fallbacks{};
-
-            // Albedo: white sRGB
+            // The fallback is shared: stored in m_fallbacks, it must survive
+            // slot swaps to be restorable later.
+            if (m_textures[slot] != m_fallbacks[slot])
             {
-                Resource::TextureAsset tex{};
-                tex.m_name = "fallback";
-                tex.m_bytes = std::vector<uint8_t>(white, white + 4);
-                tex.m_width = width;
-                tex.m_height = height;
-                tex.m_type = Resource::TextureAsset::Type::Srgb;
-                fallbacks[Resource::Albedo] = CreateTexture(tex);
+                Resource::DestroyTexture(m_resources, m_textures[slot]);
             }
-            // Normal: flat (128, 128, 255)
-            {
-                Resource::TextureAsset tex{};
-                tex.m_name = "fallback";
-                tex.m_bytes = std::vector<uint8_t>(flat, flat + 4);
-                tex.m_width = width;
-                tex.m_height = height;
-                tex.m_type = Resource::TextureAsset::Type::Normal;
-                fallbacks[Resource::Normal] = CreateTexture(tex);
-            }
-            // MR: white (metallic 255, roughness 255)
-            {
-                Resource::TextureAsset tex{};
-                tex.m_name = "fallback";
-                tex.m_bytes = std::vector<uint8_t>(white, white + 4);
-                tex.m_width = width;
-                tex.m_height = height;
-                tex.m_type = Resource::TextureAsset::Type::MetallicRoughness;
-                fallbacks[Resource::MetallicRoughness] = CreateTexture(tex);
-            }
-            // AO: white, single channel
-            {
-                Resource::TextureAsset tex{};
-                tex.m_name = "fallback";
-                tex.m_bytes = std::vector<uint8_t>(white, white + 1);
-                tex.m_width = width;
-                tex.m_height = height;
-                tex.m_type = Resource::TextureAsset::Type::Linear;
-                fallbacks[Resource::AO] = CreateTexture(tex);
-            }
-            // Emissive: black
-            {
-                Resource::TextureAsset tex{};
-                tex.m_name = "fallback";
-                tex.m_bytes = std::vector<uint8_t>(black, black + 4);
-                tex.m_width = width;
-                tex.m_height = height;
-                tex.m_type = Resource::TextureAsset::Type::Srgb;
-                fallbacks[Resource::Emissive] = CreateTexture(tex);
-            }
-
-            return fallbacks;
         }
 
         Resource::RenderTexture RenderMaterialData::CreateTexture(const Resource::TextureAsset& texture) const
@@ -197,6 +170,46 @@ namespace Kita::Pbrv
 
             return Resource::Create2DTextureWithData(m_resources, texture.m_bytes.data(), texture.m_bytes.size(),
                 texture.m_width, texture.m_height, format, mipLevels, m_resources.CreateSamplerLinearRepeatMip());
+        }
+
+        Resource::RenderTexture RenderMaterialData::CreateFallback(Resource::MaterialTextureSlot slot) const
+        {
+            constexpr uint8_t white[] = { 255, 255, 255, 255 };
+            constexpr uint8_t black[] = { 0, 0, 0, 255 };
+            constexpr uint8_t flat[] = { 128, 128, 255, 255 };
+
+            Resource::TextureAsset tex{};
+            tex.m_name = "fallback";
+            tex.m_width = 1;
+            tex.m_height = 1;
+
+            switch (slot)
+            {
+            case Resource::Albedo:
+                tex.m_bytes = std::vector<uint8_t>(white, white + 4);
+                tex.m_type = Resource::TextureAsset::Type::Srgb;
+                break;
+            case Resource::Normal:
+                tex.m_bytes = std::vector<uint8_t>(flat, flat + 4);
+                tex.m_type = Resource::TextureAsset::Type::Normal;
+                break;
+            case Resource::MetallicRoughness:
+                tex.m_bytes = std::vector<uint8_t>(white, white + 4);
+                tex.m_type = Resource::TextureAsset::Type::MetallicRoughness;
+                break;
+            case Resource::AO:
+                tex.m_bytes = std::vector<uint8_t>(white, white + 1);
+                tex.m_type = Resource::TextureAsset::Type::Linear;
+                break;
+            case Resource::Emissive:
+                tex.m_bytes = std::vector<uint8_t>(black, black + 4);
+                tex.m_type = Resource::TextureAsset::Type::Srgb;
+                break;
+            default:
+                throw std::runtime_error("Invalid texture slot!");
+            }
+
+            return CreateTexture(tex);
         }
     }
 }

@@ -3,11 +3,11 @@
 #include "rhi/frame_info.h"
 #include "resource/resource_types.h"
 #include "resource/resource_id.h"
+#include "render/render_target.h"
 #include "render/data/render_frame_data.h"
-#include "render/data/render_ibl_data.h"
 #include "render/data/render_material_data.h"
+#include "render/data/render_object_data.h"
 #include "render/data/render_post_process_data.h"
-#include "render/data/render_skybox_data.h"
 
 namespace Kita::Pbrv
 {
@@ -30,7 +30,7 @@ namespace Kita::Pbrv
 
     namespace Render
     {
-        struct ObjectData
+        struct RenderMeshData
         {
             Resource::MeshResource::Handle m_mesh{};
             Resource::ResourceId m_lastMeshId{ Resource::kInvalidId };
@@ -41,7 +41,6 @@ namespace Kita::Pbrv
         class RenderScene
         {
         public:
-
             RenderScene(const Rhi::Context& context,
                 Resource::Resources& resources,
                 const Rhi::SwapChain& swapChain,
@@ -50,27 +49,34 @@ namespace Kita::Pbrv
             ~RenderScene();
 
             void Update(const Scene::Scene& scene, const Rhi::FrameInfo& frameInfo);
+            void Recreate(VkExtent2D extent);
 
             const RenderFrameData& GetFrameData() const { return m_frameData; }
             const RenderMaterialData& GetMaterialData() const { return m_materialData; }
-            const ObjectData& GetObjectData() const { return m_object; }
-            const RenderSkyboxData& GetSkyboxData() const { return m_skyboxData; }
+            const RenderObjectData& GetObjectData() const { return m_objectData; }
+            const RenderMeshData& GetMeshData() const { return m_meshData; }
             const RenderPostProcessData& GetPostProcessData() const { return m_postProcessData; }
-            const RenderIblData& GetIblData() const { return m_iblData; }
+
+            const RenderTarget& GetTarget() const { return m_target; }
+            RenderTarget& GetTarget() { return m_target; }
+
+            VkDescriptorSetLayout GetEmptyLayout() const;
 
         private:
-            void UpdateObject(const Scene::Object& object);
+            void UpdateMesh(const Scene::Object& object);
 
         private:
             Resource::ResourceManager& m_resourceMgr;
+            const Resource::DescriptorManager& m_descriptorMgr;
 
-            ObjectData m_object{};          // One for now
+            RenderTarget m_target;
 
             RenderFrameData m_frameData;
             RenderMaterialData m_materialData;
-            RenderSkyboxData m_skyboxData;
+            RenderObjectData m_objectData;
+            RenderMeshData m_meshData;
+
             RenderPostProcessData m_postProcessData;
-            RenderIblData m_iblData;
         };
     }
 }

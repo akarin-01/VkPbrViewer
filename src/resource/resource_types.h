@@ -4,11 +4,9 @@
 #include "resource/constants.h"
 #include "resource/handle.h"
 #include "resource/resource_id.h"
-#include "resource/ubo.h"
 
 #include <vulkan/vulkan.h>
 #include <array>
-#include <cstring>
 
 namespace Kita::Pbrv
 {
@@ -36,32 +34,6 @@ namespace Kita::Pbrv
             uint32_t m_arrayLayers{ 1 };
         };
 
-        struct FrameResource
-        {
-            using Handle = Resource::Handle<FrameResource>;
-
-            std::array<BufferResource, Rhi::kMaxFramesInFlight> m_ubos{};
-            std::array<VkDescriptorSet, Rhi::kMaxFramesInFlight> m_sets{};
-
-            void Write(uint32_t frameIndex, const FrameUbo& ubo)
-            {
-                std::memcpy(m_ubos[frameIndex].m_mapped, &ubo, sizeof(ubo));
-            }
-        };
-
-        struct ObjectResource
-        {
-            using Handle = Resource::Handle<ObjectResource>;
-
-            std::array<BufferResource, Rhi::kMaxFramesInFlight> m_ubos{};
-            std::array<VkDescriptorSet, Rhi::kMaxFramesInFlight> m_sets{};
-
-            void Write(uint32_t frameIndex, const ObjectUbo& ubo)
-            {
-                std::memcpy(m_ubos[frameIndex].m_mapped, &ubo, sizeof(ubo));
-            }
-        };
-
         struct MeshResource
         {
             using Handle = Resource::Handle<MeshResource>;
@@ -80,18 +52,6 @@ namespace Kita::Pbrv
             using Handle = Resource::Handle<MaterialResource>;
 
             std::array<TextureResource::Handle, kMaterialTextureCount> m_textures{};
-            VkDescriptorSet m_set{ VK_NULL_HANDLE };        // Allocate new one when textures changed
-        };
-
-        struct EnvironmentResource
-        {
-            using Handle = Resource::Handle<EnvironmentResource>;
-
-            TextureResource::Handle m_skyboxCubemap{};
-            TextureResource::Handle m_irradiance{};
-            TextureResource::Handle m_prefilter{};
-            TextureResource::Handle m_brdfLut{};
-            VkDescriptorSet m_set{ VK_NULL_HANDLE };        // Allocate new one when textures changed
         };
 
         struct MaterialDesc

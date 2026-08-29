@@ -1,4 +1,5 @@
 #include "render_pipeline.h"
+
 #include "rhi/swap_chain.h"
 #include "rhi/utils.h"
 #include "render/passes/lit_pass.h"
@@ -18,27 +19,21 @@ namespace Kita::Pbrv
             const Rhi::Context& context,
             Resource::Resources& resources,
             const Rhi::SwapChain& swapChain,
-            Resource::DescriptorManager& descriptorMgr,
-            const RenderScene& scene)
+            RenderScene& scene)
             : m_swapChain(swapChain),
-            m_targetData(context, resources, descriptorMgr, m_swapChain.Extent())
+            m_target(scene.GetTarget())
         {
             CreateRenderPasses(window, context, resources, swapChain, scene);
         }
 
-        RenderPipeline::~RenderPipeline()
-        {
-            DestroyRenderPasses();
-        }
+        RenderPipeline::~RenderPipeline() = default;
 
         void RenderPipeline::RecreateResources()
         {
-            m_targetData.Recreate(m_swapChain.Extent());
-
-            for (auto& pass : m_passes)
-            {
-                pass->RecreateResources();
-            }
+            m_litPass->RecreateResources();
+            m_skyboxPass->RecreateResources();
+            m_postProcessPass->RecreateResources();
+            m_uiPass->RecreateResources();
         }
 
         void RenderPipeline::Draw(const Rhi::FrameInfo& frameInfo) const
@@ -61,10 +56,19 @@ namespace Kita::Pbrv
                 VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
                 colorRange);
 
-            for (auto& pass : m_passes)
-            {
-                pass->Draw(frameInfo);
-            }
+            // Target to write
+            m_target.TransitionToWriteLayout(commandBuffer);
+
+            m_litPass->Draw(frameInfo);
+            m_skyboxPass->Draw(frameInfo);
+
+            // Target to read
+            m_target.TransitionToReadLayout(commandBuffer);
+
+            m_postProcessPass->Draw(frameInfo);
+
+            // Overlay
+            m_uiPass->Draw(frameInfo);
 
             // Swap chain image: COLOR_ATTACHMENT_OPTIMAL -> PRESENT_SRC_KHR
             Rhi::TransitionImageLayout(commandBuffer,
@@ -81,23 +85,14 @@ namespace Kita::Pbrv
             const Rhi::SwapChain& swapChain,
             const RenderScene& scene)
         {
-            m_passes.push_back(std::make_unique<LitPass>(
-                context, resources, swapChain,
-                m_targetData, scene));
-            m_passes.push_back(std::make_unique<SkyboxPass>(
-                context, resources, swapChain,
-                m_targetData, scene));
-            m_passes.push_back(std::make_unique<PostProcessPass>(
-                context, resources, swapChain,
-                m_targetData, scene));
-            m_passes.push_back(std::make_unique<UIPass>(
-                context, resources, swapChain,
-                window));
-        }
-
-        void RenderPipeline::DestroyRenderPasses()
-        {
-            m_passes.clear();
+            m_litPass = std::make_unique<LitPass>(
+                context, resources, swapChain, scene);
+            m_skyboxPass = std::make_unique<SkyboxPass>(
+                context, resources, swapChain, scene);
+            m_postProcessPass = std::make_unique<PostProcessPass>(
+                context, resources, swapChain, scene);
+            m_uiPass = std::make_unique<UIPass>(
+                context, resources, swapChain, window);
         }
     }
 }

@@ -13,12 +13,12 @@ namespace Kita::Pbrv
 
     namespace Render
     {
-        class RenderTargetData;
         class RenderScene;
+        class RenderTarget;
         class RenderFrameData;
         class RenderMaterialData;
-        class RenderIblData;
-        struct ObjectData;
+        class RenderObjectData;
+        struct RenderMeshData;
 
         class LitPass : public RenderPassBase
         {
@@ -26,7 +26,6 @@ namespace Kita::Pbrv
             LitPass(const Rhi::Context& context,
                 Resource::Resources& resources,
                 const Rhi::SwapChain& swapChain,
-                RenderTargetData& targetData,
                 const RenderScene& scene);
             ~LitPass();
 
@@ -34,14 +33,14 @@ namespace Kita::Pbrv
             void Draw(const Rhi::FrameInfo& frameInfo) const override;
 
         private:
-            void CreatePipeline();
+            void CreatePipeline(VkDescriptorSetLayout emptyLayout);
 
         private:
-            RenderTargetData& m_targetData;
-            const ObjectData& m_object;
+            const RenderTarget& m_target;
             const RenderFrameData& m_frameData;
             const RenderMaterialData& m_materialData;
-            const RenderIblData& m_iblData;
+            const RenderObjectData& m_objectData;
+            const RenderMeshData& m_meshData;
 
             std::unique_ptr<Rhi::GraphicsPipeline> m_pipeline;
         };

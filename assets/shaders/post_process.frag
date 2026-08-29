@@ -1,10 +1,12 @@
 #version 450
 
-layout(set = 0, binding = 0) uniform sampler2D offlineTex;
-layout(set = 1, binding = 0) uniform PostProcessParams
+#include "include/shader_sets.glsl"
+
+layout(set = SET_PER_PASS, binding = 0) uniform PerPass
 {
     vec4 exposure;      // x - exposure, yzw - padding
-} params;
+} pass;
+layout(set = SET_PER_PASS, binding = 1) uniform sampler2D offlineTex;
 
 layout(location = 0) in vec2 fragTexCoord;
 
@@ -23,6 +25,6 @@ vec3 ACESFilm(vec3 x)
 void main()
 {
     vec3 offline = texture(offlineTex, fragTexCoord).rgb;
-    offline *= params.exposure.x;
+    offline *= pass.exposure.x;
     outColor = vec4(ACESFilm(offline), 1.0);
 }

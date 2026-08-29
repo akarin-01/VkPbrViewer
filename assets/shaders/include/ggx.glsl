@@ -1,7 +1,7 @@
-#ifndef GGX
-#define GGX
+#ifndef GGX_GLSL
+#define GGX_GLSL
 
-#include "common/constants.glsl"
+#include "include/constants.glsl"
 
 // D: GGX (Trowbridge-Reitz)
 float DistributionGGX(float NdotH, float roughness)

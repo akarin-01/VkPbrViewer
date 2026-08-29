@@ -59,15 +59,13 @@ namespace Kita::Pbrv
         public:
             enum class Type : uint8_t
             {
-                Frame,          // Per-frame UBO (viewProj / light / viewPos)
-                BrdfLut,        // BRDF integration LUT sampler
-                IblTex,         // Irradiance + prefilter cubemap array
-                MaterialTex,    // Material texture array (albedo / normal / MR / AO / emissive)
-                SkyboxTex,      // Skybox cubemap sampler
-                PostProcess,    // Post-process UBO
-                TargetTex,      // Render target result sampler (present pass input)
-                ComputeWrite,   // Storage image only (brdf LUT kernel output)
-                ComputeSample,  // Storage image + source sampler (irradiance / prefilter kernels)
+                Empty,
+                PerFrame,
+                PerMaterial,
+                PerObject,
+                PostProcess,
+                ComputeWrite,
+                ComputeSample,
                 Count
             };
 

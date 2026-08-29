@@ -3,9 +3,6 @@
 #include "rhi/graphics_pipeline.h"
 #include "rhi/rendering_scope.h"
 #include "rhi/swap_chain.h"
-#include "rhi/utils.h"
-#include "resource/resources.h"
-#include "render/data/render_target_data.h"
 #include "render/render_scene.h"
 
 #include <cassert>
@@ -17,13 +14,13 @@ namespace Kita::Pbrv
         PostProcessPass::PostProcessPass(const Rhi::Context& context,
             Resource::Resources& resources,
             const Rhi::SwapChain& swapChain,
-            RenderTargetData& targetData,
             const RenderScene& scene)
             : RenderPassBase(context, resources, swapChain),
-            m_targetData(targetData),
+            m_target(scene.GetTarget()),
+            m_frameData(scene.GetFrameData()),
             m_postProcessData(scene.GetPostProcessData())
         {
-            CreatePipeline();
+            CreatePipeline(scene.GetEmptyLayout());
         }
 
         PostProcessPass::~PostProcessPass()
@@ -44,11 +41,6 @@ namespace Kita::Pbrv
             auto& frameIndex = frameInfo.m_frameIndex;
             auto& imageIndex = frameInfo.m_imageIndex;
 
-            // Resolve image: COLOR_ATTACHMENT_OPTIMAL -> SHADER_READ_ONLY_OPTIMAL
-            m_targetData.TransitionResolveImageLayout(commandBuffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-                VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
-
             // Begin rendering
             {
                 VkExtent2D extent = m_swapChain.Extent();
@@ -66,8 +58,6 @@ namespace Kita::Pbrv
 
                 // Draw
                 vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                    0, 1, &m_targetData.GetSet(), 0, nullptr);
-                vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
                     1, 1, &m_postProcessData.GetSet(frameIndex), 0, nullptr);
 
                 vkCmdDraw(commandBuffer, 3, 1, 0, 0);
@@ -75,12 +65,16 @@ namespace Kita::Pbrv
             // End rendering
         }
 
-        void PostProcessPass::CreatePipeline()
+        void PostProcessPass::CreatePipeline(VkDescriptorSetLayout emptyLayout)
         {
             Rhi::GraphicsPipelineBuilder builder(m_context.Device());
             builder.SetShaders("assets/shaders/post_process_vert.spv", "assets/shaders/post_process_frag.spv")
-                .SetDescriptorSetLayouts({ m_targetData.GetSetLayout(), m_postProcessData.GetSetLayout() })
-                .SetDynamicRendering({ m_swapChain.Format() }, VK_FORMAT_UNDEFINED);
+                .SetDescriptorSetLayouts(
+                    {
+                        emptyLayout,
+                        m_postProcessData.GetSetLayout(),
+                    })
+                    .SetDynamicRendering({ m_swapChain.Format() }, VK_FORMAT_UNDEFINED);
             m_pipeline = builder.Build();
         }
     }

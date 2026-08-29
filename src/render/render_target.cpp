@@ -1,8 +1,7 @@
-#include "render_target_data.h"
+#include "render_target.h"
+
 #include "rhi/context.h"
-#include "rhi/descriptor_writer.h"
 #include "rhi/utils.h"
-#include "resource/descriptor_manager.h"
 #include "resource/resources.h"
 #include "resource/render_texture.h"
 
@@ -12,42 +11,27 @@ namespace Kita::Pbrv
 {
     namespace Render
     {
-        namespace
-        {
-            constexpr Resource::DescriptorLayoutType kLayoutType = Resource::DescriptorLayoutType::TargetTex;
-        }
-
-        RenderTargetData::RenderTargetData(const Rhi::Context& context,
+        RenderTarget::RenderTarget(const Rhi::Context& context,
             Resource::Resources& resources,
-            Resource::DescriptorManager& descriptorMgr,
             VkExtent2D extent)
             : m_context(context),
-            m_resources(resources),
-            m_descriptorMgr(descriptorMgr)
+            m_resources(resources)
         {
-            // Set
-            m_set = m_descriptorMgr.Allocate(kLayoutType);
-
             Create(extent);
         }
 
-        RenderTargetData::~RenderTargetData()
+        RenderTarget::~RenderTarget()
         {
             Destroy();
         }
 
-        VkDescriptorSetLayout RenderTargetData::GetSetLayout() const
-        {
-            return m_descriptorMgr.GetLayout(Resource::DescriptorLayoutType::TargetTex);
-        }
-
-        void RenderTargetData::Recreate(VkExtent2D extent)
+        void RenderTarget::Recreate(VkExtent2D extent)
         {
             Destroy();
             Create(extent);
         }
 
-        VkImageView RenderTargetData::GetColorImageView() const
+        VkImageView RenderTarget::GetColorImageView() const
         {
             Resource::RenderImageView* imageView = m_resources.GetImageView(m_colorTex.m_imageViewHandle);
             assert(imageView && "Color image view handle is invalid");
@@ -55,7 +39,7 @@ namespace Kita::Pbrv
             return imageView->m_imageView;
         }
 
-        VkFormat RenderTargetData::GetColorFormat() const
+        VkFormat RenderTarget::GetColorFormat() const
         {
             Resource::RenderImage* image = m_resources.GetImage(m_colorTex.m_imageHandle);
             assert(image && "Color image handle is invalid");
@@ -63,7 +47,7 @@ namespace Kita::Pbrv
             return image->m_format;
         }
 
-        VkImageView RenderTargetData::GetResolveImageView() const
+        VkImageView RenderTarget::GetResolveImageView() const
         {
             Resource::RenderImageView* imageView = m_resources.GetImageView(m_resolveTex.m_imageViewHandle);
             assert(imageView && "Resolve image view handle is invalid");
@@ -71,7 +55,7 @@ namespace Kita::Pbrv
             return imageView->m_imageView;
         }
 
-        VkFormat RenderTargetData::GetResolveFormat() const
+        VkFormat RenderTarget::GetResolveFormat() const
         {
             Resource::RenderImage* image = m_resources.GetImage(m_resolveTex.m_imageHandle);
             assert(image && "Resolve image handle is invalid");
@@ -79,7 +63,7 @@ namespace Kita::Pbrv
             return image->m_format;
         }
 
-        VkImageView RenderTargetData::GetDepthImageView() const
+        VkImageView RenderTarget::GetDepthImageView() const
         {
             Resource::RenderImageView* imageView = m_resources.GetImageView(m_depthTex.m_imageViewHandle);
             assert(imageView && "Depth image view handle is invalid");
@@ -87,7 +71,7 @@ namespace Kita::Pbrv
             return imageView->m_imageView;
         }
 
-        VkFormat RenderTargetData::GetDepthFormat() const
+        VkFormat RenderTarget::GetDepthFormat() const
         {
             Resource::RenderImage* image = m_resources.GetImage(m_depthTex.m_imageHandle);
             assert(image && "Depth image handle is invalid");
@@ -95,7 +79,34 @@ namespace Kita::Pbrv
             return image->m_format;
         }
 
-        void RenderTargetData::TransitionColorImageLayout(VkCommandBuffer commandBuffer,
+        void RenderTarget::TransitionToWriteLayout(VkCommandBuffer commandBuffer)
+        {
+            // Color image -> COLOR_ATTACHMENT_OPTIMAL
+            TransitionColorImageLayout(commandBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
+                VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
+
+            // Resolve image -> COLOR_ATTACHMENT_OPTIMAL
+            TransitionResolveImageLayout(commandBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
+                VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
+
+            // Depth image -> DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+            TransitionDepthImageLayout(commandBuffer, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
+                VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT);
+        }
+
+        void RenderTarget::TransitionToReadLayout(VkCommandBuffer commandBuffer)
+        {
+            // Resolve image: COLOR_ATTACHMENT_OPTIMAL -> SHADER_READ_ONLY_OPTIMAL
+            TransitionResolveImageLayout(commandBuffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+                VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
+
+        }
+
+        void RenderTarget::TransitionColorImageLayout(VkCommandBuffer commandBuffer,
             VkImageLayout newLayout,
             VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
             VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask)
@@ -124,7 +135,10 @@ namespace Kita::Pbrv
             m_colorLayout = newLayout;
         }
 
-        void RenderTargetData::TransitionResolveImageLayout(VkCommandBuffer commandBuffer, VkImageLayout newLayout, VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask, VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask)
+        void RenderTarget::TransitionResolveImageLayout(VkCommandBuffer commandBuffer,
+            VkImageLayout newLayout,
+            VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
+            VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask)
         {
             if (m_resolveLayout == newLayout)
             {
@@ -150,7 +164,7 @@ namespace Kita::Pbrv
             m_resolveLayout = newLayout;
         }
 
-        void RenderTargetData::TransitionDepthImageLayout(VkCommandBuffer commandBuffer,
+        void RenderTarget::TransitionDepthImageLayout(VkCommandBuffer commandBuffer,
             VkImageLayout newLayout,
             VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
             VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask)
@@ -179,7 +193,7 @@ namespace Kita::Pbrv
             m_depthLayout = newLayout;
         }
 
-        void RenderTargetData::Create(VkExtent2D extent)
+        void RenderTarget::Create(VkExtent2D extent)
         {
             // Color texture
             {
@@ -238,17 +252,9 @@ namespace Kita::Pbrv
                 m_depthTex.m_imageViewHandle = m_resources.CreateImageView(m_depthTex.m_imageHandle, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_DEPTH_BIT);
                 m_depthTex.m_samplerHandle = m_resources.CreateSamplerNearestClampNoMip();
             }
-
-            // Set
-            {
-                Rhi::DescriptorWriter writer(m_resources, m_context.Device());
-                writer.WriteImage(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, m_resolveTex.m_imageViewHandle, m_resolveTex.m_samplerHandle)
-                    .UpdateSet(m_set);
-            }
         }
 
-        void RenderTargetData::Destroy()
+        void RenderTarget::Destroy()
         {
             // Color texture
             Resource::DestroyTexture(m_resources, m_colorTex);

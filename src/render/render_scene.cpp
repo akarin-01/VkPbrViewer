@@ -6,6 +6,8 @@
 #include "resource/resources.h"
 #include "scene/scene.h"
 
+#include <glm/glm.hpp>
+
 namespace Kita::Pbrv
 {
     namespace Render
@@ -16,11 +18,12 @@ namespace Kita::Pbrv
             Resource::DescriptorManager& descriptorMgr,
             Resource::ResourceManager& resourceMgr)
             : m_resourceMgr(resourceMgr),
+            m_descriptorMgr(descriptorMgr),
+            m_target(context, resources, swapChain.Extent()),
             m_frameData(context, resources, swapChain, descriptorMgr),
             m_materialData(context, resources, descriptorMgr),
-            m_skyboxData(context, resources, descriptorMgr),
-            m_postProcessData(context, resources, descriptorMgr),
-            m_iblData(context, resources, descriptorMgr)
+            m_objectData(context, resources, descriptorMgr),
+            m_postProcessData(context, resources, descriptorMgr, m_target.GetResolveTexture())
         {
         }
 
@@ -30,22 +33,39 @@ namespace Kita::Pbrv
         {
             auto& frameIndex = frameInfo.m_frameIndex;
 
-            UpdateObject(scene.GetObject());
+            UpdateMesh(scene.GetObject());
 
-            m_frameData.Update(frameIndex, scene.GetCamera(), scene.GetLight());
-            m_materialData.Update(frameIndex, scene.GetObject().GetMaterial());
-            m_skyboxData.Update(frameIndex, scene.GetSkybox());
-            m_postProcessData.Update(frameIndex, scene.GetPostProcess());
-            m_iblData.Update(frameIndex, m_skyboxData.GetCubemap());
+            m_frameData.UpdateUbo(frameIndex, scene.GetCamera(), scene.GetLight());
+            m_frameData.UpdateSkybox(scene.GetSkybox());
+            m_frameData.RefreshSet(frameIndex);
+
+            m_materialData.UpdateTextures(scene.GetObject().GetMaterial());
+            m_materialData.RefreshSet(frameIndex);
+
+            m_objectData.UpdateUbo(frameIndex, scene.GetObject());
+
+            m_postProcessData.UpdateUbo(frameIndex, scene.GetPostProcess());
+            m_postProcessData.RefreshSet(frameIndex);
         }
 
-        void RenderScene::UpdateObject(const Scene::Object& object)
+        void RenderScene::Recreate(VkExtent2D extent)
+        {
+            m_target.Recreate(extent);
+            m_postProcessData.UpdateTarget(m_target.GetResolveTexture());
+        }
+
+        VkDescriptorSetLayout RenderScene::GetEmptyLayout() const
+        {
+            return m_descriptorMgr.GetLayout(Resource::DescriptorLayoutType::Empty);
+        }
+
+        void RenderScene::UpdateMesh(const Scene::Object& object)
         {
             const Resource::ResourceId meshId = object.GetMesh().GetId();
-            if (meshId != m_object.m_lastMeshId)
+            if (meshId != m_meshData.m_lastMeshId)
             {
-                m_object.m_lastMeshId = meshId;
-                m_object.m_mesh = m_resourceMgr.GetOrCreateMeshResource(meshId);
+                m_meshData.m_lastMeshId = meshId;
+                m_meshData.m_mesh = m_resourceMgr.GetOrCreateMeshResource(meshId);
             }
         }
     }

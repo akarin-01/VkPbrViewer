@@ -2,7 +2,6 @@
 
 #include "rhi/frame_info.h"
 #include "resource/types.h"
-#include "render/data/render_target_data.h"
 
 #include <vector>
 #include <memory>
@@ -21,14 +20,14 @@ namespace Kita::Pbrv
     namespace Resource
     {
         class Resources;
-        class DescriptorManager;
     }
 
     namespace Render
     {
         class RenderScene;
+        class RenderTarget;
         class RenderPassBase;
-        class RenderTargetData;
+
         class RenderPipeline
         {
         public:
@@ -36,8 +35,7 @@ namespace Kita::Pbrv
                 const Rhi::Context& context,
                 Resource::Resources& resources,
                 const Rhi::SwapChain& swapChain,
-                Resource::DescriptorManager& descriptorMgr,
-                const RenderScene& scene);
+                RenderScene& scene);
             ~RenderPipeline();
 
             void RecreateResources();
@@ -49,13 +47,15 @@ namespace Kita::Pbrv
                 Resource::Resources& resources,
                 const Rhi::SwapChain& swapChain,
                 const RenderScene& scene);
-            void DestroyRenderPasses();
 
         private:
             const Rhi::SwapChain& m_swapChain;
+            RenderTarget& m_target;
 
-            std::vector<std::unique_ptr<RenderPassBase>> m_passes;
-            RenderTargetData m_targetData;
+            std::unique_ptr<RenderPassBase> m_litPass;
+            std::unique_ptr<RenderPassBase> m_skyboxPass;
+            std::unique_ptr<RenderPassBase> m_postProcessPass;
+            std::unique_ptr<RenderPassBase> m_uiPass;
         };
     }
 }

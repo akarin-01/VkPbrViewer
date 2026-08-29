@@ -1,11 +1,8 @@
 #include "skybox_pass.h"
-#include "core/log.h"
 #include "rhi/context.h"
 #include "rhi/graphics_pipeline.h"
 #include "rhi/rendering_scope.h"
 #include "rhi/swap_chain.h"
-#include "resource/resources.h"
-#include "render/data/render_target_data.h"
 #include "render/render_scene.h"
 
 #include <cassert>
@@ -17,12 +14,10 @@ namespace Kita::Pbrv
         SkyboxPass::SkyboxPass(const Rhi::Context& context,
             Resource::Resources& resources,
             const Rhi::SwapChain& swapChain,
-            RenderTargetData& targetData,
             const RenderScene& scene)
             : RenderPassBase(context, resources, swapChain),
-            m_targetData(targetData),
-            m_frameData(scene.GetFrameData()),
-            m_skybox(scene.GetSkyboxData())
+            m_target(scene.GetTarget()),
+            m_frameData(scene.GetFrameData())
         {
             CreatePipeline();
         }
@@ -41,35 +36,20 @@ namespace Kita::Pbrv
             auto& commandBuffer = frameInfo.m_commandBuffer;
             auto& frameIndex = frameInfo.m_frameIndex;
 
-            // Color image -> COLOR_ATTACHMENT_OPTIMAL
-            m_targetData.TransitionColorImageLayout(commandBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-                VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
-
-            // Resolve image -> COLOR_ATTACHMENT_OPTIMAL
-            m_targetData.TransitionResolveImageLayout(commandBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
-                VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
-
-            // Depth image -> DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-            m_targetData.TransitionDepthImageLayout(commandBuffer, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT, VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-                VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT, VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT);
-
             // Begin rendering
             {
                 VkExtent2D extent = m_swapChain.Extent();
 
                 Rhi::RenderingAttachmentDesc colorDesc{};
-                colorDesc.m_imageView = m_targetData.GetColorImageView();
+                colorDesc.m_imageView = m_target.GetColorImageView();
                 colorDesc.m_imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-                colorDesc.m_resolveImageView = m_targetData.GetResolveImageView();
+                colorDesc.m_resolveImageView = m_target.GetResolveImageView();
                 colorDesc.m_resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
                 colorDesc.m_loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
                 colorDesc.m_storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
                 Rhi::RenderingAttachmentDesc depthDesc{};
-                depthDesc.m_imageView = m_targetData.GetDepthImageView();
+                depthDesc.m_imageView = m_target.GetDepthImageView();
                 depthDesc.m_imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
                 depthDesc.m_loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
                 depthDesc.m_storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -82,8 +62,6 @@ namespace Kita::Pbrv
                 // Draw
                 vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
                     0, 1, &m_frameData.GetSet(frameIndex), 0, nullptr);
-                vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                    1, 1, &m_skybox.GetSet(frameIndex), 0, nullptr);
                 vkCmdDraw(commandBuffer, 36, 1, 0, 0);
             }
             // End rendering
@@ -95,8 +73,11 @@ namespace Kita::Pbrv
             builder.SetShaders("assets/shaders/skybox_vert.spv", "assets/shaders/skybox_frag.spv")
                 .SetRasterizationSamples(m_context.SampleCount())
                 .SetDepth(true, false, VK_COMPARE_OP_LESS_OR_EQUAL)
-                .SetDescriptorSetLayouts({ m_frameData.GetSetLayout(), m_skybox.GetSetLayout(), })
-                .SetDynamicRendering({ m_targetData.GetColorFormat() }, m_targetData.GetDepthFormat());
+                .SetDescriptorSetLayouts(
+                    {
+                        m_frameData.GetSetLayout()
+                    })
+                .SetDynamicRendering({ m_target.GetColorFormat() }, m_target.GetDepthFormat());
             m_pipeline = builder.Build();
         }
     }

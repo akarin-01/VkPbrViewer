@@ -134,17 +134,16 @@ add_executable(VkPbrViewer
     src/resource/resources.cpp
 
     # render
+    src/render/render_target.cpp
     src/render/render_pipeline.cpp
     src/render/render_scene.cpp
     src/render/renderer.cpp
 
     # render data
     src/render/data/render_frame_data.cpp
-    src/render/data/render_ibl_data.cpp
     src/render/data/render_material_data.cpp
+    src/render/data/render_object_data.cpp
     src/render/data/render_post_process_data.cpp
-    src/render/data/render_skybox_data.cpp
-    src/render/data/render_target_data.cpp
 
     # render passes
     src/render/passes/lit_pass.cpp
@@ -227,12 +226,14 @@ set(SHADER_OUTPUTS
 )
 
 set(SHADER_INCLUDES
-    assets/shaders/common/constants.glsl
-    assets/shaders/common/cubemap_utils.glsl
-    assets/shaders/common/ggx.glsl
-    assets/shaders/common/hammersley.glsl
-    assets/shaders/common/material_texture_slots.glsl
-    assets/shaders/common/per_frame_data.glsl
+    assets/shaders/include/constants.glsl
+    assets/shaders/include/cubemap_utils.glsl
+    assets/shaders/include/ggx.glsl
+    assets/shaders/include/hammersley.glsl
+    assets/shaders/include/per_frame.glsl
+    assets/shaders/include/per_material.glsl
+    assets/shaders/include/per_object.glsl
+    assets/shaders/include/shader_sets.glsl
 )
 
 set(COMPILED_SHADERS)

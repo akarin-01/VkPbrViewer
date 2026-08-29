@@ -29,8 +29,8 @@ namespace Kita::Pbrv
             m_descriptorMgr = std::make_unique<Resource::DescriptorManager>(*m_context);
             m_resourceMgr = std::make_unique<Resource::ResourceManager>(*m_context, assetMgr);
 
-                        m_renderScene = std::make_unique<RenderScene>(*m_context, *m_resources, *m_swapChain, *m_descriptorMgr, *m_resourceMgr);
-            m_pipeline = std::make_unique<RenderPipeline>(window, *m_context, *m_resources, *m_swapChain, *m_descriptorMgr, *m_renderScene);
+            m_renderScene = std::make_unique<RenderScene>(*m_context, *m_resources, *m_swapChain, *m_descriptorMgr, *m_resourceMgr);
+            m_pipeline = std::make_unique<RenderPipeline>(window, *m_context, *m_resources, *m_swapChain, *m_renderScene);
         }
 
         Renderer::~Renderer()
@@ -54,6 +54,7 @@ namespace Kita::Pbrv
             if (frameInfo.m_swapChainRecreated)
             {
                 // Recreate
+                m_renderScene->Recreate(m_swapChain->Extent());
                 m_pipeline->RecreateResources();
 
                 return;
@@ -70,6 +71,7 @@ namespace Kita::Pbrv
             if (m_frameSync->EndFrame())
             {
                 // Recreate
+                m_renderScene->Recreate(m_swapChain->Extent());
                 m_pipeline->RecreateResources();
             }
         }

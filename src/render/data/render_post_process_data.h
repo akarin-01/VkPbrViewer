@@ -2,7 +2,7 @@
 
 #include "core/macro.h"
 #include "rhi/constants.h"
-#include "resource/types.h"
+#include "resource/render_texture.h"
 
 #include <vulkan/vulkan.h>
 #include <glm/glm.hpp>
@@ -28,22 +28,33 @@ namespace Kita::Pbrv
     {
         struct PostProcessUbo
         {
-            alignas(16) glm::vec4 m_exposure;          // x - exposure, yzw - padding
+            alignas(16) glm::vec4 m_exposure;      // x - exposure, yzw - padding
         };
         STD140_ASSERT(PostProcessUbo, 16);
 
+        /// Set 1 — per-pass state of the post process: exposure UBO + the lit
+        /// output texture. The texture swaps on resize (K-slot rotation).
         class RenderPostProcessData
         {
         public:
             RenderPostProcessData(const Rhi::Context& context,
                 Resource::Resources& resources,
-                Resource::DescriptorManager& descriptorMgr);
+                Resource::DescriptorManager& descriptorMgr,
+                const Resource::RenderTexture& target);
             ~RenderPostProcessData();
 
-            void Update(uint32_t frameIndex, const Scene::PostProcess& postProcess);
+            /// Continuous: exposure is rewritten every frame.
+            void UpdateUbo(uint32_t frameIndex, const Scene::PostProcess& postProcess);
+
+            /// Discrete: the lit output swapped on resize (K-slot rotation).
+            void UpdateTarget(const Resource::RenderTexture& target);
+            void RefreshSet(uint32_t frameIndex);
 
             VkDescriptorSetLayout GetSetLayout() const;
             const VkDescriptorSet& GetSet(uint32_t frameIndex) const { return m_sets[frameIndex]; }
+
+        private:
+            void WriteSet(uint32_t frameIndex, bool writeUbo = false) const;
 
         private:
             const Rhi::Context& m_context;
@@ -51,7 +62,9 @@ namespace Kita::Pbrv
             Resource::DescriptorManager& m_descriptorMgr;
 
             std::array<Resource::RenderBufferHandle, Rhi::kMaxFramesInFlight> m_uboHandles{};
+            Resource::RenderTexture m_offlineTex{};
             std::array<VkDescriptorSet, Rhi::kMaxFramesInFlight> m_sets{};
+            uint32_t m_setDirtyCount{ 0 };
         };
     }
 }

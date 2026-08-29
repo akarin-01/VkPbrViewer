@@ -1,5 +1,5 @@
-#ifndef CUBEMAP_UTILS
-#define CUBEMAP_UTILS
+#ifndef CUBEMAP_UTILS_GLSL
+#define CUBEMAP_UTILS_GLSL
 
 // Face, faceCoord -> World dir(cube)
 vec3 GetDirection(uint face, vec2 faceCoord)

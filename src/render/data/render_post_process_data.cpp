@@ -19,7 +19,8 @@ namespace Kita::Pbrv
 
         RenderPostProcessData::RenderPostProcessData(const Rhi::Context& context,
             Resource::Resources& resources,
-            Resource::DescriptorManager& descriptorMgr)
+            Resource::DescriptorManager& descriptorMgr,
+            const Resource::RenderTexture& target)
             : m_context(context),
             m_resources(resources),
             m_descriptorMgr(descriptorMgr)
@@ -37,39 +38,69 @@ namespace Kita::Pbrv
                 }
             }
 
+            // Texture
+            m_offlineTex = target;
+
             // Set
             for (size_t i = 0; i < m_sets.size(); ++i)
             {
                 m_sets[i] = m_descriptorMgr.Allocate(kLayoutType);
 
-                Rhi::DescriptorWriter writer(m_resources, m_context.Device());
-                writer.WriteBuffer(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                    m_uboHandles[i], 0, sizeof(PostProcessUbo))
-                    .UpdateSet(m_sets[i]);
+                WriteSet(static_cast<uint32_t>(i), true);
             }
         }
 
         RenderPostProcessData::~RenderPostProcessData()
         {
-            // Sets will be released automatically
-
             for (auto& handle : m_uboHandles)
             {
                 m_resources.DestroyBuffer(handle);
             }
         }
 
-        VkDescriptorSetLayout RenderPostProcessData::GetSetLayout() const
-        {
-            return m_descriptorMgr.GetLayout(Resource::DescriptorLayoutType::PostProcess);
-        }
-
-        void RenderPostProcessData::Update(uint32_t frameIndex, const Scene::PostProcess& postProcess)
+        void RenderPostProcessData::UpdateUbo(uint32_t frameIndex, const Scene::PostProcess& postProcess)
         {
             PostProcessUbo ubo{};
             ubo.m_exposure = glm::vec4(std::exp2(postProcess.GetEV()), 0.0f, 0.0f, 0.0f);
 
             m_resources.WriteBuffer(m_uboHandles[frameIndex], &ubo, sizeof(ubo));
+        }
+
+        void RenderPostProcessData::UpdateTarget(const Resource::RenderTexture& target)
+        {
+            if (m_offlineTex != target)
+            {
+                m_offlineTex = target;
+                m_setDirtyCount = Rhi::kMaxFramesInFlight;
+            }
+        }
+
+        void RenderPostProcessData::RefreshSet(uint32_t frameIndex)
+        {
+            if (m_setDirtyCount > 0)
+            {
+                WriteSet(frameIndex, false);
+                --m_setDirtyCount;
+            }
+        }
+
+        VkDescriptorSetLayout RenderPostProcessData::GetSetLayout() const
+        {
+            return m_descriptorMgr.GetLayout(kLayoutType);
+        }
+
+        void RenderPostProcessData::WriteSet(uint32_t frameIndex, bool writeUbo) const
+        {
+            Rhi::DescriptorWriter writer(m_resources, m_context.Device());
+            if (writeUbo)
+            {
+                writer.WriteBuffer(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                    m_uboHandles[frameIndex], 0, sizeof(PostProcessUbo));
+            }
+
+            writer.WriteImage(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, m_offlineTex.m_imageViewHandle, m_offlineTex.m_samplerHandle)
+                .UpdateSet(m_sets[frameIndex]);
         }
     }
 }

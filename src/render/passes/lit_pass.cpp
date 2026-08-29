@@ -1,11 +1,9 @@
 #include "lit_pass.h"
-#include "core/log.h"
 #include "rhi/context.h"
 #include "rhi/graphics_pipeline.h"
 #include "rhi/rendering_scope.h"
 #include "rhi/swap_chain.h"
 #include "render/vertex_input.h"
-#include "render/data/render_target_data.h"
 #include "render/render_scene.h"
 
 #include <cassert>
@@ -17,16 +15,15 @@ namespace Kita::Pbrv
         LitPass::LitPass(const Rhi::Context& context,
             Resource::Resources& resources,
             const Rhi::SwapChain& swapChain,
-            RenderTargetData& targetData,
             const RenderScene& scene)
             : RenderPassBase(context, resources, swapChain),
-            m_targetData(targetData),
-            m_object(scene.GetObjectData()),
+            m_target(scene.GetTarget()),
             m_frameData(scene.GetFrameData()),
             m_materialData(scene.GetMaterialData()),
-            m_iblData(scene.GetIblData())
+            m_objectData(scene.GetObjectData()),
+            m_meshData(scene.GetMeshData())
         {
-            CreatePipeline();
+            CreatePipeline(scene.GetEmptyLayout());
         }
 
         LitPass::~LitPass() = default;
@@ -43,21 +40,6 @@ namespace Kita::Pbrv
             auto& commandBuffer = frameInfo.m_commandBuffer;
             auto& frameIndex = frameInfo.m_frameIndex;
 
-            // Color image -> COLOR_ATTACHMENT_OPTIMAL
-            m_targetData.TransitionColorImageLayout(commandBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
-                VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
-
-            // Resolve image -> COLOR_ATTACHMENT_OPTIMAL
-            m_targetData.TransitionResolveImageLayout(commandBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
-                VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
-
-            // Depth image -> DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-            m_targetData.TransitionDepthImageLayout(commandBuffer, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
-                VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT);
-
             // Begin rendering
             {
                 std::array<VkClearValue, 2> clearValues{};
@@ -66,16 +48,16 @@ namespace Kita::Pbrv
                 VkExtent2D extent = m_swapChain.Extent();
 
                 Rhi::RenderingAttachmentDesc colorDesc{};
-                colorDesc.m_imageView = m_targetData.GetColorImageView();
+                colorDesc.m_imageView = m_target.GetColorImageView();
                 colorDesc.m_imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-                colorDesc.m_resolveImageView = m_targetData.GetResolveImageView();
+                colorDesc.m_resolveImageView = m_target.GetResolveImageView();
                 colorDesc.m_resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
                 colorDesc.m_loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
                 colorDesc.m_storeOp = VK_ATTACHMENT_STORE_OP_STORE;
                 colorDesc.m_clearValue = clearValues[0];
 
                 Rhi::RenderingAttachmentDesc depthDesc{};
-                depthDesc.m_imageView = m_targetData.GetDepthImageView();
+                depthDesc.m_imageView = m_target.GetDepthImageView();
                 depthDesc.m_imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
                 depthDesc.m_loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
                 depthDesc.m_storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -91,19 +73,11 @@ namespace Kita::Pbrv
                     0, 1, &m_frameData.GetSet(frameIndex), 0, nullptr);
                 {
                     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                        1, 1, &m_iblData.GetBrdfLutSet(frameIndex), 0, nullptr);
+                        2, 1, &m_materialData.GetSet(frameIndex), 0, nullptr);
                     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                        2, 1, &m_iblData.GetSet(frameIndex), 0, nullptr);
+                        3, 1, &m_objectData.GetSet(frameIndex), 0, nullptr);
 
-                    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                        3, 1, &m_materialData.GetSet(frameIndex), 0, nullptr);
-
-                    auto& pushConstant = m_materialData.GetPushConstant();
-                    vkCmdPushConstants(commandBuffer, m_pipeline->Layout(),
-                        VK_SHADER_STAGE_FRAGMENT_BIT,
-                        0, sizeof(pushConstant), &pushConstant);
-
-                    auto meshHandle = m_object.m_mesh;
+                    auto meshHandle = m_meshData.m_mesh;
                     if (meshHandle)
                     {
                         VkBuffer buffers[]{ meshHandle->GetVertexBuffer() };
@@ -118,27 +92,22 @@ namespace Kita::Pbrv
             // End rendering
         }
 
-        void LitPass::CreatePipeline()
+        void LitPass::CreatePipeline(VkDescriptorSetLayout emptyLayout)
         {
-            VkPushConstantRange pushConstant{};
-            pushConstant.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-            pushConstant.offset = 0;
-            pushConstant.size = sizeof(MaterialPC);
-
             Rhi::GraphicsPipelineBuilder builder(m_context.Device());
             builder.SetShaders("assets/shaders/lit_vert.spv", "assets/shaders/lit_frag.spv")
                 .SetVertexInput({ VertexInput::Binding() }, VertexInput::Attributes())
                 .SetCullMode(VK_CULL_MODE_BACK_BIT)
                 .SetRasterizationSamples(m_context.SampleCount())
                 .SetDepth(true, true, VK_COMPARE_OP_LESS)
-                .SetDescriptorSetLayouts({
+                .SetDescriptorSetLayouts(
+                    {
                         m_frameData.GetSetLayout(),
-                        m_iblData.GetBrdfLutSetLayout(),
-                        m_iblData.GetSetLayout(),
+                        emptyLayout,
                         m_materialData.GetSetLayout(),
+                        m_objectData.GetSetLayout(),
                     })
-                    .SetPushConstants({ pushConstant })
-                .SetDynamicRendering({ m_targetData.GetColorFormat() }, m_targetData.GetDepthFormat());
+                    .SetDynamicRendering({ m_target.GetColorFormat() }, m_target.GetDepthFormat());
             m_pipeline = builder.Build();
         }
     }

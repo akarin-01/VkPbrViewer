@@ -1,20 +1,10 @@
 #version 450
 
-#include "common/constants.glsl"
-#include "common/per_frame_data.glsl"
-#include "common/material_texture_slots.glsl"
-#include "common/ggx.glsl"
-
-layout(push_constant, std430) uniform MaterialPC
-{
-    vec4 albedo;
-    vec4 params;            // x - metallic, y - roughness, z - ao, w - padding
-    vec4 emissive;          // xyz - emissive, w - padding
-} material;
-
-layout(set = 1, binding = 0) uniform sampler2D brdfLut;
-layout(set = 2, binding = 0) uniform samplerCube iblMaps[2];        // 0 -> irradiance, 1 -> prefilter
-layout(set = 3, binding = 0) uniform sampler2D textures[TEXTURE_COUNT];
+#include "include/constants.glsl"
+#include "include/per_frame.glsl"
+#include "include/per_material.glsl"
+#include "include/per_object.glsl"
+#include "include/ggx.glsl"
 
 layout(location = 0) in vec3 fragPos;
 layout(location = 1) in vec3 fragNormal;
@@ -35,7 +25,7 @@ vec3 FresnelSchlickRoughness(float cosTheta, vec3 f0, float roughness)
     return f0 + (max(vec3(1.0 - roughness), f0) - f0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 }
 
-// G: Smith (Schlick-GGX)，k 因子区分直接光照与 IBL
+// G: Smith (Schlick-GGX); the k factor differs between direct lighting and IBL
 float GeometrySchlickGGX(float NdotV, float roughness)
 {
     float r = roughness + 1.0;
@@ -58,26 +48,26 @@ void main()
     vec3 bitangent = normalize(cross(normal, tangent) * fragTangent.w);
 
     mat3 TBN = mat3(tangent, bitangent, normal);
-    vec3 normalTS = texture(textures[NORMAL], fragTexCoord).xyz * 2.0 - 1.0;
+    vec3 normalTS = texture(texNormal, fragTexCoord).xyz * 2.0 - 1.0;
     vec3 nDir = normalize(TBN * normalTS);
 
-    vec3 vDir = normalize(frame.viewPos.xyz - fragPos);
-    vec3 lDir = normalize(frame.lightPos.xyz);              // directional light
+    vec3 vDir = normalize(frame.camera.position.xyz - fragPos);
+    vec3 lDir = normalize(frame.light.position.xyz);              // directional light
     vec3 hDir = normalize(vDir + lDir);
 
-    vec4 mr = texture(textures[MR], fragTexCoord);
-    vec4 albedo = material.albedo * texture(textures[ALBEDO], fragTexCoord);
-    float metallic = material.params.x * mr.b;
-    float roughness = material.params.y * mr.g;
-    float ao = material.params.z * texture(textures[AO], fragTexCoord).r;
-    vec3 emissive = material.emissive.rgb * texture(textures[EMISSIVE], fragTexCoord).rgb;
+    vec4 mr = texture(texMetalRoughness, fragTexCoord);
+    vec4 albedo = object.material.albedo * texture(texAlbedo, fragTexCoord);
+    float metallic = object.material.pbrParams.x * mr.b;
+    float roughness = object.material.pbrParams.y * mr.g;
+    float ao = object.material.pbrParams.z * texture(texAo, fragTexCoord).r;
+    vec3 emissive = object.material.emissive.rgb * object.material.emissive.a * texture(texEmissive, fragTexCoord).rgb;
 
     float NdotV = max(dot(nDir, vDir), 0.0);
     float NdotL = max(dot(nDir, lDir), 0.0);
     float HdotV = max(dot(hDir, vDir), 0.0);
     float NdotH = max(dot(nDir, hDir), 0.0);
 
-    vec3 radiance = frame.lightColor.xyz * frame.lightColor.w;
+    vec3 radiance = frame.light.colorIntensity.rgb * frame.light.colorIntensity.a;
     vec3 f0 = mix(vec3(0.04), albedo.rgb, metallic);
 
     // Cook-Torrance specular: D * F * G / (4 * NdotV * NdotL)
@@ -86,20 +76,20 @@ void main()
     float g = GeometrySmith(nDir, vDir, lDir, roughness);
     vec3 specular = f * d * g / max(4.0 * NdotV * NdotL, 0.001);
 
-    // Lambert diffuse，乘 (1 - F) 保证能量守恒，metallic=1 时消失
+    // Lambert diffuse; (1 - F) for energy conservation, zero at metallic = 1
     vec3 kd = (vec3(1.0) - f) * (1.0 - metallic);
     vec3 diffuse = kd * albedo.rgb / PI;
 
     // IBL ambient: split-sum specular + irradiance diffuse
     vec3 R = reflect(-vDir, nDir);
-    float mip = roughness * (textureQueryLevels(iblMaps[1]) - 1.0);
-    vec3 prefilteredColor = textureLod(iblMaps[1], R, mip).rgb;
-    vec2 brdf = texture(brdfLut, vec2(NdotV, roughness)).rg;
+    float mip = roughness * (textureQueryLevels(texPrefilter) - 1.0);
+    vec3 prefilteredColor = textureLod(texPrefilter, R, mip).rgb;
+    vec2 brdf = texture(texBrdfLut, vec2(NdotV, roughness)).rg;
     vec3 fresnelIBL = FresnelSchlickRoughness(NdotV, f0, roughness);
     vec3 specularIBL = prefilteredColor * (fresnelIBL * brdf.x + brdf.y);
 
     vec3 kdIBL = (vec3(1.0) - fresnelIBL) * (1.0 - metallic);
-    vec3 diffuseIBL = kdIBL * albedo.rgb / PI * texture(iblMaps[0], nDir).rgb;
+    vec3 diffuseIBL = kdIBL * albedo.rgb / PI * texture(texIrradiance, nDir).rgb;
 
     vec3 result = (diffuse + specular) * NdotL * radiance;
     result += (diffuseIBL + specularIBL) * ao;

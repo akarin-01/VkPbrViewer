@@ -17,13 +17,11 @@ namespace Kita::Pbrv
             {
                 switch (type)
                 {
-                case DescriptorLayoutType::Frame:           return "Frame";
-                case DescriptorLayoutType::BrdfLut:         return "BrdfLut";
-                case DescriptorLayoutType::IblTex:          return "IblTex";
-                case DescriptorLayoutType::MaterialTex:     return "MaterialTex";
-                case DescriptorLayoutType::SkyboxTex:       return "SkyboxTex";
+                case DescriptorLayoutType::Empty:        return "Empty";
+                case DescriptorLayoutType::PerFrame:        return "PerFrame";
+                case DescriptorLayoutType::PerMaterial:     return "PerMaterial";
+                case DescriptorLayoutType::PerObject:       return "PerObject";
                 case DescriptorLayoutType::PostProcess:     return "PostProcess";
-                case DescriptorLayoutType::TargetTex:       return "TargetTex";
                 case DescriptorLayoutType::ComputeWrite:    return "ComputeWrite";
                 case DescriptorLayoutType::ComputeSample:   return "ComputeSample";
                 default: return "Unknown";
@@ -142,27 +140,36 @@ namespace Kita::Pbrv
 
         DescriptorManager::DescriptorManager(const Rhi::Context& context)
         {
-            CreateSetPool(Type::Frame, context,
-                { { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1,
-                    VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT } });
+            CreateSetPool(Type::Empty, context, {});
 
-            CreateSetPool(Type::BrdfLut, context,
-                { { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT } });
+            CreateSetPool(Type::PerFrame, context,
+                {
+                    { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT },
+                    { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
+                    { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
+                    { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
+                    { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
+                });
 
-            CreateSetPool(Type::IblTex, context,
-                { { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2, VK_SHADER_STAGE_FRAGMENT_BIT } });
+            CreateSetPool(Type::PerMaterial, context,
+                {
+                    { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
+                    { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
+                    { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
+                    { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
+                    { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
+                });
 
-            CreateSetPool(Type::MaterialTex, context,
-                { { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 5, VK_SHADER_STAGE_FRAGMENT_BIT } });
-
-            CreateSetPool(Type::SkyboxTex, context,
-                { { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT } });
+            CreateSetPool(Type::PerObject, context,
+                {
+                    { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT }
+                });
 
             CreateSetPool(Type::PostProcess, context,
-                { { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT } });
-
-            CreateSetPool(Type::TargetTex, context,
-                { { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT } });
+                {
+                    { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
+                    { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
+                });
 
             CreateSetPool(Type::ComputeWrite, context,
                 { { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT } });
