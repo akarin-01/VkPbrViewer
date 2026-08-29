@@ -11,7 +11,7 @@ namespace Kita::Pbrv
             : m_context(context),
             m_bufferQueue([this](BufferResource& buffer)
                 {
-                    ResourceUtils::DestroyBufferData(m_context, buffer);
+                    ResourceUtils::DestroyBufferResource(m_context, buffer);
                 }),
             m_textureQueue([this](TextureResource& tex)
                 {

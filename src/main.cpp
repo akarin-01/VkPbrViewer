@@ -7,6 +7,8 @@
 
 #include <cassert>
 #include <cstdint>
+#include <cstring>
+#include <vector>
 
 namespace
 {
@@ -19,37 +21,66 @@ namespace
         Resource::AssetManager assets;
         Resource::ResourceManager resources(context, assets);
 
+        // 1. CreateBuffer: host-visible mapped UBO, written through the mapping.
+        Resource::BufferDesc uboDesc{};
+        uboDesc.m_size = 64;
+        uboDesc.m_usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+        uboDesc.m_properties =
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        uboDesc.m_mapped = true;
+        Resource::BufferResource::Handle ubo = resources.CreateBuffer(uboDesc);
+        assert(ubo.IsValid());
+        assert(ubo->m_buffer != VK_NULL_HANDLE);
+        assert(ubo->m_mapped != nullptr);
+
+        const uint32_t pattern = 0xCAFEBABE;
+        std::memcpy(ubo->m_mapped, &pattern, sizeof(pattern));
+        assert(std::memcmp(ubo->m_mapped, &pattern, sizeof(pattern)) == 0);
+
+        // 2. CreateBuffer with initial data: device-local upload through staging.
+        const std::vector<float> vbData = { 0.0f, 1.0f, 2.0f, 3.0f };
+        Resource::BufferDesc vbDesc{};
+        vbDesc.m_size = vbData.size() * sizeof(float);
+        vbDesc.m_usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        vbDesc.m_properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        Resource::BufferResource::Handle vb = resources.CreateBuffer(vbDesc,
+            vbData.data(), vbData.size() * sizeof(float));
+        assert(vb.IsValid());
+        assert(vb->m_buffer != VK_NULL_HANDLE);
+        assert(vb->m_mapped == nullptr);    // device-local: not mapped
+
+        // 3. GetOrCreateMesh: cache miss builds a mesh whose buffers are handles.
         const Resource::MeshAsset::Handle meshAsset =
             assets.LoadMesh("assets/models/DamagedHelmet.gltf");
         assert(meshAsset.IsValid());
         const Resource::ResourceId meshId = meshAsset.GetId();
 
-        // 1. Cache miss: build a new GPU block from the asset.
-        Resource::MeshResource::Handle mesh1 = resources.GetOrCreateMeshResource(meshId);
+        Resource::MeshResource::Handle mesh1 = resources.GetOrCreateMesh(meshId);
         assert(mesh1.IsValid());
         assert(mesh1->m_indexCount > 0);
-        assert(mesh1->m_vertexBuffer.m_buffer != VK_NULL_HANDLE);
-        assert(mesh1->m_indexBuffer.m_buffer != VK_NULL_HANDLE);
+        assert(mesh1->m_vertexBuffer.IsValid());
+        assert(mesh1->m_indexBuffer.IsValid());
+        assert(mesh1->GetVertexBuffer() != VK_NULL_HANDLE);
+        assert(mesh1->GetIndexBuffer() != VK_NULL_HANDLE);
 
-        // 2. Cache hit: same block shared across handles.
-        Resource::MeshResource::Handle mesh2 = resources.GetOrCreateMeshResource(meshId);
+        // 4. Cache hit: one entry shared across handles; refcount keeps it alive.
+        Resource::MeshResource::Handle mesh2 = resources.GetOrCreateMesh(meshId);
         assert(mesh1.GetId() == mesh2.GetId());
-        assert(mesh1.Get() == mesh2.Get());
-
-        // 3. Refcount: releasing one handle keeps the block alive via the other.
         mesh1.Reset();
         assert(mesh2.IsValid());
         assert(mesh2->m_indexCount > 0);
 
-        // 4. Last handle released: entry leaves the table (deferred destroy takes it).
+        // 5. Last handle released: entry leaves the table, stale id rebuilds it.
         mesh2.Reset();
-
-        // 5. Stale cache entry is detected and rebuilt on demand.
-        Resource::MeshResource::Handle mesh3 = resources.GetOrCreateMeshResource(meshId);
+        Resource::MeshResource::Handle mesh3 = resources.GetOrCreateMesh(meshId);
         assert(mesh3.IsValid());
         assert(mesh3->m_indexCount > 0);
+        assert(mesh3->m_vertexBuffer.IsValid());
 
-        // 6. Deferred destroy: age the graveyard out, must not crash or leak.
+        // 6. Deferred destroy: release everything, then age out the graveyard.
+        mesh3.Reset();      // mesh entry death cascades into its buffer handles -> graveyard
+        vb.Reset();
+        ubo.Reset();
         for (uint32_t i = 0; i < Rhi::kMaxFramesInFlight; ++i)
         {
             resources.FlushGraveyard();

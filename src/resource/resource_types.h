@@ -12,38 +12,54 @@ namespace Kita::Pbrv
 {
     namespace Resource
     {
+        struct BufferDesc
+        {
+            VkDeviceSize m_size{ 0 };
+            VkBufferUsageFlags m_usage{ 0 };
+            VkMemoryPropertyFlags m_properties{ 0 };
+            bool m_mapped{ false };
+        };
+
         struct BufferResource
         {
+            using Handle = Resource::Handle<BufferResource>;
+
             VkBuffer m_buffer{ VK_NULL_HANDLE };
             VkDeviceMemory m_memory{ VK_NULL_HANDLE };
             void* m_mapped{ nullptr };
             VkDeviceSize m_size{ 0 };
         };
 
-        struct TextureResource
+        struct ImageResource
         {
-            using Handle = Resource::Handle<TextureResource>;
-
             VkImage m_image{ VK_NULL_HANDLE };
             VkDeviceMemory m_memory{ VK_NULL_HANDLE };
-            VkImageView m_imageView{ VK_NULL_HANDLE };
-            VkSampler m_sampler{ VK_NULL_HANDLE };
             VkFormat m_format{ VK_FORMAT_UNDEFINED };
             VkExtent3D m_extent{ 0, 0, 1 };
             uint32_t m_mipLevels{ 1 };
             uint32_t m_arrayLayers{ 1 };
+            VkImageAspectFlags m_aspectMask{ VK_IMAGE_ASPECT_NONE };
+        };
+
+        struct TextureResource
+        {
+            using Handle = Resource::Handle<TextureResource>;
+
+            ImageResource m_image{};
+            VkImageView m_imageView{ VK_NULL_HANDLE };
+            VkSampler m_sampler{ VK_NULL_HANDLE };
         };
 
         struct MeshResource
         {
             using Handle = Resource::Handle<MeshResource>;
 
-            BufferResource m_vertexBuffer{};
-            BufferResource m_indexBuffer{};
+            BufferResource::Handle m_vertexBuffer{};
+            BufferResource::Handle m_indexBuffer{};
             uint32_t m_indexCount{ 0 };
 
-            VkBuffer GetVertexBuffer() const { return m_vertexBuffer.m_buffer; }
-            VkBuffer GetIndexBuffer() const { return m_indexBuffer.m_buffer; }
+            VkBuffer GetVertexBuffer() const { return m_vertexBuffer->m_buffer; }
+            VkBuffer GetIndexBuffer() const { return m_indexBuffer->m_buffer; }
             uint32_t GetIndexCount() const { return m_indexCount; }
         };
 

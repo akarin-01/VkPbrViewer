@@ -65,7 +65,7 @@ namespace Kita::Pbrv
             if (meshId != m_meshData.m_lastMeshId)
             {
                 m_meshData.m_lastMeshId = meshId;
-                m_meshData.m_mesh = m_resourceMgr.GetOrCreateMeshResource(meshId);
+                m_meshData.m_mesh = m_resourceMgr.GetOrCreateMesh(meshId);
             }
         }
     }

@@ -1,28 +1,28 @@
 #include "resource_utils.h"
 
-#include "resource_types.h"
 #include "rhi/context.h"
 #include "rhi/one_shot_command.h"
 #include "rhi/utils.h"
+#include "resource/resource_types.h"
 
 #include <cstring>
 #include <stdexcept>
+#include <cassert>
 
 namespace Kita::Pbrv
 {
     namespace Resource
     {
-        namespace ResourceUtils
+        namespace
         {
-            BufferResource CreateBufferData(const Rhi::Context& context,
-                VkDeviceSize size, VkBufferUsageFlags usages, VkMemoryPropertyFlags properties,
-                bool mapped)
+            BufferResource CreateBufferHelper(const Rhi::Context& context, const BufferDesc& desc)
             {
                 BufferResource buffer{};
+                buffer.m_size = desc.m_size;
 
                 VkBufferCreateInfo bufferInfo{ VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
-                bufferInfo.size = size;
-                bufferInfo.usage = usages;
+                bufferInfo.size = desc.m_size;
+                bufferInfo.usage = desc.m_usage;
                 bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
                 if (vkCreateBuffer(context.Device(), &bufferInfo, nullptr, &buffer.m_buffer) != VK_SUCCESS)
                 {
@@ -34,7 +34,7 @@ namespace Kita::Pbrv
 
                 VkMemoryAllocateInfo allocInfo{ VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
                 allocInfo.allocationSize = req.size;
-                allocInfo.memoryTypeIndex = Rhi::FindMemoryType(context.PhysicalDevice(), req.memoryTypeBits, properties);
+                allocInfo.memoryTypeIndex = Rhi::FindMemoryType(context.PhysicalDevice(), req.memoryTypeBits, desc.m_properties);
                 if (vkAllocateMemory(context.Device(), &allocInfo, nullptr, &buffer.m_memory) != VK_SUCCESS)
                 {
                     throw std::runtime_error("Failed to allocate buffer memory!");
@@ -42,51 +42,64 @@ namespace Kita::Pbrv
 
                 vkBindBufferMemory(context.Device(), buffer.m_buffer, buffer.m_memory, 0);
 
-                if (mapped)
+                if (desc.m_mapped)
                 {
-                    vkMapMemory(context.Device(), buffer.m_memory, 0, size, 0, &buffer.m_mapped);
+                    vkMapMemory(context.Device(), buffer.m_memory, 0, desc.m_size, 0, &buffer.m_mapped);
                 }
 
-                buffer.m_size = size;
                 return buffer;
             }
+        }
 
-            BufferResource CreateBufferData(const Rhi::Context& context,
-                VkDeviceSize size, VkBufferUsageFlags usages, VkMemoryPropertyFlags properties,
-                const void* data, size_t dataSize)
+        namespace ResourceUtils
+        {
+            BufferResource CreateBufferResource(const Rhi::Context& context,
+                BufferDesc desc, const void* data, size_t size)
             {
-                const bool hostVisible = (properties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+                assert((data == nullptr) == (size == 0) && "CreateBuffer: data and size must agree");
 
-                // Host-visible: map and write directly into memory.
+                if (!data)
+                {
+                    // Non-data buffer
+                    return CreateBufferHelper(context, desc);
+                }
+
+                const bool hostVisible = (desc.m_properties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+
                 if (hostVisible)
                 {
-                    BufferResource buffer = CreateBufferData(context, size, usages, properties, true);
-                    std::memcpy(buffer.m_mapped, data, dataSize);
+                    // Host-visible: map and write directly into memory
+                    assert(desc.m_mapped && "CreateBuffer: host visible must map");
+
+                    BufferResource buffer = CreateBufferHelper(context, desc);
+                    std::memcpy(buffer.m_mapped, data, size);
                     return buffer;
                 }
 
                 // Device-local: add the transfer flag and upload through a staging buffer.
-                BufferResource buffer = CreateBufferData(context, size,
-                    usages | VK_BUFFER_USAGE_TRANSFER_DST_BIT, properties, false);
+                desc.m_usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+                BufferResource buffer = CreateBufferHelper(context, desc);
 
-                BufferResource staging = CreateBufferData(context, dataSize,
-                    VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                    data, dataSize);
+                BufferDesc stagingDesc{};
+                stagingDesc.m_size = size;
+                stagingDesc.m_usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+                stagingDesc.m_properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+                stagingDesc.m_mapped = true;
+                BufferResource staging = CreateBufferResource(context, stagingDesc, data, size);
 
                 {
                     Rhi::OneShotCommand cmd(context);
                     VkBufferCopy copy{};
-                    copy.size = dataSize;
+                    copy.size = size;
                     vkCmdCopyBuffer(cmd.Handle(), staging.m_buffer, buffer.m_buffer, 1, &copy);
                 }
 
-                DestroyBufferData(context, staging);   // synchronous: staging is no longer needed
+                DestroyBufferResource(context, staging);
 
                 return buffer;
             }
 
-            void DestroyBufferData(const Rhi::Context& context, BufferResource& data)
+            void DestroyBufferResource(const Rhi::Context& context, BufferResource& data)
             {
                 if (data.m_mapped)
                 {
@@ -95,7 +108,7 @@ namespace Kita::Pbrv
                 vkDestroyBuffer(context.Device(), data.m_buffer, nullptr);
                 vkFreeMemory(context.Device(), data.m_memory, nullptr);
 
-                data = BufferResource{};
+                data = {};
             }
         }
     }

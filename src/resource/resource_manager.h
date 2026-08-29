@@ -18,6 +18,7 @@ namespace Kita::Pbrv
     namespace Resource
     {
         class AssetManager;
+        struct MeshAsset;
 
         class ResourceManager
         {
@@ -26,15 +27,23 @@ namespace Kita::Pbrv
                 const AssetManager& assetMgr);
             ~ResourceManager();
 
-            MeshResource::Handle GetOrCreateMeshResource(ResourceId meshId);
+            BufferResource::Handle CreateBuffer(const BufferDesc& desc,
+                const void* data = nullptr, size_t size = 0);
+
+            MeshResource::Handle GetOrCreateMesh(ResourceId meshId);
 
             void FlushGraveyard();
+
+        private:
+            MeshResource CreateMeshResource(const MeshAsset& asset);
 
         private:
             const Rhi::Context& m_context;
             const AssetManager& m_assetMgr;
 
             ResourceGraveyard m_graveyard;      // Graveyard must be destroyed after table
+
+            HandleTable<BufferResource> m_bufferTable;
 
             HandleTable<MeshResource> m_meshTable;
             std::unordered_map<ResourceId, ResourceId> m_meshIds;
