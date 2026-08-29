@@ -45,6 +45,7 @@ namespace Kita::Pbrv
 
             HandleTable<BufferResource> m_bufferTable;
 
+            // ------------- Cache --------------------
             HandleTable<MeshResource> m_meshTable;
             std::unordered_map<ResourceId, ResourceId> m_meshIds;
         };

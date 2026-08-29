@@ -22,7 +22,7 @@ namespace Kita::Pbrv
 
         struct BufferResource
         {
-            using Handle = Resource::Handle<BufferResource>;
+            using Handle = Handle<BufferResource>;
 
             VkBuffer m_buffer{ VK_NULL_HANDLE };
             VkDeviceMemory m_memory{ VK_NULL_HANDLE };
@@ -43,7 +43,7 @@ namespace Kita::Pbrv
 
         struct TextureResource
         {
-            using Handle = Resource::Handle<TextureResource>;
+            using Handle = Handle<TextureResource>;
 
             ImageResource m_image{};
             VkImageView m_imageView{ VK_NULL_HANDLE };
@@ -52,7 +52,7 @@ namespace Kita::Pbrv
 
         struct MeshResource
         {
-            using Handle = Resource::Handle<MeshResource>;
+            using Handle = Handle<MeshResource>;
 
             BufferResource::Handle m_vertexBuffer{};
             BufferResource::Handle m_indexBuffer{};
@@ -65,7 +65,7 @@ namespace Kita::Pbrv
 
         struct MaterialResource
         {
-            using Handle = Resource::Handle<MaterialResource>;
+            using Handle = Handle<MaterialResource>;
 
             std::array<TextureResource::Handle, kMaterialTextureCount> m_textures{};
         };

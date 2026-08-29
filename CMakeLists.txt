@@ -142,7 +142,6 @@ add_executable(VkPbrViewer
     # render data
     src/render/data/render_frame_data.cpp
     src/render/data/render_material_data.cpp
-    src/render/data/render_object_data.cpp
     src/render/data/render_post_process_data.cpp
 
     # render passes

@@ -20,8 +20,7 @@ namespace Kita::Pbrv
             m_target(scene.GetTarget()),
             m_frameData(scene.GetFrameData()),
             m_materialData(scene.GetMaterialData()),
-            m_objectData(scene.GetObjectData()),
-            m_meshData(scene.GetMeshData())
+            m_objectState(scene.GetObjectState())
         {
             CreatePipeline(scene.GetEmptyLayout());
         }
@@ -75,17 +74,16 @@ namespace Kita::Pbrv
                     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
                         2, 1, &m_materialData.GetSet(frameIndex), 0, nullptr);
                     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                        3, 1, &m_objectData.GetSet(frameIndex), 0, nullptr);
+                        3, 1, &m_objectState.GetSet(frameIndex), 0, nullptr);
 
-                    auto meshHandle = m_meshData.m_mesh;
-                    if (meshHandle)
+                    if (m_objectState.HasMesh())
                     {
-                        VkBuffer buffers[]{ meshHandle->GetVertexBuffer() };
+                        VkBuffer buffers[]{ m_objectState.GetVertexBuffer() };
                         VkDeviceSize offsets[]{ 0 };
                         vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
-                        vkCmdBindIndexBuffer(commandBuffer, meshHandle->GetIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+                        vkCmdBindIndexBuffer(commandBuffer, m_objectState.GetIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
-                        vkCmdDrawIndexed(commandBuffer, meshHandle->GetIndexCount(), 1, 0, 0, 0);
+                        vkCmdDrawIndexed(commandBuffer, m_objectState.GetIndexCount(), 1, 0, 0, 0);
                     }
                 }
             }
@@ -105,7 +103,7 @@ namespace Kita::Pbrv
                         m_frameData.GetSetLayout(),
                         emptyLayout,
                         m_materialData.GetSetLayout(),
-                        m_objectData.GetSetLayout(),
+                        m_objectState.GetLayout(),
                     })
                     .SetDynamicRendering({ m_target.GetColorFormat() }, m_target.GetDepthFormat());
             m_pipeline = builder.Build();
