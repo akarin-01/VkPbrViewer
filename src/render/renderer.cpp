@@ -49,7 +49,10 @@ namespace Kita::Pbrv
         {
             auto frameInfo = m_frameSync->BeginFrame();
 
+            // Deferred destruction advances every frame, recreate included:
+            // recreating the render target also queues old textures.
             m_resourceMgr->FlushGraveyard();
+            m_resources->FlushDeferred(frameInfo.m_frameIndex);
 
             if (frameInfo.m_swapChainRecreated)
             {
@@ -59,8 +62,6 @@ namespace Kita::Pbrv
 
                 return;
             }
-
-            m_resources->FlushDeferred(frameInfo.m_frameIndex);
 
             // Update scene data
             m_renderScene->Update(scene, frameInfo);
