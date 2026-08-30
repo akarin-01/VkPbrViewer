@@ -8,6 +8,7 @@
 
 #include <cassert>
 #include <cstdint>
+
 #include <cstring>
 #include <vector>
 
@@ -195,6 +196,62 @@ namespace
 
         Core::Log::Info("[Test] ImageManager passed");
     }
+
+    void TestImageView()
+    {
+        using namespace Kita::Pbrv;
+
+        Core::Window window(800, 600, "Vk Pbr Viewer");
+        Rhi::Context context(window);
+        Resource::AssetManager assets;
+        Resource::DescriptorManager descriptorMgr(context);
+        Resource::ResourceManager resources(context, assets, descriptorMgr);
+
+        // 1. Image with mips, then a full-range view.
+        Resource::ImageDesc desc{};
+        desc.m_extent = { 8, 8, 1 };
+        desc.m_format = VK_FORMAT_R8G8B8A8_UNORM;
+        desc.m_aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        desc.m_mipLevels = 2;
+        desc.m_usage = VK_IMAGE_USAGE_SAMPLED_BIT;
+
+        const std::vector<uint8_t> pixels(8 * 8 * 4, 64);
+        Resource::ImageResource::Handle image = resources.CreateImage(desc, pixels.data(), pixels.size());
+        assert(image.IsValid());
+
+        Resource::ImageViewDesc fullDesc{};
+        Resource::ImageViewResource::Handle view = resources.CreateImageView(fullDesc, image);
+        assert(view.IsValid());
+        assert(view->m_imageView != VK_NULL_HANDLE);
+        assert(view->m_image.GetId() == image.GetId());   // holds a ref to the image
+
+        // 2. The view keeps the image alive after the caller releases it.
+        image.Reset();
+        assert(view->m_image.IsValid());
+        assert(view->m_image->m_image != VK_NULL_HANDLE);
+
+        // 3. Partial-range view: mip level 1 only.
+        Resource::ImageViewDesc partialDesc{};
+        partialDesc.m_fullRange = false;
+        partialDesc.m_baseMipLevel = 1;
+        partialDesc.m_levelCount = 1;
+        Resource::ImageViewResource::Handle view2 = resources.CreateImageView(partialDesc, view->m_image);
+        assert(view2.IsValid());
+        assert(view2->m_imageView != VK_NULL_HANDLE);
+
+        // 4. Release the views but deliberately keep the graveyard full: the
+        //    scope exits with pending views (holding image refs) in the
+        //    graveyard and the image entry still alive. During teardown the
+        //    tables die before the graveyard, so destroying a pending view
+        //    releases its image handle against a dead table — unless the
+        //    manager drains the graveyard first (FlushAll) or the graveyard
+        //    takes over raw handles only.
+        view.Reset();
+        view2.Reset();
+        // NOTE: no FlushGraveyard here — the residue is left for the destructor.
+
+        Core::Log::Info("[Test] ImageView passed");
+    }
 }
 
 int main()
@@ -203,7 +260,7 @@ int main()
     {
         // TestAssetManager();
         // TestResourceManager();
-        TestImageManager();
+        TestImageView();
 
         Kita::Pbrv::Application::App app{};
         app.Run();

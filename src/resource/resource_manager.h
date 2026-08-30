@@ -4,7 +4,7 @@
 #include "resource/resource_types.h"
 #include "resource/resource_id.h"
 #include "resource/set_types.h"
-#include "resource/resource_graveyard.h"
+#include "resource/graveyard.h"
 
 #include <unordered_map>
 #include <cstdint>
@@ -35,6 +35,8 @@ namespace Kita::Pbrv
                 const void* data = nullptr, size_t size = 0);
             ImageResource::Handle CreateImage(const ImageDesc& desc,
                 const void* data = nullptr, size_t size = 0);
+            ImageViewResource::Handle CreateImageView(const ImageViewDesc& desc,
+                const ImageResource::Handle& image);
 
             MeshResource::Handle GetOrCreateMesh(ResourceId meshId);
 
@@ -50,11 +52,12 @@ namespace Kita::Pbrv
             const AssetManager& m_assetMgr;
             DescriptorManager& m_descriptorMgr;
 
-            ResourceGraveyard m_graveyard;      // Graveyard must be destroyed after table
+            Graveyard m_graveyard;      // Graveyard must be destroyed after table
 
             // ------------- Vk handle ----------------
             HandleTable<BufferResource> m_bufferTable;
             HandleTable<ImageResource> m_imageTable;
+            HandleTable<ImageViewResource> m_imageViewTable;
 
             // ------------- Cache --------------------
             HandleTable<MeshResource> m_meshTable;

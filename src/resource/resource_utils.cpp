@@ -100,6 +100,19 @@ namespace Kita::Pbrv
                 return image;
             }
 
+            /// Immediate destruction for one-shot buffers (staging); never deferred.
+            void DestroyBufferImmediate(const Rhi::Context& context, BufferResource& buffer)
+            {
+                if (buffer.m_mapped)
+                {
+                    vkUnmapMemory(context.Device(), buffer.m_memory);
+                    buffer.m_mapped = nullptr;
+                }
+                vkDestroyBuffer(context.Device(), buffer.m_buffer, nullptr);
+                vkFreeMemory(context.Device(), buffer.m_memory, nullptr);
+                buffer = {};
+            }
+
             /// Copy `size` bytes between buffers.
             void CopyBuffer(VkCommandBuffer commandBuffer,
                 const BufferResource& src, const BufferResource& dst, VkDeviceSize size)
@@ -159,21 +172,9 @@ namespace Kita::Pbrv
                     CopyBuffer(cmd.Handle(), staging, buffer, size);
                 }
 
-                DestroyBufferResource(context, staging);
+                DestroyBufferImmediate(context, staging);
 
                 return buffer;
-            }
-
-            void DestroyBufferResource(const Rhi::Context& context, BufferResource& buffer)
-            {
-                if (buffer.m_mapped)
-                {
-                    vkUnmapMemory(context.Device(), buffer.m_memory);
-                }
-                vkDestroyBuffer(context.Device(), buffer.m_buffer, nullptr);
-                vkFreeMemory(context.Device(), buffer.m_memory, nullptr);
-
-                buffer = {};
             }
 
             ImageResource CreateImageResource(const Rhi::Context& context,
@@ -234,15 +235,43 @@ namespace Kita::Pbrv
                     }
                 }
 
-                DestroyBufferResource(context, staging);
+                DestroyBufferImmediate(context, staging);
 
                 return image;
             }
 
-            void DestroyImageResource(const Rhi::Context& context, ImageResource& image)
+            ImageViewResource CreateImageViewResource(const Rhi::Context& context,
+                const ImageResource& image, const ImageViewDesc& desc)
             {
-                vkDestroyImage(context.Device(), image.m_image, nullptr);
-                vkFreeMemory(context.Device(), image.m_memory, nullptr);
+                ImageViewResource imageView{};
+
+                VkImageViewCreateInfo imageViewInfo{};
+                imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+                imageViewInfo.image = image.m_image;
+                imageViewInfo.viewType = desc.m_type;
+                imageViewInfo.format = image.m_format;
+                imageViewInfo.subresourceRange.aspectMask = image.m_aspectMask;
+                if (desc.m_fullRange)
+                {
+                    imageViewInfo.subresourceRange.baseMipLevel = 0;
+                    imageViewInfo.subresourceRange.levelCount = image.m_mipLevels;
+                    imageViewInfo.subresourceRange.baseArrayLayer = 0;
+                    imageViewInfo.subresourceRange.layerCount = image.m_arrayLayers;
+                }
+                else
+                {
+                    imageViewInfo.subresourceRange.baseMipLevel = desc.m_baseMipLevel;
+                    imageViewInfo.subresourceRange.levelCount = desc.m_levelCount;
+                    imageViewInfo.subresourceRange.baseArrayLayer = desc.m_baseArrayLayer;
+                    imageViewInfo.subresourceRange.layerCount = desc.m_layerCount;
+                }
+
+                if (vkCreateImageView(context.Device(), &imageViewInfo, nullptr, &imageView.m_imageView) != VK_SUCCESS)
+                {
+                    throw std::runtime_error("Failed to create image view!");
+                }
+
+                return imageView;
             }
 
             uint32_t CalculateMipLevels(uint32_t width, uint32_t height)

@@ -22,11 +22,27 @@ namespace Kita::Pbrv
             m_graveyard(context),
             m_bufferTable([this](BufferResource&& buffer)
                 {
-                    m_graveyard.PushBuffer(std::move(buffer));
+                    if (buffer.m_mapped)
+                    {
+                        vkUnmapMemory(m_context.Device(), buffer.m_memory);
+                    }
+                    KITA_LOG_DEBUG("[Resource] Release buffer: ", buffer.m_size, " bytes");
+                    m_graveyard.PushBuffer(buffer.m_buffer);
+                    m_graveyard.PushMemory(buffer.m_memory);
                 }),
             m_imageTable([this](ImageResource&& image)
                 {
-                    m_graveyard.PushImage(std::move(image));
+                    KITA_LOG_DEBUG("[Resource] Release image: ", image.m_extent.width, "x",
+                        image.m_extent.height, ", ", image.m_mipLevels, " mips");
+                    m_graveyard.PushImage(image.m_image);
+                    m_graveyard.PushMemory(image.m_memory);
+                }),
+            m_imageViewTable([this](ImageViewResource&& imageView)
+                {
+                    KITA_LOG_DEBUG("[Resource] Release image view");
+                    // m_image releases automatically when the temporary dies
+                    // (Handle dtor), while every table is still alive.
+                    m_graveyard.PushImageView(imageView.m_imageView);
                 }),
             m_meshTable([](MeshResource&& mesh)
                 {
@@ -48,6 +64,18 @@ namespace Kita::Pbrv
         {
             ImageResource image = ResourceUtils::CreateImageResource(m_context, desc, data, size);
             return m_imageTable.Create(std::move(image));
+        }
+
+        ImageViewResource::Handle ResourceManager::CreateImageView(const ImageViewDesc& desc, const ImageResource::Handle& image)
+        {
+            if (!image)
+            {
+                throw std::runtime_error("CreateImageView: invalid image handle");
+            }
+
+            ImageViewResource imageView = ResourceUtils::CreateImageViewResource(m_context, *image, desc);
+            imageView.m_image = image;
+            return m_imageViewTable.Create(std::move(imageView));
         }
 
         MeshResource::Handle ResourceManager::GetOrCreateMesh(ResourceId meshId)

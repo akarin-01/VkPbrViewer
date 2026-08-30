@@ -60,6 +60,16 @@ namespace Kita::Pbrv
             VkImageAspectFlags m_aspectMask{ VK_IMAGE_ASPECT_NONE };
         };
 
+        struct ImageViewDesc
+        {
+            VkImageViewType m_type{ VK_IMAGE_VIEW_TYPE_2D };
+            bool m_fullRange{ true };
+            uint32_t m_baseMipLevel{ 0 };
+            uint32_t m_levelCount{ 1 };
+            uint32_t m_baseArrayLayer{ 0 };
+            uint32_t m_layerCount{ 1 };
+        };
+
         struct ImageViewResource
         {
             using Handle = Handle<ImageViewResource>;

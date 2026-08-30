@@ -15,16 +15,19 @@ namespace Kita::Pbrv
         struct BufferResource;
         struct ImageDesc;
         struct ImageResource;
+        struct ImageViewDesc;
+        struct ImageViewResource;
 
         namespace ResourceUtils
         {
             BufferResource CreateBufferResource(const Rhi::Context& context,
                 BufferDesc desc, const void* data = nullptr, size_t size = 0);
-            void DestroyBufferResource(const Rhi::Context& context, BufferResource& buffer);
 
             ImageResource CreateImageResource(const Rhi::Context& context,
                 ImageDesc desc, const void* data = nullptr, size_t size = 0);
-            void DestroyImageResource(const Rhi::Context& context, ImageResource& image);
+
+            ImageViewResource CreateImageViewResource(const Rhi::Context& context,
+                const ImageResource& image, const ImageViewDesc& desc);
 
             uint32_t CalculateMipLevels(uint32_t width, uint32_t height);
 
