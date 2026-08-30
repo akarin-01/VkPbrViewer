@@ -49,6 +49,7 @@ namespace Kita::Pbrv
         private:
             MeshResource::Handle CreateMesh(const MeshAsset& asset);
             ImageResource::Handle CreateImage(const TextureAsset& asset);
+            UboResource CreateUbo(const BufferDesc& desc);
 
         private:
             const Rhi::Context& m_context;

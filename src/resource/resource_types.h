@@ -7,6 +7,7 @@
 
 #include <vulkan/vulkan.h>
 #include <array>
+#include <cstring>
 
 namespace Kita::Pbrv
 {
@@ -144,45 +145,23 @@ namespace Kita::Pbrv
             uint32_t GetIndexCount() const { return m_indexCount; }
         };
 
-        struct TextureResource
+        struct UboResource
         {
-            using Handle = Handle<TextureResource>;
+            BufferResource::Handle m_ubo{};
 
-            ImageResource m_image{};
-            VkImageView m_imageView{ VK_NULL_HANDLE };
-            VkSampler m_sampler{ VK_NULL_HANDLE };
-        };
-
-
-        struct MaterialResource
-        {
-            using Handle = Handle<MaterialResource>;
-
-            std::array<TextureResource::Handle, kMaterialTextureCount> m_textures{};
-        };
-
-        struct MaterialDesc
-        {
-            std::array<ResourceId, kMaterialTextureCount> m_textureIds{};
-
-            bool operator==(const MaterialDesc& other) const
+            void Write(const void* data, size_t size) const
             {
-                return m_textureIds == other.m_textureIds;
+                std::memcpy(m_ubo->m_mapped, data, size);
             }
 
-            struct Hash
-            {
-                size_t operator()(const MaterialDesc& desc) const
-                {
-                    size_t h = 1469598103934665603ull;
-                    for (ResourceId id : desc.m_textureIds)
-                    {
-                        h ^= static_cast<size_t>(id);
-                        h *= 1099511628211ull;
-                    }
-                    return h;
-                }
-            };
+            VkBuffer GetBuffer() const { return m_ubo->m_buffer; }
+        };
+
+        struct TextureResource
+        {
+            ImageResource::Handle m_image{};
+            ImageViewResource::Handle m_imageView{};
+            SamplerResource::Handle m_sampler{};
         };
     }
 }

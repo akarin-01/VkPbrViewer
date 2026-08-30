@@ -15,13 +15,13 @@ namespace Kita::Pbrv
         struct PerObjectSet
         {
             // Set 3: K UBO slots + K descriptor sets, bound once at creation.
-            std::array<Resource::BufferResource::Handle, Rhi::kMaxFramesInFlight> m_ubos{};
+            std::array<Resource::UboResource, Rhi::kMaxFramesInFlight> m_ubos{};
             std::array<VkDescriptorSet, Rhi::kMaxFramesInFlight> m_sets{};
             VkDescriptorSetLayout m_layout{ VK_NULL_HANDLE };
 
             void WriteData(uint32_t frameIndex, const Gpu::PerObject& data)
             {
-                std::memcpy(m_ubos[frameIndex]->m_mapped, &data, sizeof(data));
+                m_ubos[frameIndex].Write(&data, sizeof(data));
             }
 
             VkDescriptorSetLayout GetLayout() const { return m_layout; }

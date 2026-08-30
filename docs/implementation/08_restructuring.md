@@ -4,14 +4,14 @@
 
 ### 一、分层设计
 
-| 层级 | 职责 |
-| --- | --- |
-| core | 工具层：Window/Input/Time/Log（现有代码迁入） |
-| rhi | Vulkan 封装层：RenderContext/SwapChain/FrameSync、Graphics/ComputePipeline、RenderingScope/OneShotCommand/ShaderModule（现有代码迁入） |
-| resource | 资源层：AssetManager（CPU 资产缓存）、ResourceManager（GPU 资源缓存）、DescriptorManager（layout/pool 统一管理）、句柄系统（通用抽象，见下） |
-| render | 渲染层：SceneProxy（纯数据容器 + 写入方法）、RenderScene（消费描述、对账、上传）、RenderGraph（RenderPipeline 改名） |
-| scene | 场景层：Camera/Light/Object 自写 `Update()` 写入 SceneProxy 单例，不引入组件机制 |
-| application | 应用层：程序开始/关闭/渲染循环（现有 application.cpp）；UI 由本层持有 |
+| 层级        | 职责                                                                                                                                         |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| core        | 工具层：Window/Input/Time/Log（现有代码迁入）                                                                                                |
+| rhi         | Vulkan 封装层：RenderContext/SwapChain/FrameSync、Graphics/ComputePipeline、RenderingScope/OneShotCommand/ShaderModule（现有代码迁入）       |
+| resource    | 资源层：AssetManager（CPU 资产缓存）、ResourceManager（GPU 资源缓存）、DescriptorManager（layout/pool 统一管理）、句柄系统（通用抽象，见下） |
+| render      | 渲染层：SceneProxy（纯数据容器 + 写入方法）、RenderScene（消费描述、对账、上传）、RenderGraph（RenderPipeline 改名）                         |
+| scene       | 场景层：Camera/Light/Object 自写 `Update()` 写入 SceneProxy 单例，不引入组件机制                                                             |
+| application | 应用层：程序开始/关闭/渲染循环（现有 application.cpp）；UI 由本层持有                                                                        |
 
 ### 二、句柄系统（AssetManager / ResourceManager 共用）
 
@@ -48,18 +48,24 @@ resource 层 ResourceManager（整型键）──懒创建 + 缓存 + 引用计�
 
 ### 五、资源划分维度
 
-资源按两个正交维度划分：**等级**（L0 底层 Vk RAII → L1 有意义的资源 → L2 Set / 使用方）与**是否共享**。规则：低等级统一用句柄（生命周期统一走表 + 延迟销毁）；被共享的用句柄；不共享的用值。
+资源按两个正交维度划分：**等级**（L0 Vk 句柄 → L1 渲染资源 → L2 Set）与**是否共享**。规则：
 
-| 资源名 | 简要描述 | 等级 | 是否共享 | 值或句柄 |
-| --- | --- | --- | --- | --- |
-| BufferResource | 缓冲 + 内存 | L0 | 否（匿名） | 句柄 |
-| ImageResource | 图像 + 内存（TextureAsset 内容） | L0 | 是（asset 寻址） | 句柄 |
-| ImageViewResource | 图像视图 | L0 | 否（装配件） | 句柄 |
-| SamplerResource | 采样器 | L0 | 是（desc 去重） | 句柄 |
-| MeshResource | 顶点/索引缓冲组合 | L1 | 是（asset 寻址） | 句柄 |
-| UboResource | 单一缓冲的 UBO 槽 | L1 | 否 | 值 |
-| TextureResource | 图像 + 视图 + 采样器组合 | L1 | 否（装配） | 值 |
-| MaterialResource | 材质 Set（贴图组合 + 描述集） | L2 | 是（MaterialDesc 寻址） | 句柄 |
-| PerObjectSet | 对象 Set（K×UBO + K 描述集） | L2 | 否 | 值 |
-| PerFrameSet | 帧 Set（UBO + env 图 + 描述集） | L2 | 否 | 值 |
-| PerPassSet | Pass Set（UBO + 屏幕纹理） | L2 | 否 | 值 |
+1. 低等级统一用句柄（生命周期统一走表 + 延迟销毁）；
+2. 被共享的用句柄；不共享的用值；
+3. **每层封装**：资源只暴露语义方法（如 `UboResource::Write/GetBuffer`、`PerObjectSet::WriteData/GetSet`），调用方不得穿透句柄链（禁止 `a.xx.yy` 式访问）。
+
+L2 的 `PerXxxSet` 与 shader 侧的 descriptor set 一一对应（`shader_sets.glsl` 的 `SET_PER_FRAME / SET_PER_PASS / SET_PER_MATERIAL / SET_PER_OBJECT`）——它们是 GPU 描述符集的宿主容器，等级划分的"使用方"即指 shader 侧。
+
+| 资源名            | 简要描述                         | 等级 | 是否共享                | 值或句柄 |
+| ----------------- | -------------------------------- | ---- | ----------------------- | -------- |
+| BufferResource    | 缓冲 + 内存                      | L0   | 否（匿名）              | 句柄     |
+| ImageResource     | 图像 + 内存（TextureAsset 内容） | L0   | 是（asset 寻址）        | 句柄     |
+| ImageViewResource | 图像视图                         | L0   | 否（装配件）            | 句柄     |
+| SamplerResource   | 采样器                           | L0   | 是（desc 去重）         | 句柄     |
+| MeshResource      | 顶点/索引缓冲组合                | L1   | 是（asset 寻址）        | 句柄     |
+| UboResource       | 单一缓冲的 UBO 槽                | L1   | 否                      | 值       |
+| TextureResource   | 图像 + 视图 + 采样器组合         | L1   | 否（装配）              | 值       |
+| PerMaterialSet    | 材质 Set（贴图组合 + 描述集）    | L2   | 是（MaterialDesc 寻址） | 句柄     |
+| PerObjectSet      | 对象 Set（K×UBO + K 描述集）     | L2   | 否                      | 值       |
+| PerFrameSet       | 帧 Set（UBO + env 图 + 描述集）  | L2   | 否                      | 值       |
+| PerPassSet        | Pass Set（UBO + 屏幕纹理）       | L2   | 否                      | 值       |

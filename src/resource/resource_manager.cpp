@@ -242,12 +242,12 @@ namespace Kita::Pbrv
 
             for (size_t i = 0; i < perObject.m_ubos.size(); ++i)
             {
-                perObject.m_ubos[i] = CreateBuffer(desc);
+                perObject.m_ubos[i] = CreateUbo(desc);
                 perObject.m_sets[i] = m_descriptorMgr.Allocate(kLayoutType);
 
                 Rhi::V2::DescriptorWriter writer(m_context.Device());
                 writer.WriteBuffer(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                    perObject.m_ubos[i]->m_buffer, 0, sizeof(Gpu::PerObject))
+                    perObject.m_ubos[i].GetBuffer(), 0, sizeof(Gpu::PerObject))
                     .UpdateSet(perObject.m_sets[i]);
             }
 
@@ -293,6 +293,11 @@ namespace Kita::Pbrv
                 asset.GetVertexDataSize(), " bytes, ib ", asset.GetIndexDataSize(), " bytes");
 
             return m_meshTable.Create(std::move(mesh));
+        }
+
+        UboResource ResourceManager::CreateUbo(const BufferDesc& desc)
+        {
+            return UboResource{ CreateBuffer(desc) };
         }
 
         ImageResource::Handle ResourceManager::CreateImage(const TextureAsset& asset)
