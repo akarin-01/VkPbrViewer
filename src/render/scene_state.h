@@ -2,7 +2,6 @@
 
 #include "resource/resource_types.h"
 #include "resource/resource_id.h"
-#include "resource/set_types.h"
 
 #include <vulkan/vulkan.h>
 

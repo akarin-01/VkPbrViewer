@@ -26,7 +26,7 @@ namespace
             assets.LoadTexture("assets/models/Default_albedo.jpg", Resource::TextureAsset::Type::Srgb);
         assert(albedo.IsValid());
 
-        Resource::ImageResource::Handle img1 = resources.GetOrCreateImage(albedo.GetId());
+        Resource::ImageRhi::Handle img1 = resources.GetOrCreateImage(albedo.GetId());
         assert(img1.IsValid());
         assert(img1->m_image != VK_NULL_HANDLE);
         assert(img1->m_format == VK_FORMAT_R8G8B8A8_SRGB);
@@ -34,7 +34,7 @@ namespace
         assert(img1->m_mipLevels == 12);    // 2048 = 2^11 -> 12 mips
 
         // 2. Dedup: the same asset id resolves to the same entry.
-        Resource::ImageResource::Handle img2 = resources.GetOrCreateImage(albedo.GetId());
+        Resource::ImageRhi::Handle img2 = resources.GetOrCreateImage(albedo.GetId());
         assert(img1.GetId() == img2.GetId());
         img1.Reset();
         assert(img2.IsValid());
@@ -44,7 +44,7 @@ namespace
         const Resource::TextureAsset::Handle normalTex =
             assets.LoadTexture("assets/models/Default_normal.jpg", Resource::TextureAsset::Type::Normal);
         assert(normalTex.IsValid());
-        Resource::ImageResource::Handle img3 = resources.GetOrCreateImage(normalTex.GetId());
+        Resource::ImageRhi::Handle img3 = resources.GetOrCreateImage(normalTex.GetId());
         assert(img3.GetId() != img2.GetId());
         assert(img3->m_format == VK_FORMAT_R8G8B8A8_UNORM);
 

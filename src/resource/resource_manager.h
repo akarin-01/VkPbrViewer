@@ -3,7 +3,6 @@
 #include "resource/handle_table.h"
 #include "resource/resource_types.h"
 #include "resource/resource_id.h"
-#include "resource/set_types.h"
 #include "resource/graveyard.h"
 
 #include <unordered_map>
@@ -31,14 +30,14 @@ namespace Kita::Pbrv
                 DescriptorManager& descriptorMgr);
             ~ResourceManager();
 
-            BufferResource::Handle CreateBuffer(const BufferDesc& desc,
+            BufferRhi::Handle CreateBuffer(const BufferDesc& desc,
                 const void* data = nullptr, size_t size = 0);
-            ImageResource::Handle CreateImage(const ImageDesc& desc,
+            ImageRhi::Handle CreateImage(const ImageDesc& desc,
                 const void* data = nullptr, size_t size = 0);
-            ImageResource::Handle GetOrCreateImage(ResourceId textureId);
-            ImageViewResource::Handle CreateImageView(const ImageViewDesc& desc,
-                const ImageResource::Handle& image);
-            SamplerResource::Handle GetOrCreateSampler(const SamplerDesc& desc);
+            ImageRhi::Handle GetOrCreateImage(ResourceId textureId);
+            ImageViewRhi::Handle CreateImageView(const ImageViewDesc& desc,
+                const ImageRhi::Handle& image);
+            SamplerRhi::Handle GetOrCreateSampler(const SamplerDesc& desc);
 
             MeshResource::Handle GetOrCreateMesh(ResourceId meshId);
 
@@ -48,7 +47,7 @@ namespace Kita::Pbrv
 
         private:
             MeshResource::Handle CreateMesh(const MeshAsset& asset);
-            ImageResource::Handle CreateImage(const TextureAsset& asset);
+            ImageRhi::Handle CreateImage(const TextureAsset& asset);
             UboResource CreateUbo(const BufferDesc& desc);
 
         private:
@@ -59,14 +58,14 @@ namespace Kita::Pbrv
             Graveyard m_graveyard;      // Graveyard must be destroyed after table
 
             // ------------- Unique resources (no dedup) ----------------
-            HandleTable<BufferResource> m_bufferTable;
-            HandleTable<ImageResource> m_imageTable;
-            HandleTable<ImageViewResource> m_imageViewTable;
+            HandleTable<BufferRhi> m_bufferTable;
+            HandleTable<ImageRhi> m_imageTable;
+            HandleTable<ImageViewRhi> m_imageViewTable;
 
             // ------------- Cached resources (dedup) ----------------
             HandleTable<MeshResource> m_meshTable;
             std::unordered_map<ResourceId, ResourceId> m_meshIds;
-            HandleTable<SamplerResource> m_samplerTable;
+            HandleTable<SamplerRhi> m_samplerTable;
             std::unordered_map<SamplerDesc, ResourceId, SamplerDesc::Hash> m_samplerIds;
             std::unordered_map<ResourceId, ResourceId> m_imageIds;
         };

@@ -2,6 +2,7 @@
 
 #include "rhi/constants.h"
 #include "resource/constants.h"
+#include "resource/gpu_layouts.h"
 #include "resource/handle.h"
 #include "resource/resource_id.h"
 
@@ -13,8 +14,8 @@ namespace Kita::Pbrv
 {
     namespace Resource
     {
-        // ------------------ Vk resource ---------------------
-        // Managed because of auto release(deferred)
+        // ------------- L0: Rhi (vk objects) -------------
+        // RAII + deferred destroy: must be used via handle
 
         struct BufferDesc
         {
@@ -24,9 +25,9 @@ namespace Kita::Pbrv
             bool m_mapped{ false };
         };
 
-        struct BufferResource
+        struct BufferRhi
         {
-            using Handle = Handle<BufferResource>;
+            using Handle = Handle<BufferRhi>;
 
             VkBuffer m_buffer{ VK_NULL_HANDLE };
             VkDeviceMemory m_memory{ VK_NULL_HANDLE };
@@ -48,9 +49,9 @@ namespace Kita::Pbrv
             VkMemoryPropertyFlags m_properties{ 0 };
         };
 
-        struct ImageResource
+        struct ImageRhi
         {
-            using Handle = Handle<ImageResource>;
+            using Handle = Handle<ImageRhi>;
 
             VkImage m_image{ VK_NULL_HANDLE };
             VkDeviceMemory m_memory{ VK_NULL_HANDLE };
@@ -71,12 +72,12 @@ namespace Kita::Pbrv
             uint32_t m_layerCount{ 1 };
         };
 
-        struct ImageViewResource
+        struct ImageViewRhi
         {
-            using Handle = Handle<ImageViewResource>;
+            using Handle = Handle<ImageViewRhi>;
 
             VkImageView m_imageView{ VK_NULL_HANDLE };
-            ImageResource::Handle m_image{};            // Image must be destroyed after image view
+            ImageRhi::Handle m_image{};            // Image must be destroyed after image view
         };
 
         struct SamplerDesc
@@ -125,19 +126,21 @@ namespace Kita::Pbrv
             };
         };
 
-        struct SamplerResource
+        struct SamplerRhi
         {
-            using Handle = Handle<SamplerResource>;
+            using Handle = Handle<SamplerRhi>;
 
             VkSampler m_sampler{ VK_NULL_HANDLE };
         };
+
+        // ------------- L1: Resource (render resources) -------------
 
         struct MeshResource
         {
             using Handle = Handle<MeshResource>;
 
-            BufferResource::Handle m_vertexBuffer{};
-            BufferResource::Handle m_indexBuffer{};
+            BufferRhi::Handle m_vertexBuffer{};
+            BufferRhi::Handle m_indexBuffer{};
             uint32_t m_indexCount{ 0 };
 
             VkBuffer GetVertexBuffer() const { return m_vertexBuffer->m_buffer; }
@@ -147,7 +150,7 @@ namespace Kita::Pbrv
 
         struct UboResource
         {
-            BufferResource::Handle m_ubo{};
+            BufferRhi::Handle m_ubo{};
 
             void Write(const void* data, size_t size) const
             {
@@ -159,9 +162,27 @@ namespace Kita::Pbrv
 
         struct TextureResource
         {
-            ImageResource::Handle m_image{};
-            ImageViewResource::Handle m_imageView{};
-            SamplerResource::Handle m_sampler{};
+            ImageRhi::Handle m_image{};
+            ImageViewRhi::Handle m_imageView{};
+            SamplerRhi::Handle m_sampler{};
+        };
+
+        // ------------- L2: Set (descriptor sets) -------------
+
+        struct PerObjectSet
+        {
+            // Set 3: K UBO slots + K descriptor sets, bound once at creation.
+            std::array<Resource::UboResource, Rhi::kMaxFramesInFlight> m_ubos{};
+            std::array<VkDescriptorSet, Rhi::kMaxFramesInFlight> m_sets{};
+            VkDescriptorSetLayout m_layout{ VK_NULL_HANDLE };
+
+            void WriteData(uint32_t frameIndex, const Gpu::PerObject& data)
+            {
+                m_ubos[frameIndex].Write(&data, sizeof(data));
+            }
+
+            VkDescriptorSetLayout GetLayout() const { return m_layout; }
+            const VkDescriptorSet& GetSet(uint32_t frameIndex) const { return m_sets[frameIndex]; }
         };
     }
 }

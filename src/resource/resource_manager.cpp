@@ -69,7 +69,7 @@ namespace Kita::Pbrv
             m_assetMgr(assetMgr),
             m_descriptorMgr(descriptorMgr),
             m_graveyard(context),
-            m_bufferTable([this](BufferResource&& buffer)
+            m_bufferTable([this](BufferRhi&& buffer)
                 {
                     if (buffer.m_mapped)
                     {
@@ -79,21 +79,21 @@ namespace Kita::Pbrv
                     m_graveyard.PushBuffer(buffer.m_buffer);
                     m_graveyard.PushMemory(buffer.m_memory);
                 }),
-            m_imageTable([this](ImageResource&& image)
+            m_imageTable([this](ImageRhi&& image)
                 {
                     KITA_LOG_DEBUG("[Resource] Release image: ", image.m_extent.width, "x",
                         image.m_extent.height, ", ", image.m_mipLevels, " mips");
                     m_graveyard.PushImage(image.m_image);
                     m_graveyard.PushMemory(image.m_memory);
                 }),
-            m_imageViewTable([this](ImageViewResource&& imageView)
+            m_imageViewTable([this](ImageViewRhi&& imageView)
                 {
                     KITA_LOG_DEBUG("[Resource] Release image view");
                     // m_image releases automatically when the temporary dies
                     // (Handle dtor), while every table is still alive.
                     m_graveyard.PushImageView(imageView.m_imageView);
                 }),
-            m_samplerTable([this](SamplerResource&& sampler)
+            m_samplerTable([this](SamplerRhi&& sampler)
                 {
                     KITA_LOG_DEBUG("[Resource] Release sampler");
                     m_graveyard.PushSampler(sampler.m_sampler);
@@ -108,38 +108,38 @@ namespace Kita::Pbrv
 
         ResourceManager::~ResourceManager() = default;
 
-        BufferResource::Handle ResourceManager::CreateBuffer(const BufferDesc& desc, const void* data, size_t size)
+        BufferRhi::Handle ResourceManager::CreateBuffer(const BufferDesc& desc, const void* data, size_t size)
         {
-            BufferResource buffer = ResourceUtils::CreateBufferResource(m_context, desc, data, size);
+            BufferRhi buffer = ResourceUtils::CreateBufferRhi(m_context, desc, data, size);
 
             KITA_LOG_DEBUG("[Resource] Create buffer: ", desc.m_size, " bytes");
             return m_bufferTable.Create(std::move(buffer));
         }
 
-        ImageResource::Handle ResourceManager::CreateImage(const ImageDesc& desc, const void* data, size_t size)
+        ImageRhi::Handle ResourceManager::CreateImage(const ImageDesc& desc, const void* data, size_t size)
         {
-            ImageResource image = ResourceUtils::CreateImageResource(m_context, desc, data, size);
+            ImageRhi image = ResourceUtils::CreateImageRhi(m_context, desc, data, size);
 
             KITA_LOG_DEBUG("[Resource] Create image: ", desc.m_extent.width, "x",
                 desc.m_extent.height, ", ", desc.m_mipLevels, " mips");
             return m_imageTable.Create(std::move(image));
         }
 
-        ImageViewResource::Handle ResourceManager::CreateImageView(const ImageViewDesc& desc, const ImageResource::Handle& image)
+        ImageViewRhi::Handle ResourceManager::CreateImageView(const ImageViewDesc& desc, const ImageRhi::Handle& image)
         {
             if (!image)
             {
                 throw std::runtime_error("CreateImageView: invalid image handle");
             }
 
-            ImageViewResource imageView = ResourceUtils::CreateImageViewResource(m_context, *image, desc);
+            ImageViewRhi imageView = ResourceUtils::CreateImageViewRhi(m_context, *image, desc);
             imageView.m_image = image;
 
             KITA_LOG_DEBUG("[Resource] Create image view");
             return m_imageViewTable.Create(std::move(imageView));
         }
 
-        SamplerResource::Handle ResourceManager::GetOrCreateSampler(const SamplerDesc& desc)
+        SamplerRhi::Handle ResourceManager::GetOrCreateSampler(const SamplerDesc& desc)
         {
             auto it = m_samplerIds.find(desc);
             if (it != m_samplerIds.end())
@@ -156,13 +156,13 @@ namespace Kita::Pbrv
             }
 
             // Cache miss: create
-            SamplerResource sampler = ResourceUtils::CreateSamplerResource(m_context, desc);
+            SamplerRhi sampler = ResourceUtils::CreateSamplerRhi(m_context, desc);
 
             KITA_LOG_DEBUG("[Resource] Create sampler resource: filter ", ToString(desc.m_magFilter),
                 "/", ToString(desc.m_minFilter), ", mip ", ToString(desc.m_mipMode),
                 ", address ", ToString(desc.m_addressModeU), ", anisotropy ", desc.m_anisotropy);
 
-            SamplerResource::Handle handle = m_samplerTable.Create(std::move(sampler));
+            SamplerRhi::Handle handle = m_samplerTable.Create(std::move(sampler));
             m_samplerIds[desc] = handle.GetId();
             return handle;
         }
@@ -197,7 +197,7 @@ namespace Kita::Pbrv
             return handle;
         }
 
-        ImageResource::Handle ResourceManager::GetOrCreateImage(ResourceId textureId)
+        ImageRhi::Handle ResourceManager::GetOrCreateImage(ResourceId textureId)
         {
             auto it = m_imageIds.find(textureId);
             if (it != m_imageIds.end())
@@ -218,10 +218,10 @@ namespace Kita::Pbrv
             if (!asset)
             {
                 // Invalid texture id, return invalid handle
-                return ImageResource::Handle();
+                return ImageRhi::Handle();
             }
 
-            ImageResource::Handle handle = CreateImage(*asset);
+            ImageRhi::Handle handle = CreateImage(*asset);
             m_imageIds[textureId] = handle.GetId();
             return handle;
         }
@@ -300,7 +300,7 @@ namespace Kita::Pbrv
             return UboResource{ CreateBuffer(desc) };
         }
 
-        ImageResource::Handle ResourceManager::CreateImage(const TextureAsset& asset)
+        ImageRhi::Handle ResourceManager::CreateImage(const TextureAsset& asset)
         {
             ImageDesc desc{};
             desc.m_extent = { asset.m_width, asset.m_height, 1 };

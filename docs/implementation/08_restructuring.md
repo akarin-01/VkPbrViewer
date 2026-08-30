@@ -58,10 +58,10 @@ L2 的 `PerXxxSet` 与 shader 侧的 descriptor set 一一对应（`shader_sets.
 
 | 资源名            | 简要描述                         | 等级 | 是否共享                | 值或句柄 |
 | ----------------- | -------------------------------- | ---- | ----------------------- | -------- |
-| BufferResource    | 缓冲 + 内存                      | L0   | 否（匿名）              | 句柄     |
-| ImageResource     | 图像 + 内存（TextureAsset 内容） | L0   | 是（asset 寻址）        | 句柄     |
-| ImageViewResource | 图像视图                         | L0   | 否（装配件）            | 句柄     |
-| SamplerResource   | 采样器                           | L0   | 是（desc 去重）         | 句柄     |
+| BufferRhi         | 缓冲 + 内存                      | L0   | 否（匿名）              | 句柄     |
+| ImageRhi          | 图像 + 内存（TextureAsset 内容） | L0   | 是（asset 寻址）        | 句柄     |
+| ImageViewRhi      | 图像视图                         | L0   | 否（装配件）            | 句柄     |
+| SamplerRhi        | 采样器                           | L0   | 是（desc 去重）         | 句柄     |
 | MeshResource      | 顶点/索引缓冲组合                | L1   | 是（asset 寻址）        | 句柄     |
 | UboResource       | 单一缓冲的 UBO 槽                | L1   | 否                      | 值       |
 | TextureResource   | 图像 + 视图 + 采样器组合         | L1   | 否（装配）              | 值       |

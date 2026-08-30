@@ -17,9 +17,9 @@ namespace Kita::Pbrv
     {
         namespace
         {
-            BufferResource CreateBufferHelper(const Rhi::Context& context, const BufferDesc& desc)
+            BufferRhi CreateBufferHelper(const Rhi::Context& context, const BufferDesc& desc)
             {
-                BufferResource buffer{};
+                BufferRhi buffer{};
                 buffer.m_size = desc.m_size;
 
                 VkBufferCreateInfo bufferInfo{};
@@ -53,9 +53,9 @@ namespace Kita::Pbrv
                 return buffer;
             }
 
-            ImageResource CreateImageHelper(const Rhi::Context& context, const ImageDesc& desc)
+            ImageRhi CreateImageHelper(const Rhi::Context& context, const ImageDesc& desc)
             {
-                ImageResource image{};
+                ImageRhi image{};
                 image.m_format = desc.m_format;
                 image.m_extent = desc.m_extent;
                 image.m_mipLevels = desc.m_mipLevels;
@@ -101,7 +101,7 @@ namespace Kita::Pbrv
             }
 
             /// Immediate destruction for one-shot buffers (staging); never deferred.
-            void DestroyBufferImmediate(const Rhi::Context& context, BufferResource& buffer)
+            void DestroyBufferImmediate(const Rhi::Context& context, BufferRhi& buffer)
             {
                 if (buffer.m_mapped)
                 {
@@ -115,7 +115,7 @@ namespace Kita::Pbrv
 
             /// Copy `size` bytes between buffers.
             void CopyBuffer(VkCommandBuffer commandBuffer,
-                const BufferResource& src, const BufferResource& dst, VkDeviceSize size)
+                const BufferRhi& src, const BufferRhi& dst, VkDeviceSize size)
             {
                 VkBufferCopy copy{};
                 copy.size = size;
@@ -124,7 +124,7 @@ namespace Kita::Pbrv
 
             /// Upload `region` into the image's base mip (image must be in TRANSFER_DST).
             void CopyBufferToImage(VkCommandBuffer commandBuffer,
-                const BufferResource& src, const ImageResource& dst, const VkBufferImageCopy& region)
+                const BufferRhi& src, const ImageRhi& dst, const VkBufferImageCopy& region)
             {
                 vkCmdCopyBufferToImage(commandBuffer, src.m_buffer, dst.m_image,
                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
@@ -133,7 +133,7 @@ namespace Kita::Pbrv
 
         namespace ResourceUtils
         {
-            BufferResource CreateBufferResource(const Rhi::Context& context,
+            BufferRhi CreateBufferRhi(const Rhi::Context& context,
                 BufferDesc desc, const void* data, size_t size)
             {
                 assert((data == nullptr) == (size == 0) && "CreateBuffer: data and size must agree");
@@ -151,21 +151,21 @@ namespace Kita::Pbrv
                     // Host-visible: map and write directly into memory
                     assert(desc.m_mapped && "CreateBuffer: host visible must map");
 
-                    BufferResource buffer = CreateBufferHelper(context, desc);
+                    BufferRhi buffer = CreateBufferHelper(context, desc);
                     std::memcpy(buffer.m_mapped, data, size);
                     return buffer;
                 }
 
                 // Device-local: add the transfer flag and upload through a staging buffer.
                 desc.m_usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-                BufferResource buffer = CreateBufferHelper(context, desc);
+                BufferRhi buffer = CreateBufferHelper(context, desc);
 
                 BufferDesc stagingDesc{};
                 stagingDesc.m_size = size;
                 stagingDesc.m_usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
                 stagingDesc.m_properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
                 stagingDesc.m_mapped = true;
-                BufferResource staging = CreateBufferResource(context, stagingDesc, data, size);
+                BufferRhi staging = CreateBufferRhi(context, stagingDesc, data, size);
 
                 {
                     Rhi::OneShotCommand cmd(context);
@@ -177,7 +177,7 @@ namespace Kita::Pbrv
                 return buffer;
             }
 
-            ImageResource CreateImageResource(const Rhi::Context& context,
+            ImageRhi CreateImageRhi(const Rhi::Context& context,
                 ImageDesc desc, const void* data, size_t size)
             {
                 assert((data == nullptr) == (size == 0) && "CreateImage: data and size must agree");
@@ -190,14 +190,14 @@ namespace Kita::Pbrv
 
                 // Device-local: add the transfer flag and upload through a staging buffer.
                 desc.m_usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-                ImageResource image = CreateImageHelper(context, desc);
+                ImageRhi image = CreateImageHelper(context, desc);
 
                 BufferDesc stagingDesc{};
                 stagingDesc.m_size = size;
                 stagingDesc.m_usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
                 stagingDesc.m_properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
                 stagingDesc.m_mapped = true;
-                BufferResource staging = CreateBufferResource(context, stagingDesc, data, size);
+                BufferRhi staging = CreateBufferRhi(context, stagingDesc, data, size);
 
                 {
                     Rhi::OneShotCommand cmd(context);
@@ -240,10 +240,10 @@ namespace Kita::Pbrv
                 return image;
             }
 
-            ImageViewResource CreateImageViewResource(const Rhi::Context& context,
-                const ImageResource& image, const ImageViewDesc& desc)
+            ImageViewRhi CreateImageViewRhi(const Rhi::Context& context,
+                const ImageRhi& image, const ImageViewDesc& desc)
             {
-                ImageViewResource imageView{};
+                ImageViewRhi imageView{};
 
                 VkImageViewCreateInfo imageViewInfo{};
                 imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -274,10 +274,10 @@ namespace Kita::Pbrv
                 return imageView;
             }
 
-            SamplerResource CreateSamplerResource(const Rhi::Context& context,
+            SamplerRhi CreateSamplerRhi(const Rhi::Context& context,
                 const SamplerDesc& desc)
             {
-                SamplerResource sampler{};
+                SamplerRhi sampler{};
 
                 VkSamplerCreateInfo samplerInfo{};
                 samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -343,7 +343,7 @@ namespace Kita::Pbrv
                 return static_cast<uint32_t>(std::floor(std::log2(std::max(width, height))) + 1);
             }
 
-            void TransitionImageLayout(VkCommandBuffer commandBuffer, const ImageResource& image,
+            void TransitionImageLayout(VkCommandBuffer commandBuffer, const ImageRhi& image,
                 VkImageLayout oldLayout, VkImageLayout newLayout,
                 VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
                 VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask)
@@ -359,7 +359,7 @@ namespace Kita::Pbrv
                     srcStageMask, srcAccessMask, dstStageMask, dstAccessMask, range);
             }
 
-            void TransitionImageLayout(VkCommandBuffer commandBuffer, const ImageResource& image,
+            void TransitionImageLayout(VkCommandBuffer commandBuffer, const ImageRhi& image,
                 VkImageLayout oldLayout, VkImageLayout newLayout,
                 VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
                 VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask,
@@ -385,7 +385,7 @@ namespace Kita::Pbrv
                 vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
             }
 
-            void GenerateImageMipmaps(VkCommandBuffer commandBuffer, const ImageResource& image,
+            void GenerateImageMipmaps(VkCommandBuffer commandBuffer, const ImageRhi& image,
                 VkImageLayout finalLayout, VkPipelineStageFlags2 finalStageMask)
             {
                 const int32_t width = static_cast<int32_t>(image.m_extent.width);
