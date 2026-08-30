@@ -2,6 +2,7 @@
 #include "rhi/context.h"
 #include "rhi/descriptor_writer.h"
 #include "resource/descriptor_manager.h"
+#include "resource/gpu_layouts.h"
 #include "resource/resources.h"
 #include "scene/post_process.h"
 
@@ -29,7 +30,7 @@ namespace Kita::Pbrv
             {
                 VkBufferCreateInfo createInfo{};
                 createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-                createInfo.size = sizeof(PostProcessUbo);
+                createInfo.size = sizeof(Gpu::PostProcess);
                 createInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
                 createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
                 for (auto& handle : m_uboHandles)
@@ -60,7 +61,7 @@ namespace Kita::Pbrv
 
         void RenderPostProcessData::UpdateUbo(uint32_t frameIndex, const Scene::PostProcess& postProcess)
         {
-            PostProcessUbo ubo{};
+            Gpu::PostProcess ubo{};
             ubo.m_exposure = glm::vec4(std::exp2(postProcess.GetEV()), 0.0f, 0.0f, 0.0f);
 
             m_resources.WriteBuffer(m_uboHandles[frameIndex], &ubo, sizeof(ubo));
@@ -95,7 +96,7 @@ namespace Kita::Pbrv
             if (writeUbo)
             {
                 writer.WriteBuffer(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                    m_uboHandles[frameIndex], 0, sizeof(PostProcessUbo));
+                    m_uboHandles[frameIndex], 0, sizeof(Gpu::PostProcess));
             }
 
             writer.WriteImage(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,

@@ -1,13 +1,11 @@
 #pragma once
 
-#include "core/macro.h"
 #include "rhi/constants.h"
 #include "resource/types.h"
 #include "resource/render_texture.h"
 #include "resource/resource_id.h"
 
 #include <vulkan/vulkan.h>
-#include <glm/glm.hpp>
 #include <array>
 #include <memory>
 
@@ -34,26 +32,6 @@ namespace Kita::Pbrv
 
     namespace Render
     {
-        struct PerFrame
-        {
-            struct Camera
-            {
-                alignas(16) glm::mat4 m_viewProj{ 1.0f };
-                alignas(16) glm::mat4 m_skyboxViewProj{ {1.0f} };
-                alignas(16) glm::vec4 m_position{ 0.0f, 0.0f, 0.0f, 1.0f };         // xyz - pos, w - 1 always
-            };
-
-            struct Light
-            {
-                alignas(16) glm::vec4 m_position{ 0.0f, 0.0f, 0.0f, 0.0f };         // xyz - pos, w - 0(directional light)
-                alignas(16) glm::vec4 m_colorIntensity{ 0.0f };                     // xyz - rgb, w - intensity
-            };
-
-            Camera m_camera{};
-            Light m_light{};
-        };
-        STD140_ASSERT(PerFrame, 176);
-
         class RenderFrameData
         {
         public:

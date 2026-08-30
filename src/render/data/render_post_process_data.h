@@ -1,11 +1,9 @@
 #pragma once
 
-#include "core/macro.h"
 #include "rhi/constants.h"
 #include "resource/render_texture.h"
 
 #include <vulkan/vulkan.h>
-#include <glm/glm.hpp>
 #include <array>
 
 namespace Kita::Pbrv
@@ -26,12 +24,6 @@ namespace Kita::Pbrv
 
     namespace Render
     {
-        struct PostProcessUbo
-        {
-            alignas(16) glm::vec4 m_exposure;      // x - exposure, yzw - padding
-        };
-        STD140_ASSERT(PostProcessUbo, 16);
-
         /// Set 1 — per-pass state of the post process: exposure UBO + the lit
         /// output texture. The texture swaps on resize (K-slot rotation).
         class RenderPostProcessData

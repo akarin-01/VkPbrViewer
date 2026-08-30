@@ -1,9 +1,9 @@
 #include "render_scene.h"
-#include "rhi/context.h"
-#include "rhi/descriptor_writer.h"
+
 #include "rhi/swap_chain.h"
 #include "resource/descriptor_manager.h"
 #include "resource/resource_manager.h"
+#include "resource/gpu_layouts.h"
 #include "scene/scene.h"
 
 #include <glm/glm.hpp>
@@ -60,29 +60,8 @@ namespace Kita::Pbrv
 
         ObjectState RenderScene::CreateObjectState() const
         {
-            constexpr Resource::DescriptorLayoutType kLayoutType =
-                Resource::DescriptorLayoutType::PerObject;
-
             ObjectState object{};
-            object.m_layout = m_descriptorMgr.GetLayout(kLayoutType);
-
-            Resource::BufferDesc desc{};
-            desc.m_size = sizeof(PerObjectUbo);
-            desc.m_usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-            desc.m_properties =
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-            desc.m_mapped = true;
-
-            for (size_t i = 0; i < object.m_ubos.size(); ++i)
-            {
-                object.m_ubos[i] = m_resourceMgr.CreateBuffer(desc);
-                object.m_sets[i] = m_descriptorMgr.Allocate(kLayoutType);
-
-                Rhi::V2::DescriptorWriter writer(m_context.Device());
-                writer.WriteBuffer(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                    object.m_ubos[i]->m_buffer, 0, sizeof(PerObjectUbo))
-                    .UpdateSet(object.m_sets[i]);
-            }
+            object.m_set = m_resourceMgr.CreatePerObjectSet();
 
             return object;
         }
@@ -97,13 +76,13 @@ namespace Kita::Pbrv
             }
 
             auto& mat = object.GetMaterial();
-            PerObjectUbo ubo{};
-            ubo.m_transform.m_model = glm::mat4(1.0f);
-            ubo.m_transform.m_normal = glm::mat4(1.0f);
-            ubo.m_material.m_albedo = mat.GetAlbedo();
-            ubo.m_material.m_pbrParams = glm::vec4(mat.GetMetallic(), mat.GetRoughness(), mat.GetAO(), 0.0f);
-            ubo.m_material.m_emissive = glm::vec4(mat.GetEmissive(), 1.0f);
-            m_objectState.WriteUbo(frameIndex, ubo);
+            Gpu::PerObject data{};
+            data.m_transform.m_model = glm::mat4(1.0f);
+            data.m_transform.m_normal = glm::mat4(1.0f);
+            data.m_material.m_albedo = mat.GetAlbedo();
+            data.m_material.m_pbrParams = glm::vec4(mat.GetMetallic(), mat.GetRoughness(), mat.GetAO(), 0.0f);
+            data.m_material.m_emissive = glm::vec4(mat.GetEmissive(), 1.0f);
+            m_objectState.WriteData(frameIndex, data);
         }
     }
 }

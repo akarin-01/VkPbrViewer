@@ -3,6 +3,7 @@
 #include "core/window.h"
 #include "rhi/context.h"
 #include "resource/asset_manager.h"
+#include "resource/descriptor_manager.h"
 #include "resource/resource_manager.h"
 
 #include <cassert>
@@ -19,7 +20,8 @@ namespace
         Core::Window window(800, 600, "Vk Pbr Viewer");
         Rhi::Context context(window);
         Resource::AssetManager assets;
-        Resource::ResourceManager resources(context, assets);
+        Resource::DescriptorManager descriptor(context);
+        Resource::ResourceManager resources(context, assets, descriptor);
 
         // 1. CreateBuffer: host-visible mapped UBO, written through the mapping.
         Resource::BufferDesc uboDesc{};

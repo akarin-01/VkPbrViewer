@@ -1,6 +1,5 @@
 #pragma once
 
-#include "core/macro.h"
 #include "rhi/constants.h"
 #include "resource/constants.h"
 #include "resource/resource_id.h"

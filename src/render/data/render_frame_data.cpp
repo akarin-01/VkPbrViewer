@@ -6,6 +6,7 @@
 #include "rhi/descriptor_writer.h"
 #include "rhi/swap_chain.h"
 #include "resource/descriptor_manager.h"
+#include "resource/gpu_layouts.h"
 #include "resource/resources.h"
 #include "resource/compute_conversion.h"
 #include "resource/constants.h"
@@ -25,18 +26,6 @@ namespace Kita::Pbrv
             constexpr Resource::DescriptorLayoutType kLayoutType = Resource::DescriptorLayoutType::PerFrame;
             constexpr Resource::DescriptorLayoutType kComputeWriteLayoutType = Resource::DescriptorLayoutType::ComputeWrite;
             constexpr Resource::DescriptorLayoutType kComputeSampleLayoutType = Resource::DescriptorLayoutType::ComputeSample;
-
-            // Push constants, only used by the conversion dispatches below
-            struct PrefilterPC
-            {
-                float m_roughness{ 0.0f };  // 0..1, selects the mip level
-                float m_mipCount{ 1.0f };
-            };
-
-            struct IrradiancePC
-            {
-                float m_envMip{ 0.0f };    // source cubemap sampling lod, computed from face sizes
-            };
         }
 
         RenderFrameData::RenderFrameData(const Rhi::Context& context,
@@ -55,16 +44,16 @@ namespace Kita::Pbrv
                 m_skyboxConversion = std::make_unique<Resource::ComputeConversion>(m_context, m_resources, m_descriptorMgr,
                     kComputeSampleLayoutType, "assets/shaders/equirect_to_cubemap_comp.spv", 0);
                 m_irradianceConversion = std::make_unique<Resource::ComputeConversion>(m_context, m_resources, m_descriptorMgr,
-                    kComputeSampleLayoutType, "assets/shaders/irradiance_convolution_comp.spv", static_cast<uint32_t>(sizeof(IrradiancePC)));
+                    kComputeSampleLayoutType, "assets/shaders/irradiance_convolution_comp.spv", static_cast<uint32_t>(sizeof(Gpu::IrradiancePC)));
                 m_prefilterConversion = std::make_unique<Resource::ComputeConversion>(m_context, m_resources, m_descriptorMgr,
-                    kComputeSampleLayoutType, "assets/shaders/prefilter_comp.spv", static_cast<uint32_t>(sizeof(PrefilterPC)));
+                    kComputeSampleLayoutType, "assets/shaders/prefilter_comp.spv", static_cast<uint32_t>(sizeof(Gpu::PrefilterPC)));
             }
 
             // UBO
             {
                 VkBufferCreateInfo createInfo{};
                 createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-                createInfo.size = sizeof(PerFrame);
+                createInfo.size = sizeof(Gpu::PerFrame);
                 createInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
                 createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
                 for (auto& handle : m_uboHandles)
@@ -107,7 +96,7 @@ namespace Kita::Pbrv
 
         void RenderFrameData::UpdateUbo(uint32_t frameIndex, const Scene::Camera& camera, const Scene::Light& light)
         {
-            PerFrame ubo{};
+            Gpu::PerFrame ubo{};
             glm::mat4 view = camera.GetViewMatrix();
             glm::mat4 proj = camera.GetProjectMatrix(m_swapChain.Aspect());
             ubo.m_camera.m_viewProj = proj * view;
@@ -291,7 +280,7 @@ namespace Kita::Pbrv
 
             // Sample the source from the mip matching the irradiance resolution
             // (low-pass filter kills the sun-peak variance in the convolution)
-            IrradiancePC push{};
+            Gpu::IrradiancePC push{};
             push.m_envMip = static_cast<float>(
                 std::log2(static_cast<double>(Resource::kCubemapFaceSize) / Resource::kIrradianceSize));
 
@@ -332,7 +321,7 @@ namespace Kita::Pbrv
                 output.m_imageView = mipView;
                 output.m_range = mipRange;
 
-                PrefilterPC push{};
+                Gpu::PrefilterPC push{};
                 push.m_roughness = static_cast<float>(mip) / static_cast<float>(mipLevels - 1);
                 push.m_mipCount = static_cast<float>(mipLevels);
 
@@ -363,7 +352,7 @@ namespace Kita::Pbrv
             if (writeUbo)
             {
                 writer.WriteBuffer(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                    m_uboHandles[frameIndex], 0, sizeof(PerFrame));
+                    m_uboHandles[frameIndex], 0, sizeof(Gpu::PerFrame));
             }
             writer.WriteImage(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, m_brdfLut.m_imageViewHandle, m_brdfLut.m_samplerHandle)
