@@ -13,6 +13,42 @@ namespace Kita::Pbrv
 {
     namespace Resource
     {
+        namespace
+        {
+            const char* ToString(SamplerDesc::MipMode mode)
+            {
+                switch (mode)
+                {
+                case SamplerDesc::MipMode::None:    return "None";
+                case SamplerDesc::MipMode::Nearest: return "Nearest";
+                case SamplerDesc::MipMode::Linear:  return "Linear";
+                default:                            return "Unknown";
+                }
+            }
+
+            const char* ToString(VkFilter filter)
+            {
+                switch (filter)
+                {
+                case VK_FILTER_NEAREST: return "Nearest";
+                case VK_FILTER_LINEAR:  return "Linear";
+                default:                return "Unknown";
+                }
+            }
+
+            const char* ToString(VkSamplerAddressMode mode)
+            {
+                switch (mode)
+                {
+                case VK_SAMPLER_ADDRESS_MODE_REPEAT:          return "Repeat";
+                case VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT: return "MirroredRepeat";
+                case VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE:   return "ClampToEdge";
+                case VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER: return "ClampToBorder";
+                default:                                      return "Unknown";
+                }
+            }
+        }
+
         ResourceManager::ResourceManager(const Rhi::Context& context,
             const AssetManager& assetMgr,
             DescriptorManager& descriptorMgr)
@@ -44,6 +80,11 @@ namespace Kita::Pbrv
                     // (Handle dtor), while every table is still alive.
                     m_graveyard.PushImageView(imageView.m_imageView);
                 }),
+            m_samplerTable([this](SamplerResource&& sampler)
+                {
+                    KITA_LOG_DEBUG("[Resource] Release sampler");
+                    m_graveyard.PushSampler(sampler.m_sampler);
+                }),
             m_meshTable([](MeshResource&& mesh)
                 {
                     Core::Log::Info("[Resource] Release mesh resource: vb ",
@@ -57,12 +98,17 @@ namespace Kita::Pbrv
         BufferResource::Handle ResourceManager::CreateBuffer(const BufferDesc& desc, const void* data, size_t size)
         {
             BufferResource buffer = ResourceUtils::CreateBufferResource(m_context, desc, data, size);
+
+            KITA_LOG_DEBUG("[Resource] Create buffer: ", desc.m_size, " bytes");
             return m_bufferTable.Create(std::move(buffer));
         }
 
         ImageResource::Handle ResourceManager::CreateImage(const ImageDesc& desc, const void* data, size_t size)
         {
             ImageResource image = ResourceUtils::CreateImageResource(m_context, desc, data, size);
+
+            KITA_LOG_DEBUG("[Resource] Create image: ", desc.m_extent.width, "x",
+                desc.m_extent.height, ", ", desc.m_mipLevels, " mips");
             return m_imageTable.Create(std::move(image));
         }
 
@@ -75,7 +121,37 @@ namespace Kita::Pbrv
 
             ImageViewResource imageView = ResourceUtils::CreateImageViewResource(m_context, *image, desc);
             imageView.m_image = image;
+
+            KITA_LOG_DEBUG("[Resource] Create image view");
             return m_imageViewTable.Create(std::move(imageView));
+        }
+
+        SamplerResource::Handle ResourceManager::GetOrCreateSampler(const SamplerDesc& desc)
+        {
+            auto it = m_samplerIds.find(desc);
+            if (it != m_samplerIds.end())
+            {
+                const ResourceId id = it->second;
+                // The mapping can outlive its entry (every handle released):
+                // a stale id falls through and is rebuilt below.
+                if (m_samplerTable.Has(id))
+                {
+                    // Cache hit: add ref
+                    KITA_LOG_DEBUG("[Resource] Reuse sampler resource");
+                    return m_samplerTable.GetShared(id);
+                }
+            }
+
+            // Cache miss: create
+            SamplerResource sampler = ResourceUtils::CreateSamplerResource(m_context, desc);
+
+            KITA_LOG_DEBUG("[Resource] Create sampler resource: filter ", ToString(desc.m_magFilter),
+                "/", ToString(desc.m_minFilter), ", mip ", ToString(desc.m_mipMode),
+                ", address ", ToString(desc.m_addressModeU), ", anisotropy ", desc.m_anisotropy);
+
+            SamplerResource::Handle handle = m_samplerTable.Create(std::move(sampler));
+            m_samplerIds[desc] = handle.GetId();
+            return handle;
         }
 
         MeshResource::Handle ResourceManager::GetOrCreateMesh(ResourceId meshId)
@@ -104,7 +180,6 @@ namespace Kita::Pbrv
 
             MeshResource resource = CreateMeshResource(*asset);
 
-            KITA_LOG_DEBUG("[Resource] Create mesh resource: mesh asset(", meshId, ")");
             Core::Log::Info("[Resource] Create mesh resource: ", asset->m_name, ", vb ",
                 asset->GetVertexDataSize(), " bytes, ib ", asset->GetIndexDataSize(), " bytes");
 
@@ -138,6 +213,8 @@ namespace Kita::Pbrv
                     .UpdateSet(perObject.m_sets[i]);
             }
 
+            KITA_LOG_DEBUG("[Resource] Create per-object set: ", perObject.m_ubos.size(), " ubo slots, ",
+                sizeof(Gpu::PerObject), " bytes, ", perObject.m_sets.size(), " sets");
             return perObject;
         }
 

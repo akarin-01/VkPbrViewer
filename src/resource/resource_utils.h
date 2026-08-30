@@ -17,6 +17,8 @@ namespace Kita::Pbrv
         struct ImageResource;
         struct ImageViewDesc;
         struct ImageViewResource;
+        struct SamplerDesc;
+        struct SamplerResource;
 
         namespace ResourceUtils
         {
@@ -28,6 +30,9 @@ namespace Kita::Pbrv
 
             ImageViewResource CreateImageViewResource(const Rhi::Context& context,
                 const ImageResource& image, const ImageViewDesc& desc);
+
+            SamplerResource CreateSamplerResource(const Rhi::Context& context,
+                const SamplerDesc& desc);
 
             uint32_t CalculateMipLevels(uint32_t width, uint32_t height);
 

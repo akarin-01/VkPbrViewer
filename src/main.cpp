@@ -252,6 +252,55 @@ namespace
 
         Core::Log::Info("[Test] ImageView passed");
     }
+
+    void TestSampler()
+    {
+        using namespace Kita::Pbrv;
+
+        Core::Window window(800, 600, "Vk Pbr Viewer");
+        Rhi::Context context(window);
+        Resource::AssetManager assets;
+        Resource::DescriptorManager descriptorMgr(context);
+        Resource::ResourceManager resources(context, assets, descriptorMgr);
+
+        // 1. Dedup: the same desc resolves to the same entry.
+        Resource::SamplerDesc repeatMip{};    // default: linear + mip-chain + repeat
+        Resource::SamplerResource::Handle s1 = resources.GetOrCreateSampler(repeatMip);
+        assert(s1.IsValid());
+        assert(s1->m_sampler != VK_NULL_HANDLE);
+
+        Resource::SamplerResource::Handle s2 = resources.GetOrCreateSampler(repeatMip);
+        assert(s1.GetId() == s2.GetId());
+
+        // 2. Different desc -> different entry.
+        Resource::SamplerDesc noMip = repeatMip;
+        noMip.m_mipMode = Resource::SamplerDesc::MipMode::None;
+        Resource::SamplerResource::Handle s3 = resources.GetOrCreateSampler(noMip);
+        assert(s3.GetId() != s1.GetId());
+
+        Resource::SamplerDesc aniso = repeatMip;
+        aniso.m_anisotropy = true;
+        Resource::SamplerResource::Handle s4 = resources.GetOrCreateSampler(aniso);
+        assert(s4.GetId() != s1.GetId());
+
+        // 3. Refcount: a copied handle keeps the entry alive.
+        Resource::SamplerResource::Handle s5 = s1;
+        s1.Reset();
+        assert(s5.IsValid());
+        assert(s5->m_sampler != VK_NULL_HANDLE);
+
+        // 4. Release everything, then age out the graveyard.
+        s2.Reset();
+        s3.Reset();
+        s4.Reset();
+        s5.Reset();
+        for (uint32_t i = 0; i < Rhi::kMaxFramesInFlight; ++i)
+        {
+            resources.FlushGraveyard();
+        }
+
+        Core::Log::Info("[Test] Sampler passed");
+    }
 }
 
 int main()
@@ -260,7 +309,8 @@ int main()
     {
         // TestAssetManager();
         // TestResourceManager();
-        TestImageView();
+        // TestImageView();
+        TestSampler();
 
         Kita::Pbrv::Application::App app{};
         app.Run();

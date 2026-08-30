@@ -274,6 +274,70 @@ namespace Kita::Pbrv
                 return imageView;
             }
 
+            SamplerResource CreateSamplerResource(const Rhi::Context& context,
+                const SamplerDesc& desc)
+            {
+                SamplerResource sampler{};
+
+                VkSamplerCreateInfo samplerInfo{};
+                samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+
+                // Filter
+                samplerInfo.magFilter = desc.m_magFilter;
+                samplerInfo.minFilter = desc.m_minFilter;
+
+                // Address
+                samplerInfo.addressModeU = desc.m_addressModeU;
+                samplerInfo.addressModeV = desc.m_addressModeV;
+                samplerInfo.addressModeW = desc.m_addressModeW;
+
+                samplerInfo.unnormalizedCoordinates = VK_FALSE;
+                samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+                samplerInfo.compareEnable = VK_FALSE;
+                samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+
+                // Anisotropy
+                if (desc.m_anisotropy)
+                {
+                    samplerInfo.anisotropyEnable = VK_TRUE;
+                    samplerInfo.maxAnisotropy = context.MaxAnisotropy();
+                }
+                else
+                {
+                    samplerInfo.anisotropyEnable = VK_FALSE;
+                    samplerInfo.maxAnisotropy = 1.0f;
+                }
+
+                // Mipmode
+                samplerInfo.mipLodBias = 0.0f;
+                samplerInfo.minLod = 0.0f;
+
+                switch (desc.m_mipMode)
+                {
+                case SamplerDesc::MipMode::None:
+                    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+                    samplerInfo.maxLod = 0.0f;
+                    break;
+                case SamplerDesc::MipMode::Nearest:
+                    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+                    samplerInfo.maxLod = VK_LOD_CLAMP_NONE;
+                    break;
+                case SamplerDesc::MipMode::Linear:
+                    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+                    samplerInfo.maxLod = VK_LOD_CLAMP_NONE;
+                    break;
+                default:
+                    throw std::runtime_error("Invalid mip mode!");
+                }
+
+                if (vkCreateSampler(context.Device(), &samplerInfo, nullptr, &sampler.m_sampler) != VK_SUCCESS)
+                {
+                    throw std::runtime_error("Failed to create sampler!");
+                }
+
+                return sampler;
+            }
+
             uint32_t CalculateMipLevels(uint32_t width, uint32_t height)
             {
                 return static_cast<uint32_t>(std::floor(std::log2(std::max(width, height))) + 1);

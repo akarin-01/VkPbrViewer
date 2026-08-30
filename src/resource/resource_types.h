@@ -78,6 +78,52 @@ namespace Kita::Pbrv
             ImageResource::Handle m_image{};            // Image must be destroyed after image view
         };
 
+        struct SamplerDesc
+        {
+            enum class MipMode
+            {
+                None,       // single level: maxLod = 0
+                Nearest,    // full chain, NEAREST mip filter
+                Linear,     // full chain, LINEAR mip filter
+            };
+
+            VkFilter m_magFilter{ VK_FILTER_LINEAR };
+            VkFilter m_minFilter{ VK_FILTER_LINEAR };
+            MipMode m_mipMode{ MipMode::Linear };
+            VkSamplerAddressMode m_addressModeU{ VK_SAMPLER_ADDRESS_MODE_REPEAT };
+            VkSamplerAddressMode m_addressModeV{ VK_SAMPLER_ADDRESS_MODE_REPEAT };
+            VkSamplerAddressMode m_addressModeW{ VK_SAMPLER_ADDRESS_MODE_REPEAT };
+            bool m_anisotropy{ false };
+
+            bool operator==(const SamplerDesc& other) const
+            {
+                return m_magFilter == other.m_magFilter
+                    && m_minFilter == other.m_minFilter
+                    && m_mipMode == other.m_mipMode
+                    && m_addressModeU == other.m_addressModeU
+                    && m_addressModeV == other.m_addressModeV
+                    && m_addressModeW == other.m_addressModeW
+                    && m_anisotropy == other.m_anisotropy;
+            }
+
+            struct Hash
+            {
+                size_t operator()(const SamplerDesc& d) const
+                {
+                    size_t h = 1469598103934665603ull;
+                    auto mix = [&h](uint64_t v) { h ^= v; h *= 1099511628211ull; };
+                    mix(static_cast<uint64_t>(d.m_magFilter));
+                    mix(static_cast<uint64_t>(d.m_minFilter));
+                    mix(static_cast<uint64_t>(d.m_mipMode));
+                    mix(static_cast<uint64_t>(d.m_addressModeU));
+                    mix(static_cast<uint64_t>(d.m_addressModeV));
+                    mix(static_cast<uint64_t>(d.m_addressModeW));
+                    mix(d.m_anisotropy ? 1u : 0u);
+                    return h;
+                }
+            };
+        };
+
         struct SamplerResource
         {
             using Handle = Handle<SamplerResource>;
