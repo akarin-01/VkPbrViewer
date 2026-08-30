@@ -13,9 +13,9 @@ namespace Kita::Pbrv
                 {
                     ResourceUtils::DestroyBufferResource(m_context, buffer);
                 }),
-            m_textureQueue([this](TextureResource& tex)
+            m_imageQueue([this](ImageResource& image)
                 {
-                    // TODO: Destroy texture
+                    ResourceUtils::DestroyImageResource(m_context, image);
                 })
         {
         }
@@ -25,13 +25,13 @@ namespace Kita::Pbrv
         void ResourceGraveyard::Flush()
         {
             size_t bufferCount = m_bufferQueue.Flush();
-            size_t textureCount = m_textureQueue.Flush();
+            size_t imageCount = m_imageQueue.Flush();
 
-            bool empty = (bufferCount == 0 && textureCount == 0);
+            bool empty = (bufferCount == 0 && imageCount == 0);
             if (!empty)
             {
                 KITA_LOG_DEBUG("[Resource] Graveyard flush: ", bufferCount, " buffers, ",
-                    textureCount, " textures");
+                    imageCount, " images");
             }
         }
 
@@ -40,9 +40,9 @@ namespace Kita::Pbrv
             m_bufferQueue.Push(std::move(buffer));
         }
 
-        void ResourceGraveyard::PushTexture(TextureResource&& tex)
+        void ResourceGraveyard::PushImage(ImageResource&& image)
         {
-            m_textureQueue.Push(std::move(tex));
+            m_imageQueue.Push(std::move(image));
         }
     }
 }

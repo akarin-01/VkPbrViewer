@@ -24,6 +24,10 @@ namespace Kita::Pbrv
                 {
                     m_graveyard.PushBuffer(std::move(buffer));
                 }),
+            m_imageTable([this](ImageResource&& image)
+                {
+                    m_graveyard.PushImage(std::move(image));
+                }),
             m_meshTable([](MeshResource&& mesh)
                 {
                     Core::Log::Info("[Resource] Release mesh resource: vb ",
@@ -38,6 +42,12 @@ namespace Kita::Pbrv
         {
             BufferResource buffer = ResourceUtils::CreateBufferResource(m_context, desc, data, size);
             return m_bufferTable.Create(std::move(buffer));
+        }
+
+        ImageResource::Handle ResourceManager::CreateImage(const ImageDesc& desc, const void* data, size_t size)
+        {
+            ImageResource image = ResourceUtils::CreateImageResource(m_context, desc, data, size);
+            return m_imageTable.Create(std::move(image));
         }
 
         MeshResource::Handle ResourceManager::GetOrCreateMesh(ResourceId meshId)

@@ -89,13 +89,13 @@ namespace Kita::Pbrv
             void Flush();
 
             void PushBuffer(BufferResource&& buffer);
-            void PushTexture(TextureResource&& tex);
+            void PushImage(ImageResource&& image);
 
         private:
             const Rhi::Context& m_context;
 
             GraveyardQueue<BufferResource> m_bufferQueue;
-            GraveyardQueue<TextureResource> m_textureQueue;
+            GraveyardQueue<ImageResource> m_imageQueue;
         };
     }
 }

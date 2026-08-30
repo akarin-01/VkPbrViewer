@@ -11,15 +11,41 @@ namespace Kita::Pbrv
 
     namespace Resource
     {
-        struct BufferResource;
         struct BufferDesc;
+        struct BufferResource;
+        struct ImageDesc;
+        struct ImageResource;
 
         namespace ResourceUtils
         {
             BufferResource CreateBufferResource(const Rhi::Context& context,
                 BufferDesc desc, const void* data = nullptr, size_t size = 0);
+            void DestroyBufferResource(const Rhi::Context& context, BufferResource& buffer);
 
-            void DestroyBufferResource(const Rhi::Context& context, BufferResource& data);
+            ImageResource CreateImageResource(const Rhi::Context& context,
+                ImageDesc desc, const void* data = nullptr, size_t size = 0);
+            void DestroyImageResource(const Rhi::Context& context, ImageResource& image);
+
+            uint32_t CalculateMipLevels(uint32_t width, uint32_t height);
+
+            /// Full-image layout transition (all mips/layers, aspect from the image).
+            void TransitionImageLayout(VkCommandBuffer commandBuffer, const ImageResource& image,
+                VkImageLayout oldLayout, VkImageLayout newLayout,
+                VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
+                VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask);
+
+            /// Layout transition restricted to `range` (e.g. per-mip in mip generation).
+            void TransitionImageLayout(VkCommandBuffer commandBuffer, const ImageResource& image,
+                VkImageLayout oldLayout, VkImageLayout newLayout,
+                VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
+                VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask,
+                const VkImageSubresourceRange& range);
+
+            /// Blit the mip chain. Pre: every subresource in TRANSFER_DST.
+            /// Post: every subresource in `finalLayout`, ordered for `finalStageMask`.
+            void GenerateImageMipmaps(VkCommandBuffer commandBuffer, const ImageResource& image,
+                VkImageLayout finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                VkPipelineStageFlags2 finalStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT);
         };
     }
 }

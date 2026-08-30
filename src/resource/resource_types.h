@@ -12,6 +12,9 @@ namespace Kita::Pbrv
 {
     namespace Resource
     {
+        // ------------------ Vk resource ---------------------
+        // Managed because of auto release(deferred)
+
         struct BufferDesc
         {
             VkDeviceSize m_size{ 0 };
@@ -30,23 +33,45 @@ namespace Kita::Pbrv
             VkDeviceSize m_size{ 0 };
         };
 
-        struct ImageResource
+        struct ImageDesc
         {
-            VkImage m_image{ VK_NULL_HANDLE };
-            VkDeviceMemory m_memory{ VK_NULL_HANDLE };
-            VkFormat m_format{ VK_FORMAT_UNDEFINED };
+            VkImageType m_type{ VK_IMAGE_TYPE_2D };
+            VkImageCreateFlags m_flags{ 0 };
             VkExtent3D m_extent{ 0, 0, 1 };
             uint32_t m_mipLevels{ 1 };
             uint32_t m_arrayLayers{ 1 };
+            VkFormat m_format{ VK_FORMAT_UNDEFINED };
+            VkImageAspectFlags m_aspectMask{ VK_IMAGE_ASPECT_NONE };
+            VkImageUsageFlags m_usage{ 0 };
+            VkSampleCountFlagBits m_samples{ VK_SAMPLE_COUNT_1_BIT };
+            VkMemoryPropertyFlags m_properties{ 0 };
+        };
+
+        struct ImageResource
+        {
+            using Handle = Handle<ImageResource>;
+
+            VkImage m_image{ VK_NULL_HANDLE };
+            VkDeviceMemory m_memory{ VK_NULL_HANDLE };
+            VkExtent3D m_extent{ 0, 0, 1 };
+            uint32_t m_mipLevels{ 1 };
+            uint32_t m_arrayLayers{ 1 };
+            VkFormat m_format{ VK_FORMAT_UNDEFINED };
             VkImageAspectFlags m_aspectMask{ VK_IMAGE_ASPECT_NONE };
         };
 
-        struct TextureResource
+        struct ImageViewResource
         {
-            using Handle = Handle<TextureResource>;
+            using Handle = Handle<ImageViewResource>;
 
-            ImageResource m_image{};
             VkImageView m_imageView{ VK_NULL_HANDLE };
+            ImageResource::Handle m_image{};            // Image must be destroyed after image view
+        };
+
+        struct SamplerResource
+        {
+            using Handle = Handle<SamplerResource>;
+
             VkSampler m_sampler{ VK_NULL_HANDLE };
         };
 
@@ -62,6 +87,16 @@ namespace Kita::Pbrv
             VkBuffer GetIndexBuffer() const { return m_indexBuffer->m_buffer; }
             uint32_t GetIndexCount() const { return m_indexCount; }
         };
+
+        struct TextureResource
+        {
+            using Handle = Handle<TextureResource>;
+
+            ImageResource m_image{};
+            VkImageView m_imageView{ VK_NULL_HANDLE };
+            VkSampler m_sampler{ VK_NULL_HANDLE };
+        };
+
 
         struct MaterialResource
         {

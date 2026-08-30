@@ -33,6 +33,8 @@ namespace Kita::Pbrv
 
             BufferResource::Handle CreateBuffer(const BufferDesc& desc,
                 const void* data = nullptr, size_t size = 0);
+            ImageResource::Handle CreateImage(const ImageDesc& desc,
+                const void* data = nullptr, size_t size = 0);
 
             MeshResource::Handle GetOrCreateMesh(ResourceId meshId);
 
@@ -52,6 +54,7 @@ namespace Kita::Pbrv
 
             // ------------- Vk handle ----------------
             HandleTable<BufferResource> m_bufferTable;
+            HandleTable<ImageResource> m_imageTable;
 
             // ------------- Cache --------------------
             HandleTable<MeshResource> m_meshTable;

@@ -141,6 +141,60 @@ namespace
 
         Core::Log::Info("[Test] AssetManager passed");
     }
+
+    void TestImageManager()
+    {
+        using namespace Kita::Pbrv;
+
+        Core::Window window(800, 600, "Vk Pbr Viewer");
+        Rhi::Context context(window);
+        Resource::AssetManager assets;
+        Resource::DescriptorManager descriptorMgr(context);
+        Resource::ResourceManager resources(context, assets, descriptorMgr);
+
+        // 1. CreateImage with data: upload + mip chain (4x4 RGBA8, 3 mips).
+        Resource::ImageDesc desc{};
+        desc.m_extent = { 4, 4, 1 };
+        desc.m_format = VK_FORMAT_R8G8B8A8_UNORM;
+        desc.m_aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        desc.m_mipLevels = 3;
+        desc.m_usage = VK_IMAGE_USAGE_SAMPLED_BIT;
+
+        const std::vector<uint8_t> pixels(4 * 4 * 4, 128);
+        Resource::ImageResource::Handle img = resources.CreateImage(desc, pixels.data(), pixels.size());
+        assert(img.IsValid());
+        assert(img->m_image != VK_NULL_HANDLE);
+        assert(img->m_extent.width == 4 && img->m_extent.height == 4);
+        assert(img->m_mipLevels == 3);
+
+        // 2. Refcount: a copied handle keeps the entry alive.
+        Resource::ImageResource::Handle img2 = img;
+        assert(img.GetId() == img2.GetId());
+        img.Reset();
+        assert(img2.IsValid());
+        assert(img2->m_image != VK_NULL_HANDLE);
+
+        // 3. Empty image (no data): allocation only, layout left undefined.
+        Resource::ImageDesc emptyDesc{};
+        emptyDesc.m_extent = { 8, 8, 1 };
+        emptyDesc.m_format = VK_FORMAT_R8G8B8A8_UNORM;
+        emptyDesc.m_aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        emptyDesc.m_usage = VK_IMAGE_USAGE_SAMPLED_BIT;
+        Resource::ImageResource::Handle empty = resources.CreateImage(emptyDesc);
+        assert(empty.IsValid());
+        assert(empty->m_image != VK_NULL_HANDLE);
+        assert(empty->m_mipLevels == 1);
+
+        // 4. Release everything, then age out the graveyard (K frames).
+        img2.Reset();
+        empty.Reset();
+        for (uint32_t i = 0; i < Rhi::kMaxFramesInFlight; ++i)
+        {
+            resources.FlushGraveyard();
+        }
+
+        Core::Log::Info("[Test] ImageManager passed");
+    }
 }
 
 int main()
@@ -149,6 +203,7 @@ int main()
     {
         // TestAssetManager();
         // TestResourceManager();
+        TestImageManager();
 
         Kita::Pbrv::Application::App app{};
         app.Run();

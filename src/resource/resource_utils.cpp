@@ -5,9 +5,11 @@
 #include "rhi/utils.h"
 #include "resource/resource_types.h"
 
+#include <algorithm>
+#include <cassert>
+#include <cmath>
 #include <cstring>
 #include <stdexcept>
-#include <cassert>
 
 namespace Kita::Pbrv
 {
@@ -20,7 +22,8 @@ namespace Kita::Pbrv
                 BufferResource buffer{};
                 buffer.m_size = desc.m_size;
 
-                VkBufferCreateInfo bufferInfo{ VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+                VkBufferCreateInfo bufferInfo{};
+                bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
                 bufferInfo.size = desc.m_size;
                 bufferInfo.usage = desc.m_usage;
                 bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -48,6 +51,70 @@ namespace Kita::Pbrv
                 }
 
                 return buffer;
+            }
+
+            ImageResource CreateImageHelper(const Rhi::Context& context, const ImageDesc& desc)
+            {
+                ImageResource image{};
+                image.m_format = desc.m_format;
+                image.m_extent = desc.m_extent;
+                image.m_mipLevels = desc.m_mipLevels;
+                image.m_arrayLayers = desc.m_arrayLayers;
+                image.m_aspectMask = desc.m_aspectMask;
+
+                // Image
+                VkImageCreateInfo imageInfo{};
+                imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+                imageInfo.imageType = desc.m_type;
+                imageInfo.flags = desc.m_flags;
+                imageInfo.extent = desc.m_extent;
+                imageInfo.mipLevels = desc.m_mipLevels;
+                imageInfo.arrayLayers = desc.m_arrayLayers;
+                imageInfo.format = desc.m_format;
+                imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+                imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+                imageInfo.usage = desc.m_usage;
+                imageInfo.samples = desc.m_samples;
+                imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+                if (vkCreateImage(context.Device(), &imageInfo, nullptr, &image.m_image) != VK_SUCCESS)
+                {
+                    throw std::runtime_error("Failed to create image!");
+                }
+
+                // Memory
+                VkMemoryRequirements memRequirements;
+                vkGetImageMemoryRequirements(context.Device(), image.m_image, &memRequirements);
+
+                VkMemoryAllocateInfo allocInfo{};
+                allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+                allocInfo.allocationSize = memRequirements.size;
+                allocInfo.memoryTypeIndex = Rhi::FindMemoryType(context.PhysicalDevice(), memRequirements.memoryTypeBits, desc.m_properties);
+
+                if (vkAllocateMemory(context.Device(), &allocInfo, nullptr, &image.m_memory) != VK_SUCCESS)
+                {
+                    throw std::runtime_error("Failed to allocate image memory!");
+                }
+
+                vkBindImageMemory(context.Device(), image.m_image, image.m_memory, 0);
+
+                return image;
+            }
+
+            /// Copy `size` bytes between buffers.
+            void CopyBuffer(VkCommandBuffer commandBuffer,
+                const BufferResource& src, const BufferResource& dst, VkDeviceSize size)
+            {
+                VkBufferCopy copy{};
+                copy.size = size;
+                vkCmdCopyBuffer(commandBuffer, src.m_buffer, dst.m_buffer, 1, &copy);
+            }
+
+            /// Upload `region` into the image's base mip (image must be in TRANSFER_DST).
+            void CopyBufferToImage(VkCommandBuffer commandBuffer,
+                const BufferResource& src, const ImageResource& dst, const VkBufferImageCopy& region)
+            {
+                vkCmdCopyBufferToImage(commandBuffer, src.m_buffer, dst.m_image,
+                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
             }
         }
 
@@ -89,9 +156,7 @@ namespace Kita::Pbrv
 
                 {
                     Rhi::OneShotCommand cmd(context);
-                    VkBufferCopy copy{};
-                    copy.size = size;
-                    vkCmdCopyBuffer(cmd.Handle(), staging.m_buffer, buffer.m_buffer, 1, &copy);
+                    CopyBuffer(cmd.Handle(), staging, buffer, size);
                 }
 
                 DestroyBufferResource(context, staging);
@@ -99,16 +164,207 @@ namespace Kita::Pbrv
                 return buffer;
             }
 
-            void DestroyBufferResource(const Rhi::Context& context, BufferResource& data)
+            void DestroyBufferResource(const Rhi::Context& context, BufferResource& buffer)
             {
-                if (data.m_mapped)
+                if (buffer.m_mapped)
                 {
-                    vkUnmapMemory(context.Device(), data.m_memory);
+                    vkUnmapMemory(context.Device(), buffer.m_memory);
                 }
-                vkDestroyBuffer(context.Device(), data.m_buffer, nullptr);
-                vkFreeMemory(context.Device(), data.m_memory, nullptr);
+                vkDestroyBuffer(context.Device(), buffer.m_buffer, nullptr);
+                vkFreeMemory(context.Device(), buffer.m_memory, nullptr);
 
-                data = {};
+                buffer = {};
+            }
+
+            ImageResource CreateImageResource(const Rhi::Context& context,
+                ImageDesc desc, const void* data, size_t size)
+            {
+                assert((data == nullptr) == (size == 0) && "CreateImage: data and size must agree");
+
+                if (!data)
+                {
+                    // Non-data image
+                    return CreateImageHelper(context, desc);
+                }
+
+                // Device-local: add the transfer flag and upload through a staging buffer.
+                desc.m_usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+                ImageResource image = CreateImageHelper(context, desc);
+
+                BufferDesc stagingDesc{};
+                stagingDesc.m_size = size;
+                stagingDesc.m_usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+                stagingDesc.m_properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+                stagingDesc.m_mapped = true;
+                BufferResource staging = CreateBufferResource(context, stagingDesc, data, size);
+
+                {
+                    Rhi::OneShotCommand cmd(context);
+
+                    // Full image: UNDEFINED -> TRANSFER_DST (all mips/layers writable)
+                    TransitionImageLayout(cmd.Handle(), image,
+                        VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
+                        VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
+
+                    // Base mip: tightly packed upload of the full extent (layer 0)
+                    VkBufferImageCopy region{};
+                    region.bufferOffset = 0;
+                    region.bufferRowLength = 0;
+                    region.bufferImageHeight = 0;
+                    region.imageSubresource.aspectMask = desc.m_aspectMask;
+                    region.imageSubresource.mipLevel = 0;
+                    region.imageSubresource.baseArrayLayer = 0;
+                    region.imageSubresource.layerCount = 1;
+                    region.imageOffset = { 0, 0, 0 };
+                    region.imageExtent = desc.m_extent;
+                    CopyBufferToImage(cmd.Handle(), staging, image, region);
+
+                    if (desc.m_mipLevels > 1)
+                    {
+                        // Mip chain; ends with every subresource in SHADER_READ_ONLY.
+                        GenerateImageMipmaps(cmd.Handle(), image);
+                    }
+                    else
+                    {
+                        TransitionImageLayout(cmd.Handle(), image,
+                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                            VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                            VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
+                    }
+                }
+
+                DestroyBufferResource(context, staging);
+
+                return image;
+            }
+
+            void DestroyImageResource(const Rhi::Context& context, ImageResource& image)
+            {
+                vkDestroyImage(context.Device(), image.m_image, nullptr);
+                vkFreeMemory(context.Device(), image.m_memory, nullptr);
+            }
+
+            uint32_t CalculateMipLevels(uint32_t width, uint32_t height)
+            {
+                return static_cast<uint32_t>(std::floor(std::log2(std::max(width, height))) + 1);
+            }
+
+            void TransitionImageLayout(VkCommandBuffer commandBuffer, const ImageResource& image,
+                VkImageLayout oldLayout, VkImageLayout newLayout,
+                VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
+                VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask)
+            {
+                VkImageSubresourceRange range{};
+                range.aspectMask = image.m_aspectMask;
+                range.baseMipLevel = 0;
+                range.levelCount = image.m_mipLevels;
+                range.baseArrayLayer = 0;
+                range.layerCount = image.m_arrayLayers;
+
+                TransitionImageLayout(commandBuffer, image, oldLayout, newLayout,
+                    srcStageMask, srcAccessMask, dstStageMask, dstAccessMask, range);
+            }
+
+            void TransitionImageLayout(VkCommandBuffer commandBuffer, const ImageResource& image,
+                VkImageLayout oldLayout, VkImageLayout newLayout,
+                VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
+                VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask,
+                const VkImageSubresourceRange& range)
+            {
+                VkImageMemoryBarrier2 barrier{};
+                barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+                barrier.srcStageMask = srcStageMask;
+                barrier.srcAccessMask = srcAccessMask;
+                barrier.dstStageMask = dstStageMask;
+                barrier.dstAccessMask = dstAccessMask;
+                barrier.oldLayout = oldLayout;
+                barrier.newLayout = newLayout;
+                barrier.image = image.m_image;
+                barrier.subresourceRange = range;
+
+                VkDependencyInfo dependencyInfo{};
+                dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+                dependencyInfo.dependencyFlags = 0;
+                dependencyInfo.imageMemoryBarrierCount = 1;
+                dependencyInfo.pImageMemoryBarriers = &barrier;
+
+                vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
+            }
+
+            void GenerateImageMipmaps(VkCommandBuffer commandBuffer, const ImageResource& image,
+                VkImageLayout finalLayout, VkPipelineStageFlags2 finalStageMask)
+            {
+                const int32_t width = static_cast<int32_t>(image.m_extent.width);
+                const int32_t height = static_cast<int32_t>(image.m_extent.height);
+
+                // Mip 0 (just uploaded) becomes the blit source.
+                VkImageSubresourceRange srcRange{};
+                srcRange.aspectMask = image.m_aspectMask;
+                srcRange.baseMipLevel = 0;
+                srcRange.levelCount = 1;
+                srcRange.baseArrayLayer = 0;
+                srcRange.layerCount = image.m_arrayLayers;
+
+                TransitionImageLayout(commandBuffer, image,
+                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                    VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_READ_BIT,
+                    srcRange);
+
+                for (uint32_t mip = 1; mip < image.m_mipLevels; ++mip)
+                {
+                    VkImageSubresourceRange dstRange{};
+                    dstRange.aspectMask = image.m_aspectMask;
+                    dstRange.baseMipLevel = mip;
+                    dstRange.levelCount = 1;
+                    dstRange.baseArrayLayer = 0;
+                    dstRange.layerCount = image.m_arrayLayers;
+
+                    // UNDEFINED -> TRANSFER_DST: contents are overwritten by the blit.
+                    TransitionImageLayout(commandBuffer, image,
+                        VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_NONE,
+                        VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                        dstRange);
+
+                    VkImageBlit blit{};
+                    blit.srcSubresource.aspectMask = image.m_aspectMask;
+                    blit.srcSubresource.mipLevel = mip - 1;
+                    blit.srcSubresource.baseArrayLayer = 0;
+                    blit.srcSubresource.layerCount = image.m_arrayLayers;
+                    blit.srcOffsets[0] = { 0, 0, 0 };
+                    blit.srcOffsets[1] = { std::max(1, width >> (mip - 1)), std::max(1, height >> (mip - 1)), 1 };
+                    blit.dstSubresource.aspectMask = image.m_aspectMask;
+                    blit.dstSubresource.mipLevel = mip;
+                    blit.dstSubresource.baseArrayLayer = 0;
+                    blit.dstSubresource.layerCount = image.m_arrayLayers;
+                    blit.dstOffsets[0] = { 0, 0, 0 };
+                    blit.dstOffsets[1] = { std::max(1, width >> mip), std::max(1, height >> mip), 1 };
+                    vkCmdBlitImage(commandBuffer, image.m_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        image.m_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
+
+                    // This mip becomes the source for the next one.
+                    TransitionImageLayout(commandBuffer, image,
+                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                        VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_READ_BIT,
+                        dstRange);
+                }
+
+                // Uniform final layout across all mips, ordered for the next consumer.
+                VkImageSubresourceRange allRange{};
+                allRange.aspectMask = image.m_aspectMask;
+                allRange.baseMipLevel = 0;
+                allRange.levelCount = image.m_mipLevels;
+                allRange.baseArrayLayer = 0;
+                allRange.layerCount = image.m_arrayLayers;
+
+                TransitionImageLayout(commandBuffer, image,
+                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, finalLayout,
+                    VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_READ_BIT,
+                    finalStageMask, VK_ACCESS_2_SHADER_READ_BIT,
+                    allRange);
             }
         }
     }
