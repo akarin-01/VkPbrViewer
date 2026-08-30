@@ -47,6 +47,19 @@ namespace Kita::Pbrv
                 default:                                      return "Unknown";
                 }
             }
+
+            VkFormat ToImageFormat(TextureAsset::Type type)
+            {
+                switch (type)
+                {
+                case TextureAsset::Type::Srgb:              return VK_FORMAT_R8G8B8A8_SRGB;
+                case TextureAsset::Type::Normal:            return VK_FORMAT_R8G8B8A8_UNORM;
+                case TextureAsset::Type::MetallicRoughness: return VK_FORMAT_R8G8B8A8_UNORM;
+                case TextureAsset::Type::Linear:            return VK_FORMAT_R8_UNORM;
+                case TextureAsset::Type::Hdr:               return VK_FORMAT_R32G32B32A32_SFLOAT;
+                default:                                    return VK_FORMAT_UNDEFINED;
+                }
+            }
         }
 
         ResourceManager::ResourceManager(const Rhi::Context& context,
@@ -178,13 +191,38 @@ namespace Kita::Pbrv
                 return MeshResource::Handle();
             }
 
-            MeshResource resource = CreateMeshResource(*asset);
+            MeshResource::Handle handle = CreateMesh(*asset);
 
-            Core::Log::Info("[Resource] Create mesh resource: ", asset->m_name, ", vb ",
-                asset->GetVertexDataSize(), " bytes, ib ", asset->GetIndexDataSize(), " bytes");
-
-            MeshResource::Handle handle = m_meshTable.Create(std::move(resource));
             m_meshIds[meshId] = handle.GetId();
+            return handle;
+        }
+
+        ImageResource::Handle ResourceManager::GetOrCreateImage(ResourceId textureId)
+        {
+            auto it = m_imageIds.find(textureId);
+            if (it != m_imageIds.end())
+            {
+                const ResourceId id = it->second;
+                // The mapping can outlive its entry (every handle released):
+                // a stale id falls through and is rebuilt below.
+                if (m_imageTable.Has(id))
+                {
+                    // Cache hit: add ref
+                    KITA_LOG_DEBUG("[Resource] Reuse image resource: texture asset(", textureId, ")");
+                    return m_imageTable.GetShared(id);
+                }
+            }
+
+            // Cache miss: create
+            auto asset = m_assetMgr.GetTexture(textureId);
+            if (!asset)
+            {
+                // Invalid texture id, return invalid handle
+                return ImageResource::Handle();
+            }
+
+            ImageResource::Handle handle = CreateImage(*asset);
+            m_imageIds[textureId] = handle.GetId();
             return handle;
         }
 
@@ -223,7 +261,7 @@ namespace Kita::Pbrv
             m_graveyard.Flush();
         }
 
-        MeshResource ResourceManager::CreateMeshResource(const MeshAsset& asset)
+        MeshResource::Handle ResourceManager::CreateMesh(const MeshAsset& asset)
         {
             MeshResource mesh{};
 
@@ -251,7 +289,22 @@ namespace Kita::Pbrv
 
             mesh.m_indexCount = static_cast<uint32_t>(asset.GetIndexCount());
 
-            return mesh;
+            Core::Log::Info("[Resource] Create mesh resource: ", asset.m_name, ", vb ",
+                asset.GetVertexDataSize(), " bytes, ib ", asset.GetIndexDataSize(), " bytes");
+
+            return m_meshTable.Create(std::move(mesh));
+        }
+
+        ImageResource::Handle ResourceManager::CreateImage(const TextureAsset& asset)
+        {
+            ImageDesc desc{};
+            desc.m_extent = { asset.m_width, asset.m_height, 1 };
+            desc.m_format = ToImageFormat(asset.m_type);
+            desc.m_aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            desc.m_mipLevels = ResourceUtils::CalculateMipLevels(asset.m_width, asset.m_height);
+            desc.m_usage = VK_IMAGE_USAGE_SAMPLED_BIT;
+
+            return CreateImage(desc, asset.m_bytes.data(), asset.m_bytes.size());
         }
     }
 }

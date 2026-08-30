@@ -20,8 +20,8 @@ namespace Kita::Pbrv
     {
         class AssetManager;
         class DescriptorManager;
-
         struct MeshAsset;
+        struct TextureAsset;
 
         class ResourceManager
         {
@@ -35,6 +35,7 @@ namespace Kita::Pbrv
                 const void* data = nullptr, size_t size = 0);
             ImageResource::Handle CreateImage(const ImageDesc& desc,
                 const void* data = nullptr, size_t size = 0);
+            ImageResource::Handle GetOrCreateImage(ResourceId textureId);
             ImageViewResource::Handle CreateImageView(const ImageViewDesc& desc,
                 const ImageResource::Handle& image);
             SamplerResource::Handle GetOrCreateSampler(const SamplerDesc& desc);
@@ -46,7 +47,8 @@ namespace Kita::Pbrv
             void FlushGraveyard();
 
         private:
-            MeshResource CreateMeshResource(const MeshAsset& asset);
+            MeshResource::Handle CreateMesh(const MeshAsset& asset);
+            ImageResource::Handle CreateImage(const TextureAsset& asset);
 
         private:
             const Rhi::Context& m_context;
@@ -65,6 +67,7 @@ namespace Kita::Pbrv
             std::unordered_map<ResourceId, ResourceId> m_meshIds;
             HandleTable<SamplerResource> m_samplerTable;
             std::unordered_map<SamplerDesc, ResourceId, SamplerDesc::Hash> m_samplerIds;
+            std::unordered_map<ResourceId, ResourceId> m_imageIds;
         };
     }
 }
