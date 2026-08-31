@@ -23,7 +23,7 @@ namespace Kita::Pbrv
         {
             m_context = std::make_unique<Rhi::Context>(window);
             m_resources = std::make_unique<Resource::Resources>(*m_context);
-            m_swapChain = std::make_unique<Rhi::SwapChain>(window, *m_context, *m_resources);
+            m_swapChain = std::make_unique<Rhi::SwapChain>(window, *m_context);
             m_frameSync = std::make_unique<Rhi::FrameSync>(*m_context, *m_swapChain);
 
             m_descriptorMgr = std::make_unique<Resource::DescriptorManager>(*m_context);

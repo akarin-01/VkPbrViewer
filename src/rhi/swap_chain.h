@@ -1,7 +1,5 @@
 #pragma once
 
-#include "resource/types.h"
-
 #include <vulkan/vulkan.h>
 #include <vector>
 
@@ -11,19 +9,18 @@ namespace Kita::Pbrv
     {
         class Window;
     }
-    namespace Resource
-    {
-        class Resources;
-    }
 
     namespace Rhi
     {
         class Context;
 
+        /// Swapchain images are driver-owned (vkGetSwapchainImagesKHR only
+        /// borrows them), so their views are created and destroyed here too —
+        /// no resource manager involvement; recreation waits for the device.
         class SwapChain
         {
         public:
-            SwapChain(Core::Window& window, const Context& context, Resource::Resources& resources);
+            SwapChain(Core::Window& window, const Context& context);
             ~SwapChain();
 
             bool AcquireNextImage(uint64_t timeout, VkSemaphore semaphore, VkFence fence, uint32_t* pImageIndex);
@@ -45,11 +42,10 @@ namespace Kita::Pbrv
         private:
             Core::Window& m_window;
             const Context& m_context;
-            Resource::Resources& m_resources;
 
             VkSwapchainKHR m_swapChain{ VK_NULL_HANDLE };
             std::vector<VkImage> m_images;
-            std::vector<Resource::RenderImageViewHandle> m_imageViewHandles;
+            std::vector<VkImageView> m_imageViews;
             VkFormat m_format{ VK_FORMAT_UNDEFINED };
             VkExtent2D m_extent{ 0, 0 };
         };

@@ -2,7 +2,6 @@
 
 #include "core/window.h"
 #include "rhi/context.h"
-#include "resource/resources.h"
 #include "rhi/utils.h"
 
 #include <algorithm>
@@ -68,8 +67,8 @@ namespace Kita::Pbrv
             }
         }
 
-        SwapChain::SwapChain(Core::Window& window, const Context& context, Resource::Resources& resources)
-            : m_window(window), m_context(context), m_resources(resources)
+        SwapChain::SwapChain(Core::Window& window, const Context& context)
+            : m_window(window), m_context(context)
         {
             CreateSwapChain();
         }
@@ -120,11 +119,8 @@ namespace Kita::Pbrv
 
         VkImageView SwapChain::ImageView(uint32_t index) const
         {
-            assert(index < m_imageViewHandles.size() && "Swap chain image view index out of range");
-            Resource::RenderImageView* imageView = m_resources.GetImageView(m_imageViewHandles[index]);
-            assert(imageView && "Swap chain image view handle is invalid");
-
-            return imageView->m_imageView;
+            assert(index < m_imageViews.size() && "Swap chain image view index out of range");
+            return m_imageViews[index];
         }
 
         void SwapChain::CreateSwapChain()
@@ -186,8 +182,8 @@ namespace Kita::Pbrv
             m_images.resize(imageCount);
             vkGetSwapchainImagesKHR(m_context.Device(), m_swapChain, &imageCount, m_images.data());
 
-            m_imageViewHandles.resize(m_images.size());
-            for (size_t i = 0; i < m_imageViewHandles.size(); ++i)
+            m_imageViews.resize(m_images.size());
+            for (size_t i = 0; i < m_imageViews.size(); ++i)
             {
                 VkImageViewCreateInfo imageViewCreateInfo{};
                 imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -200,16 +196,20 @@ namespace Kita::Pbrv
                 imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
                 imageViewCreateInfo.subresourceRange.layerCount = 1;
 
-                m_imageViewHandles[i] = m_resources.CreateImageView(imageViewCreateInfo);
+                if (vkCreateImageView(m_context.Device(), &imageViewCreateInfo, nullptr, &m_imageViews[i]) != VK_SUCCESS)
+                {
+                    throw std::runtime_error("Failed to create swap chain image view!");
+                }
             }
         }
 
         void SwapChain::DestroySwapChain()
         {
-            for (const auto& handle : m_imageViewHandles)
+            for (const auto& imageView : m_imageViews)
             {
-                m_resources.DestroyImageView(handle);
+                vkDestroyImageView(m_context.Device(), imageView, nullptr);
             }
+            m_imageViews.clear();
 
             vkDestroySwapchainKHR(m_context.Device(), m_swapChain, nullptr);
         }
