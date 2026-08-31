@@ -28,55 +28,40 @@ namespace Kita::Pbrv
             float GetAO() const { return m_ao; }
             glm::vec3 GetEmissive() const { return m_emissive; }
 
-            void SetAlbedoTex(Resource::TextureAsset::Handle texture) { m_albedoTex = texture; }
+            void SetAlbedoTex(Resource::TextureAsset::Handle texture) { m_albedoTex = std::move(texture); }
             Resource::TextureAsset::Handle GetAlbedoTex() const { return m_albedoTex; }
-            void SetNormalTex(Resource::TextureAsset::Handle texture) { m_normalTex = texture; }
+            void SetNormalTex(Resource::TextureAsset::Handle texture) { m_normalTex = std::move(texture); }
             Resource::TextureAsset::Handle GetNormalTex() const { return m_normalTex; }
-            void SetMRTex(Resource::TextureAsset::Handle texture) { m_mrTex = texture; }
+            void SetMRTex(Resource::TextureAsset::Handle texture) { m_mrTex = std::move(texture); }
             Resource::TextureAsset::Handle GetMRTex() const { return m_mrTex; }
-            void SetAOTex(Resource::TextureAsset::Handle texture) { m_aoTex = texture; }
+            void SetAOTex(Resource::TextureAsset::Handle texture) { m_aoTex = std::move(texture); }
             Resource::TextureAsset::Handle GetAOTex() const { return m_aoTex; }
-            void SetEmissiveTex(Resource::TextureAsset::Handle texture) { m_emissiveTex = texture; }
+            void SetEmissiveTex(Resource::TextureAsset::Handle texture) { m_emissiveTex = std::move(texture); }
             Resource::TextureAsset::Handle GetEmissiveTex() const { return m_emissiveTex; }
 
-            Resource::TextureAsset::Handle GetTexture(uint32_t slot) const
+            Resource::TextureAsset::Handle GetTexture(Resource::MaterialSlot slot) const
             {
                 switch (slot)
                 {
-                case Resource::MaterialTextureSlot::Albedo:
-                    return m_albedoTex;
-                case Resource::MaterialTextureSlot::Normal:
-                    return m_normalTex;
-                case Resource::MaterialTextureSlot::MetallicRoughness:
-                    return m_mrTex;
-                case Resource::MaterialTextureSlot::AO:
-                    return m_aoTex;
-                case Resource::MaterialTextureSlot::Emissive:
-                    return m_emissiveTex;
+                case Resource::MaterialSlot::Albedo:            return GetAlbedoTex();
+                case Resource::MaterialSlot::Normal:            return GetNormalTex();
+                case Resource::MaterialSlot::MetallicRoughness: return GetMRTex();
+                case Resource::MaterialSlot::AO:                return GetAOTex();
+                case Resource::MaterialSlot::Emissive:          return GetEmissiveTex();
                 default:
                     throw std::runtime_error("Invalid texture slot!");
                 }
             }
 
-            void SetTexture(uint32_t slot, Resource::TextureAsset::Handle texture)
+            void SetTexture(Resource::MaterialSlot slot, Resource::TextureAsset::Handle texture)
             {
                 switch (slot)
                 {
-                case Resource::MaterialTextureSlot::Albedo:
-                    m_albedoTex = std::move(texture);
-                    break;
-                case Resource::MaterialTextureSlot::Normal:
-                    m_normalTex = std::move(texture);
-                    break;
-                case Resource::MaterialTextureSlot::MetallicRoughness:
-                    m_mrTex = std::move(texture);
-                    break;
-                case Resource::MaterialTextureSlot::AO:
-                    m_aoTex = std::move(texture);
-                    break;
-                case Resource::MaterialTextureSlot::Emissive:
-                    m_emissiveTex = std::move(texture);
-                    break;
+                case Resource::MaterialSlot::Albedo:            SetAlbedoTex(std::move(texture)); break;
+                case Resource::MaterialSlot::Normal:            SetNormalTex(std::move(texture)); break;
+                case Resource::MaterialSlot::MetallicRoughness: SetMRTex(std::move(texture)); break;
+                case Resource::MaterialSlot::AO:                SetAOTex(std::move(texture)); break;
+                case Resource::MaterialSlot::Emissive:          SetEmissiveTex(std::move(texture)); break;
                 default:
                     throw std::runtime_error("Invalid texture slot!");
                 }

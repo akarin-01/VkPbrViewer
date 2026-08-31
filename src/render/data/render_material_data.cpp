@@ -39,19 +39,19 @@ namespace Kita::Pbrv
                 }
             }
 
-            const char* ToString(Resource::MaterialTextureSlot slot)
+            const char* ToString(Resource::MaterialSlot slot)
             {
                 switch (slot)
                 {
-                case Resource::Albedo:
+                case Resource::MaterialSlot::Albedo:
                     return "Resource::Albedo";
-                case Resource::Normal:
+                case Resource::MaterialSlot::Normal:
                     return "Resource::Normal";
-                case Resource::MetallicRoughness:
+                case Resource::MaterialSlot::MetallicRoughness:
                     return "Resource::MetallicRoughness";
-                case Resource::AO:
+                case Resource::MaterialSlot::AO:
                     return "Resource::AO";
-                case Resource::Emissive:
+                case Resource::MaterialSlot::Emissive:
                     return "Resource::Emissive";
                 default:
                     return "Unknown";
@@ -66,9 +66,9 @@ namespace Kita::Pbrv
             m_resources(resources),
             m_descriptorMgr(descriptorMgr)
         {
-            for (uint32_t i = 0; i < Resource::kMaterialTextureCount; ++i)
+            for (uint32_t i = 0; i < Resource::kMaterialSlotCount; ++i)
             {
-                m_fallbacks[i] = CreateFallback(Resource::MaterialTextureSlot(i));
+                m_fallbacks[i] = CreateFallback(static_cast<Resource::MaterialSlot>(i));
                 m_textures[i] = m_fallbacks[i];
             }
 
@@ -82,7 +82,7 @@ namespace Kita::Pbrv
 
         RenderMaterialData::~RenderMaterialData()
         {
-            for (uint32_t i = 0; i < Resource::kMaterialTextureCount; ++i)
+            for (uint32_t i = 0; i < Resource::kMaterialSlotCount; ++i)
             {
                 DestroyTextureSafe(i);
                 Resource::DestroyTexture(m_resources, m_fallbacks[i]);
@@ -93,9 +93,9 @@ namespace Kita::Pbrv
         {
             bool anyTexUpdated = false;
 
-            for (uint32_t i = 0; i < Resource::kMaterialTextureCount; ++i)
+            for (uint32_t i = 0; i < Resource::kMaterialSlotCount; ++i)
             {
-                const auto texHandle = sceneMat.GetTexture(i);
+                const auto texHandle = sceneMat.GetTexture(static_cast<Resource::MaterialSlot>(i));
                 if (texHandle.GetId() == m_lastSyncedTextureIds[i])
                 {
                     continue;
@@ -112,7 +112,7 @@ namespace Kita::Pbrv
                 {
                     m_textures[i] = CreateTexture(*texHandle);
 
-                    Core::Log::Info("[Renderer] Create texture [", ToString(Resource::MaterialTextureSlot(i)), "]: ",
+                    Core::Log::Info("[Renderer] Create texture [", ToString(static_cast<Resource::MaterialSlot>(i)), "]: ",
                         texHandle->m_name, ", ", texHandle->GetByteCount(), " bytes");
                 }
 
@@ -144,7 +144,7 @@ namespace Kita::Pbrv
         void RenderMaterialData::WriteSet(uint32_t frameIndex) const
         {
             Rhi::DescriptorWriter writer(m_resources, m_context.Device());
-            for (uint32_t i = 0; i < Resource::kMaterialTextureCount; ++i)
+            for (uint32_t i = 0; i < Resource::kMaterialSlotCount; ++i)
             {
                 writer.WriteImage(i, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, m_textures[i].m_imageViewHandle, m_textures[i].m_samplerHandle);
@@ -172,7 +172,7 @@ namespace Kita::Pbrv
                 texture.m_width, texture.m_height, format, mipLevels, m_resources.CreateSamplerLinearRepeatMip());
         }
 
-        Resource::RenderTexture RenderMaterialData::CreateFallback(Resource::MaterialTextureSlot slot) const
+        Resource::RenderTexture RenderMaterialData::CreateFallback(Resource::MaterialSlot slot) const
         {
             constexpr uint8_t white[] = { 255, 255, 255, 255 };
             constexpr uint8_t black[] = { 0, 0, 0, 255 };
@@ -185,23 +185,23 @@ namespace Kita::Pbrv
 
             switch (slot)
             {
-            case Resource::Albedo:
+            case Resource::MaterialSlot::Albedo:
                 tex.m_bytes = std::vector<uint8_t>(white, white + 4);
                 tex.m_type = Resource::TextureAsset::Type::Srgb;
                 break;
-            case Resource::Normal:
+            case Resource::MaterialSlot::Normal:
                 tex.m_bytes = std::vector<uint8_t>(flat, flat + 4);
                 tex.m_type = Resource::TextureAsset::Type::Normal;
                 break;
-            case Resource::MetallicRoughness:
+            case Resource::MaterialSlot::MetallicRoughness:
                 tex.m_bytes = std::vector<uint8_t>(white, white + 4);
                 tex.m_type = Resource::TextureAsset::Type::MetallicRoughness;
                 break;
-            case Resource::AO:
+            case Resource::MaterialSlot::AO:
                 tex.m_bytes = std::vector<uint8_t>(white, white + 1);
                 tex.m_type = Resource::TextureAsset::Type::Linear;
                 break;
-            case Resource::Emissive:
+            case Resource::MaterialSlot::Emissive:
                 tex.m_bytes = std::vector<uint8_t>(black, black + 4);
                 tex.m_type = Resource::TextureAsset::Type::Srgb;
                 break;

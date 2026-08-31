@@ -18,7 +18,7 @@ namespace Kita::Pbrv
         {
             constexpr float kDragSpeed = 0.005f;
 
-            void DrawTextureRaw(const char* title, Scene::Material& mat, uint32_t slot,
+            void DrawTextureRaw(const char* title, Scene::Material& mat, Resource::MaterialSlot slot,
                 Resource::TextureAsset::Type type, Resource::AssetManager& assets)
             {
                 const auto tex = mat.GetTexture(slot);
@@ -210,11 +210,11 @@ namespace Kita::Pbrv
 
                             DrawBox("##TexturesBox", "Textures", [&mat, &assets]()
                                 {
-                                    DrawTextureRaw("Albedo:   ", mat, Resource::MaterialTextureSlot::Albedo, Resource::TextureAsset::Type::Srgb, assets);
-                                    DrawTextureRaw("Normal:   ", mat, Resource::MaterialTextureSlot::Normal, Resource::TextureAsset::Type::Normal, assets);
-                                    DrawTextureRaw("MR:       ", mat, Resource::MaterialTextureSlot::MetallicRoughness, Resource::TextureAsset::Type::MetallicRoughness, assets);
-                                    DrawTextureRaw("AO:       ", mat, Resource::MaterialTextureSlot::AO, Resource::TextureAsset::Type::Linear, assets);
-                                    DrawTextureRaw("Emissive: ", mat, Resource::MaterialTextureSlot::Emissive, Resource::TextureAsset::Type::Srgb, assets);
+                                    DrawTextureRaw("Albedo:   ", mat, Resource::MaterialSlot::Albedo, Resource::TextureAsset::Type::Srgb, assets);
+                                    DrawTextureRaw("Normal:   ", mat, Resource::MaterialSlot::Normal, Resource::TextureAsset::Type::Normal, assets);
+                                    DrawTextureRaw("MR:       ", mat, Resource::MaterialSlot::MetallicRoughness, Resource::TextureAsset::Type::MetallicRoughness, assets);
+                                    DrawTextureRaw("AO:       ", mat, Resource::MaterialSlot::AO, Resource::TextureAsset::Type::Linear, assets);
+                                    DrawTextureRaw("Emissive: ", mat, Resource::MaterialSlot::Emissive, Resource::TextureAsset::Type::Srgb, assets);
                                 });
                         });
                 }

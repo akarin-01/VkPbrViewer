@@ -177,7 +177,7 @@ namespace Kita::Pbrv
         struct PerObjectSet
         {
             // Set 3: K UBO slots + K descriptor sets, bound once at creation.
-            std::array<Resource::UboResource, Rhi::kMaxFramesInFlight> m_ubos{};
+            std::array<UboResource, Rhi::kMaxFramesInFlight> m_ubos{};
             std::array<VkDescriptorSet, Rhi::kMaxFramesInFlight> m_sets{};
             VkDescriptorSetLayout m_layout{ VK_NULL_HANDLE };
 
@@ -188,6 +188,44 @@ namespace Kita::Pbrv
 
             VkDescriptorSetLayout GetLayout() const { return m_layout; }
             const VkDescriptorSet& GetSet(uint32_t frameIndex) const { return m_sets[frameIndex]; }
+        };
+
+        struct MaterialDesc
+        {
+            // One texture id per material slot; kInvalidId = fallback.
+            std::array<ResourceId, kMaterialSlotCount> m_textureIds{};
+
+            bool operator==(const MaterialDesc& other) const
+            {
+                return m_textureIds == other.m_textureIds;
+            }
+
+            struct Hash
+            {
+                size_t operator()(const MaterialDesc& d) const
+                {
+                    size_t h = 1469598103934665603ull;
+                    auto mix = [&h](uint64_t v) { h ^= v; h *= 1099511628211ull; };
+                    for (ResourceId id : d.m_textureIds)
+                    {
+                        mix(id);
+                    }
+                    return h;
+                }
+            };
+        };
+
+        struct PerMaterialSet
+        {
+            using Handle = Handle<PerMaterialSet>;
+
+            // Set 2 (one immutable set; empty slots share the manager's fallbacks).
+            std::array<TextureResource, kMaterialSlotCount> m_textures{};
+            VkDescriptorSet m_set{ VK_NULL_HANDLE };
+            VkDescriptorSetLayout m_layout{ VK_NULL_HANDLE };
+
+            VkDescriptorSetLayout GetLayout() const { return m_layout; }
+            const VkDescriptorSet& GetSet() const { return m_set; }
         };
     }
 }

@@ -11,14 +11,16 @@ namespace Kita::Pbrv
         constexpr uint32_t kPrefilterBaseSize = 128;
         constexpr uint32_t kBrdfLutSize = 512;
 
-        enum MaterialTextureSlot : uint32_t
+        enum class MaterialSlot : uint32_t
         {
             Albedo = 0,
             Normal,
             MetallicRoughness,
             AO,
             Emissive,
-            kMaterialTextureCount
+            Count
         };
+
+        constexpr uint32_t kMaterialSlotCount = static_cast<uint32_t>(MaterialSlot::Count);
     }
 }

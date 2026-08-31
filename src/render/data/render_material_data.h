@@ -45,7 +45,7 @@ namespace Kita::Pbrv
             const VkDescriptorSet& GetSet(uint32_t frameIndex) const { return m_sets[frameIndex]; }
 
         private:
-            Resource::RenderTexture CreateFallback(Resource::MaterialTextureSlot slot) const;
+            Resource::RenderTexture CreateFallback(Resource::MaterialSlot slot) const;
             Resource::RenderTexture CreateTexture(const Resource::TextureAsset& texture) const;
             void DestroyTextureSafe(uint32_t slot);
             void WriteSet(uint32_t frameIndex) const;
@@ -55,9 +55,9 @@ namespace Kita::Pbrv
             Resource::Resources& m_resources;
             Resource::DescriptorManager& m_descriptorMgr;
 
-            std::array<Resource::RenderTexture, Resource::kMaterialTextureCount> m_textures{};
-            std::array<Resource::RenderTexture, Resource::kMaterialTextureCount> m_fallbacks{};
-            std::array<Resource::ResourceId, Resource::kMaterialTextureCount> m_lastSyncedTextureIds{};
+            std::array<Resource::RenderTexture, Resource::kMaterialSlotCount> m_textures{};
+            std::array<Resource::RenderTexture, Resource::kMaterialSlotCount> m_fallbacks{};
+            std::array<Resource::ResourceId, Resource::kMaterialSlotCount> m_lastSyncedTextureIds{};
             std::array<VkDescriptorSet, Rhi::kMaxFramesInFlight> m_sets{};
 
             uint32_t m_setDirtyCount{ 0 };

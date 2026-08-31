@@ -102,8 +102,40 @@ namespace Kita::Pbrv
                 {
                     Core::Log::Info("[Resource] Release mesh resource: vb ",
                         mesh.m_vertexBuffer->m_size, " + ib ", mesh.m_indexBuffer->m_size, " bytes");
+                }),
+            m_materialTable([](PerMaterialSet&&)
+                {
+                    KITA_LOG_DEBUG("[Resource] Release per material set");
+                    // Texture handles release with the entry; each pushes into
+                    // its own graveyard queue through the tables above.
                 })
         {
+            // One 1x1 fallback image per material slot; empty slots assemble a
+            // fresh view + shared sampler over the image.
+            constexpr uint8_t white[] = { 255, 255, 255, 255 };
+            constexpr uint8_t black[] = { 0, 0, 0, 255 };
+            constexpr uint8_t flat[] = { 128, 128, 255, 255 };
+
+            const auto makeFallback = [this](VkFormat format, const uint8_t* bytes, size_t size)
+                {
+                    ImageDesc desc{};
+                    desc.m_extent = { 1, 1, 1 };
+                    desc.m_aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                    desc.m_usage = VK_IMAGE_USAGE_SAMPLED_BIT;
+                    desc.m_format = format;
+                    return CreateImage(desc, bytes, size);
+                };
+
+            m_fallbacks[static_cast<size_t>(Resource::MaterialSlot::Albedo)] =
+                makeFallback(VK_FORMAT_R8G8B8A8_SRGB, white, 4);    // opaque white
+            m_fallbacks[static_cast<size_t>(Resource::MaterialSlot::Normal)] =
+                makeFallback(VK_FORMAT_R8G8B8A8_UNORM, flat, 4);    // flat tangent-space normal
+            m_fallbacks[static_cast<size_t>(Resource::MaterialSlot::MetallicRoughness)] =
+                makeFallback(VK_FORMAT_R8G8B8A8_UNORM, white, 4);   // metal 1, rough 0
+            m_fallbacks[static_cast<size_t>(Resource::MaterialSlot::AO)] =
+                makeFallback(VK_FORMAT_R8_UNORM, white, 1);         // no occlusion
+            m_fallbacks[static_cast<size_t>(Resource::MaterialSlot::Emissive)] =
+                makeFallback(VK_FORMAT_R8G8B8A8_SRGB, black, 4);    // no emission
         }
 
         ResourceManager::~ResourceManager() = default;
@@ -125,7 +157,7 @@ namespace Kita::Pbrv
             return m_imageTable.Create(std::move(image));
         }
 
-        ImageViewRhi::Handle ResourceManager::CreateImageView(const ImageViewDesc& desc, const ImageRhi::Handle& image)
+        ImageViewRhi::Handle ResourceManager::CreateImageView(const ImageViewDesc& desc, ImageRhi::Handle image)
         {
             if (!image)
             {
@@ -133,7 +165,7 @@ namespace Kita::Pbrv
             }
 
             ImageViewRhi imageView = ResourceUtils::CreateImageViewRhi(m_context, *image, desc);
-            imageView.m_image = image;
+            imageView.m_image = std::move(image);
 
             KITA_LOG_DEBUG("[Resource] Create image view");
             return m_imageViewTable.Create(std::move(imageView));
@@ -199,16 +231,14 @@ namespace Kita::Pbrv
 
         TextureResource ResourceManager::CreateTexture(ResourceId textureId, const ImageViewDesc& imageViewDesc, const SamplerDesc& samplerDesc)
         {
-            TextureResource texture{};
-            texture.m_image = GetOrCreateImage(textureId);
-            if (!texture.m_image)
+            const ImageRhi::Handle image = GetOrCreateImage(textureId);
+            if (!image)
             {
                 // Invalid texture id: empty texture, matching GetOrCreate* convention
                 return TextureResource{};
             }
 
-            texture.m_imageView = CreateImageView(imageViewDesc, texture.m_image);
-            texture.m_sampler = GetOrCreateSampler(samplerDesc);
+            const TextureResource texture = CreateTexture(image, imageViewDesc, samplerDesc);
 
             Core::Log::Info("[Resource] Create texture resource: texture asset(", textureId, ")");
             return texture;
@@ -216,13 +246,19 @@ namespace Kita::Pbrv
 
         TextureResource ResourceManager::CreateTexture(const ImageDesc& imageDesc, const ImageViewDesc& imageViewDesc, const SamplerDesc& samplerDesc, const void* data, size_t size)
         {
-            TextureResource texture{};
-            texture.m_image = CreateImage(imageDesc, data, size);
-            texture.m_imageView = CreateImageView(imageViewDesc, texture.m_image);
-            texture.m_sampler = GetOrCreateSampler(samplerDesc);
+            const TextureResource texture = CreateTexture(CreateImage(imageDesc, data, size), imageViewDesc, samplerDesc);
 
             Core::Log::Info("[Resource] Create texture resource: image data ", size, " bytes, ",
                 imageDesc.m_extent.width, "x", imageDesc.m_extent.height);
+            return texture;
+        }
+
+        TextureResource ResourceManager::CreateTexture(ImageRhi::Handle image, const ImageViewDesc& imageViewDesc, const SamplerDesc& samplerDesc)
+        {
+            TextureResource texture{};
+            texture.m_image = std::move(image);
+            texture.m_imageView = CreateImageView(imageViewDesc, texture.m_image);
+            texture.m_sampler = GetOrCreateSampler(samplerDesc);
             return texture;
         }
 
@@ -285,6 +321,28 @@ namespace Kita::Pbrv
             return perObject;
         }
 
+        PerMaterialSet::Handle ResourceManager::GetOrCreatePerMaterialSet(const MaterialDesc& desc)
+        {
+            auto it = m_materialIds.find(desc);
+            if (it != m_materialIds.end())
+            {
+                const ResourceId id = it->second;
+                // The mapping can outlive its entry (every handle released):
+                // a stale id falls through and is rebuilt below.
+                if (m_materialTable.Has(id))
+                {
+                    // Cache hit: add ref
+                    KITA_LOG_DEBUG("[Resource] Reuse per material set");
+                    return m_materialTable.GetShared(id);
+                }
+            }
+
+            // Cache miss: create
+            PerMaterialSet::Handle handle = CreatePerMaterialSet(desc);
+            m_materialIds[desc] = handle.GetId();
+            return handle;
+        }
+
         void ResourceManager::FlushGraveyard()
         {
             m_graveyard.Flush();
@@ -327,6 +385,45 @@ namespace Kita::Pbrv
         UboResource ResourceManager::CreateUbo(const BufferDesc& desc)
         {
             return UboResource{ CreateBuffer(desc) };
+        }
+
+        PerMaterialSet::Handle ResourceManager::CreatePerMaterialSet(const MaterialDesc& desc)
+        {
+            // Material sampling policy, spelled out at the only assembly point.
+            ImageViewDesc imageViewDesc{};
+            imageViewDesc.m_type = VK_IMAGE_VIEW_TYPE_2D;
+            imageViewDesc.m_fullRange = true;
+
+            SamplerDesc samplerDesc{};
+            samplerDesc.m_magFilter = VK_FILTER_LINEAR;
+            samplerDesc.m_minFilter = VK_FILTER_LINEAR;
+            samplerDesc.m_mipMode = SamplerDesc::MipMode::Linear;
+            samplerDesc.m_addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            samplerDesc.m_addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            samplerDesc.m_addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+
+            PerMaterialSet material{};
+            material.m_layout = m_descriptorMgr.GetLayout(DescriptorLayoutType::PerMaterial);
+            material.m_set = m_descriptorMgr.Allocate(DescriptorLayoutType::PerMaterial);
+
+            for (uint32_t i = 0; i < Resource::kMaterialSlotCount; ++i)
+            {
+                const TextureResource tex = CreateTexture(desc.m_textureIds[i], imageViewDesc, samplerDesc);
+                material.m_textures[i] = tex.IsEmpty() ? CreateTexture(m_fallbacks[i], imageViewDesc, samplerDesc) : tex;
+            }
+
+            Rhi::V2::DescriptorWriter writer(m_context.Device());
+            for (uint32_t i = 0; i < Resource::kMaterialSlotCount; ++i)
+            {
+                writer.WriteImage(i, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                    material.m_textures[i].GetImageView(), material.m_textures[i].GetSampler());
+            }
+            writer.UpdateSet(material.m_set);
+
+            KITA_LOG_DEBUG("[Resource] Create per-material set: ", Resource::kMaterialSlotCount,
+                " texture slots, 1 set");
+            return m_materialTable.Create(std::move(material));
         }
 
         ImageRhi::Handle ResourceManager::CreateImage(const TextureAsset& asset)
