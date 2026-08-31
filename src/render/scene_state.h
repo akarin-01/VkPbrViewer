@@ -2,19 +2,24 @@
 
 #include "resource/resource_types.h"
 #include "resource/resource_id.h"
+#include "resource/constants.h"
 
 #include <vulkan/vulkan.h>
+#include <array>
 
 namespace Kita::Pbrv
 {
     namespace Render
     {
-        /// One render-scene entity: per-object set (set 3) + mesh. The empty
-        /// state (no mesh, no set) is valid; created by RenderScene::CreateObjectState.
+        /// One render-scene entity: material set (set 2) + per-object set
+        /// (set 3) + mesh. The empty state (no mesh, fallback material) is
+        /// valid; created by RenderScene::CreateObjectState, updated per frame.
         struct ObjectState
         {
             // Set
-            Resource::PerObjectSet m_set{};
+            Resource::PerMaterialSet::Handle m_materialSet{};
+            Resource::PerObjectSet m_objectSet{};
+            std::array<Resource::ResourceId, Resource::kMaterialSlotCount> m_lastTextureIds{};
 
             // Mesh
             Resource::MeshResource::Handle m_mesh{};
@@ -25,10 +30,12 @@ namespace Kita::Pbrv
             VkBuffer GetIndexBuffer() const { return m_mesh->GetIndexBuffer(); }
             uint32_t GetIndexCount() const { return m_mesh->GetIndexCount(); }
 
-            void WriteData(uint32_t frameIndex, const Gpu::PerObject& data) { m_set.WriteData(frameIndex, data); }
+            void WriteData(uint32_t frameIndex, const Gpu::PerObject& data) { m_objectSet.WriteData(frameIndex, data); }
 
-            VkDescriptorSetLayout GetLayout() const { return m_set.m_layout; }
-            const VkDescriptorSet& GetSet(uint32_t frameIndex) const { return m_set.GetSet(frameIndex); }
+            VkDescriptorSetLayout GetMaterialLayout() const { return m_materialSet->GetLayout(); }
+            const VkDescriptorSet& GetMaterialSet() const { return m_materialSet->GetSet(); }
+            VkDescriptorSetLayout GetObjectLayout() const { return m_objectSet.GetLayout(); }
+            const VkDescriptorSet& GetObjectSet(uint32_t frameIndex) const { return m_objectSet.GetSet(frameIndex); }
         };
     }
 }

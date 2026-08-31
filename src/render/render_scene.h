@@ -4,7 +4,6 @@
 #include "render/scene_state.h"
 #include "render/render_target.h"
 #include "render/data/render_frame_data.h"
-#include "render/data/render_material_data.h"
 #include "render/data/render_post_process_data.h"
 
 #include <vulkan/vulkan.h>
@@ -46,7 +45,6 @@ namespace Kita::Pbrv
             void Recreate(VkExtent2D extent);
 
             const RenderFrameData& GetFrameData() const { return m_frameData; }
-            const RenderMaterialData& GetMaterialData() const { return m_materialData; }
             const ObjectState& GetObjectState() const { return m_objectState; }
             const RenderPostProcessData& GetPostProcessData() const { return m_postProcessData; }
 
@@ -57,7 +55,7 @@ namespace Kita::Pbrv
 
         private:
             ObjectState CreateObjectState() const;
-            void UpdateObjectState(uint32_t frameIndex, const Scene::Object& object);
+            void UpdateObject(ObjectState& state, uint32_t frameIndex, const Scene::Object& object);
 
         private:
             const Rhi::Context& m_context;
@@ -67,7 +65,6 @@ namespace Kita::Pbrv
             RenderTarget m_target;
 
             RenderFrameData m_frameData;
-            RenderMaterialData m_materialData;
             ObjectState m_objectState{};
 
             RenderPostProcessData m_postProcessData;

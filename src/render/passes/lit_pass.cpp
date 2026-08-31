@@ -19,7 +19,6 @@ namespace Kita::Pbrv
             : RenderPassBase(context, resources, swapChain),
             m_target(scene.GetTarget()),
             m_frameData(scene.GetFrameData()),
-            m_materialData(scene.GetMaterialData()),
             m_objectState(scene.GetObjectState())
         {
             CreatePipeline(scene.GetEmptyLayout());
@@ -72,9 +71,9 @@ namespace Kita::Pbrv
                     0, 1, &m_frameData.GetSet(frameIndex), 0, nullptr);
                 {
                     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                        2, 1, &m_materialData.GetSet(frameIndex), 0, nullptr);
+                        2, 1, &m_objectState.GetMaterialSet(), 0, nullptr);
                     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                        3, 1, &m_objectState.GetSet(frameIndex), 0, nullptr);
+                        3, 1, &m_objectState.GetObjectSet(frameIndex), 0, nullptr);
 
                     if (m_objectState.HasMesh())
                     {
@@ -102,8 +101,8 @@ namespace Kita::Pbrv
                     {
                         m_frameData.GetSetLayout(),
                         emptyLayout,
-                        m_materialData.GetSetLayout(),
-                        m_objectState.GetLayout(),
+                        m_objectState.GetMaterialLayout(),
+                        m_objectState.GetObjectLayout(),
                     })
                     .SetDynamicRendering({ m_target.GetColorFormat() }, m_target.GetDepthFormat());
             m_pipeline = builder.Build();
