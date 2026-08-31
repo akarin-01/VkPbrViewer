@@ -134,14 +134,12 @@ add_executable(VkPbrViewer
     src/resource/resources.cpp
 
     # render
-    src/render/render_target.cpp
     src/render/render_pipeline.cpp
     src/render/render_scene.cpp
     src/render/renderer.cpp
 
     # render data
     src/render/data/render_frame_data.cpp
-    src/render/data/render_post_process_data.cpp
 
     # render passes
     src/render/passes/lit_pass.cpp

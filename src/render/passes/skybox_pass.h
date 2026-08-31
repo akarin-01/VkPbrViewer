@@ -10,11 +10,14 @@ namespace Kita::Pbrv
     {
         class GraphicsPipeline;
     }
+    namespace Resource
+    {
+        struct TargetResource;
+    }
 
     namespace Render
     {
         class RenderScene;
-        class RenderTarget;
         class RenderFrameData;
 
         class SkyboxPass : public RenderPassBase
@@ -33,7 +36,7 @@ namespace Kita::Pbrv
             void CreatePipeline();
 
         private:
-            const RenderTarget& m_target;
+            const Resource::TargetResource& m_target;
             const RenderFrameData& m_frameData;
 
             std::unique_ptr<Rhi::GraphicsPipeline> m_pipeline;

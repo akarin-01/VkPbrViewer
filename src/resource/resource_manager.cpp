@@ -245,6 +245,44 @@ namespace Kita::Pbrv
                 });
         }
 
+        TargetResource ResourceManager::CreateTarget(const TargetDesc& desc)
+        {
+            // Color (MSAA) + resolve + depth. Color and resolve share the
+            // format: vkCmdResolveImage requires identical src/dst formats.
+            ImageDesc colorDesc{};
+            colorDesc.m_extent = { desc.m_extent.width, desc.m_extent.height, 1 };
+            colorDesc.m_format = desc.m_colorFormat;
+            colorDesc.m_aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            colorDesc.m_usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+            colorDesc.m_samples = desc.m_msaaSamples;
+            colorDesc.m_properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+            ImageDesc resolveDesc = colorDesc;
+            resolveDesc.m_samples = VK_SAMPLE_COUNT_1_BIT;
+            resolveDesc.m_usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
+
+            ImageDesc depthDesc{};
+            depthDesc.m_extent = { desc.m_extent.width, desc.m_extent.height, 1 };
+            depthDesc.m_format = desc.m_depthFormat;
+            depthDesc.m_aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+            depthDesc.m_usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+            depthDesc.m_samples = desc.m_msaaSamples;   // MSAA depth matches color
+            depthDesc.m_properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+            ImageViewDesc viewDesc{};
+            viewDesc.m_type = VK_IMAGE_VIEW_TYPE_2D;
+            viewDesc.m_fullRange = true;
+
+            TargetResource target{};
+            target.m_colorTexture = CreateTexture(colorDesc, viewDesc, desc.m_samplerDesc);
+            target.m_resolveTexture = CreateTexture(resolveDesc, viewDesc, desc.m_samplerDesc);
+            target.m_depthTexture = CreateTexture(depthDesc, viewDesc, desc.m_samplerDesc);
+
+            Core::Log::Info("[Resource] Create target: ", desc.m_extent.width, "x", desc.m_extent.height,
+                ", samples ", desc.m_msaaSamples);
+            return target;
+        }
+
         PerObjectSet ResourceManager::CreatePerObjectSet()
         {
             constexpr DescriptorLayoutType kLayoutType = DescriptorLayoutType::PerObject;
@@ -262,6 +300,10 @@ namespace Kita::Pbrv
             for (size_t i = 0; i < perObject.m_ubos.size(); ++i)
             {
                 perObject.m_ubos[i] = CreateUbo(desc);
+            }
+
+            for (size_t i = 0; i < perObject.m_sets.size(); ++i)
+            {
                 perObject.m_sets[i] = m_descriptorMgr.Allocate(kLayoutType);
 
                 Rhi::V2::DescriptorWriter writer(m_context.Device());
@@ -281,6 +323,41 @@ namespace Kita::Pbrv
                 {
                     return CreatePerMaterialSet(d);
                 });
+        }
+
+        PostProcessSet ResourceManager::CreatePostProcessSet(const TextureResource& texture)
+        {
+            constexpr DescriptorLayoutType kLayoutType = DescriptorLayoutType::PostProcess;
+
+            PostProcessSet postProcess{};
+            postProcess.m_layout = m_descriptorMgr.GetLayout(kLayoutType);
+
+            Resource::BufferDesc desc{};
+            desc.m_size = sizeof(Gpu::PostProcess);
+            desc.m_usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+            desc.m_properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+            desc.m_mapped = true;
+
+            for (size_t i = 0; i < postProcess.m_ubos.size(); ++i)
+            {
+                postProcess.m_ubos[i] = CreateUbo(desc);
+            }
+
+            for (size_t i = 0; i < postProcess.m_sets.size(); ++i)
+            {
+                postProcess.m_sets[i] = m_descriptorMgr.Allocate(kLayoutType);
+
+                Rhi::V2::DescriptorWriter writer(m_context.Device());
+                writer.WriteBuffer(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                    postProcess.m_ubos[i].GetBuffer(), 0, sizeof(Gpu::PostProcess))
+                    .WriteImage(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, texture.GetImageView(), texture.GetSampler())
+                    .UpdateSet(postProcess.m_sets[i]);
+            }
+
+            KITA_LOG_DEBUG("[Resource] Create post process set: ", postProcess.m_ubos.size(), " ubo slots, ",
+                sizeof(Gpu::PostProcess), " bytes, ", postProcess.m_sets.size(), " sets, 1 texture slot");
+            return postProcess;
         }
 
         void ResourceManager::FlushGraveyard()

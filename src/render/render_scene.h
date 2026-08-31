@@ -2,9 +2,7 @@
 
 #include "rhi/frame_info.h"
 #include "render/scene_state.h"
-#include "render/render_target.h"
 #include "render/data/render_frame_data.h"
-#include "render/data/render_post_process_data.h"
 
 #include <vulkan/vulkan.h>
 
@@ -45,29 +43,27 @@ namespace Kita::Pbrv
             void Recreate(VkExtent2D extent);
 
             const RenderFrameData& GetFrameData() const { return m_frameData; }
-            const ObjectState& GetObjectState() const { return m_objectState; }
-            const RenderPostProcessData& GetPostProcessData() const { return m_postProcessData; }
-
-            const RenderTarget& GetTarget() const { return m_target; }
-            RenderTarget& GetTarget() { return m_target; }
+            const GlobalState& GetGlobal() const { return m_global; }
+            GlobalState& GetGlobal() { return m_global; }
+            const ObjectState& GetObject() const { return m_object; }
 
             VkDescriptorSetLayout GetEmptyLayout() const;
 
         private:
-            ObjectState CreateObjectState() const;
-            void UpdateObject(ObjectState& state, uint32_t frameIndex, const Scene::Object& object);
+            Resource::TargetResource CreateTarget(VkExtent2D extent) const;
+            ObjectState CreateObject() const;
+            void UpdateGlobal(uint32_t frameIndex, const Scene::Scene& scene);
+            void UpdateObject(ObjectState& object, uint32_t frameIndex, const Scene::Object& sceneObject);
 
         private:
             const Rhi::Context& m_context;
             Resource::ResourceManager& m_resourceMgr;
             Resource::DescriptorManager& m_descriptorMgr;
 
-            RenderTarget m_target;
+            GlobalState m_global{};
+            ObjectState m_object{};
 
             RenderFrameData m_frameData;
-            ObjectState m_objectState{};
-
-            RenderPostProcessData m_postProcessData;
         };
     }
 }

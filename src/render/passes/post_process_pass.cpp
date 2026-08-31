@@ -16,9 +16,7 @@ namespace Kita::Pbrv
             const Rhi::SwapChain& swapChain,
             const RenderScene& scene)
             : RenderPassBase(context, resources, swapChain),
-            m_target(scene.GetTarget()),
-            m_frameData(scene.GetFrameData()),
-            m_postProcessData(scene.GetPostProcessData())
+            m_postProcessSet(scene.GetGlobal().m_postProcessSet)
         {
             CreatePipeline(scene.GetEmptyLayout());
         }
@@ -58,7 +56,7 @@ namespace Kita::Pbrv
 
                 // Draw
                 vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                    1, 1, &m_postProcessData.GetSet(frameIndex), 0, nullptr);
+                    1, 1, &m_postProcessSet.m_sets[frameIndex], 0, nullptr);
 
                 vkCmdDraw(commandBuffer, 3, 1, 0, 0);
             }
@@ -72,7 +70,7 @@ namespace Kita::Pbrv
                 .SetDescriptorSetLayouts(
                     {
                         emptyLayout,
-                        m_postProcessData.GetSetLayout(),
+                        m_postProcessSet.m_layout,
                     })
                     .SetDynamicRendering({ m_swapChain.Format() }, VK_FORMAT_UNDEFINED);
             m_pipeline = builder.Build();

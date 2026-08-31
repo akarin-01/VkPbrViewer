@@ -169,7 +169,38 @@ namespace Kita::Pbrv
             VkImage GetImage() const { return m_image->m_image; }
             VkImageView GetImageView() const { return m_imageView->m_imageView; }
             VkSampler GetSampler() const { return m_sampler->m_sampler; }
+            VkFormat GetFormat() const { return m_image->m_format; }
             bool IsEmpty() const { return !m_image; }
+        };
+
+        struct TargetDesc
+        {
+            VkExtent2D m_extent{ 0, 0 };
+            VkFormat m_colorFormat{ VK_FORMAT_UNDEFINED };
+            VkFormat m_depthFormat{ VK_FORMAT_UNDEFINED };
+            VkSampleCountFlagBits m_msaaSamples{ VK_SAMPLE_COUNT_1_BIT };
+            SamplerDesc m_samplerDesc{};
+        };
+
+        struct TargetResource
+        {
+            TextureResource m_colorTexture{};
+            TextureResource m_resolveTexture{};
+            TextureResource m_depthTexture{};
+
+            VkImage GetColorImage() const { return m_colorTexture.GetImage(); }
+            VkImageView GetColorImageView() const { return m_colorTexture.GetImageView(); }
+            VkSampler GetColorSampler() const { return m_colorTexture.GetSampler(); }
+            VkFormat GetColorFormat() const { return m_colorTexture.GetFormat(); }
+
+            VkImage GetResolveImage() const { return m_resolveTexture.GetImage(); }
+            VkImageView GetResolveImageView() const { return m_resolveTexture.GetImageView(); }
+            VkSampler GetResolveSampler() const { return m_resolveTexture.GetSampler(); }
+
+            VkImage GetDepthImage() const { return m_depthTexture.GetImage(); }
+            VkImageView GetDepthImageView() const { return m_depthTexture.GetImageView(); }
+            VkSampler GetDepthSampler() const { return m_depthTexture.GetSampler(); }
+            VkFormat GetDepthFormat() const { return m_depthTexture.GetFormat(); }
         };
 
         // ------------- L2: Set (descriptor sets) -------------
@@ -185,9 +216,6 @@ namespace Kita::Pbrv
             {
                 m_ubos[frameIndex].Write(&data, sizeof(data));
             }
-
-            VkDescriptorSetLayout GetLayout() const { return m_layout; }
-            const VkDescriptorSet& GetSet(uint32_t frameIndex) const { return m_sets[frameIndex]; }
         };
 
         struct MaterialDesc
@@ -223,9 +251,18 @@ namespace Kita::Pbrv
             std::array<TextureResource, kMaterialSlotCount> m_textures{};
             VkDescriptorSet m_set{ VK_NULL_HANDLE };
             VkDescriptorSetLayout m_layout{ VK_NULL_HANDLE };
+        };
 
-            VkDescriptorSetLayout GetLayout() const { return m_layout; }
-            const VkDescriptorSet& GetSet() const { return m_set; }
+        struct PostProcessSet
+        {
+            std::array<UboResource, Rhi::kMaxFramesInFlight> m_ubos{};
+            std::array<VkDescriptorSet, Rhi::kMaxFramesInFlight> m_sets{};
+            VkDescriptorSetLayout m_layout{ VK_NULL_HANDLE };
+
+            void WriteData(uint32_t frameIndex, const Gpu::PostProcess& data)
+            {
+                m_ubos[frameIndex].Write(&data, sizeof(data));
+            }
         };
     }
 }

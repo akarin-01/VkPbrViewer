@@ -20,12 +20,12 @@ namespace Kita::Pbrv
     namespace Resource
     {
         class Resources;
+        struct TargetResource;
     }
 
     namespace Render
     {
         class RenderScene;
-        class RenderTarget;
         class RenderPassBase;
 
         class RenderPipeline
@@ -48,9 +48,14 @@ namespace Kita::Pbrv
                 const Rhi::SwapChain& swapChain,
                 const RenderScene& scene);
 
+            void TransitionTargetToWriteLayout(VkCommandBuffer commandBuffer) const;
+            void TransitionTargetToReadLayout(VkCommandBuffer commandBuffer) const;
+            void TransitionSwapchainToWriteLayout(VkCommandBuffer commandBuffer, uint32_t imageIndex) const;
+            void TransitionSwapchainToPresentLayout(VkCommandBuffer commandBuffer, uint32_t imageIndex) const;
+
         private:
             const Rhi::SwapChain& m_swapChain;
-            RenderTarget& m_target;
+            Resource::TargetResource& m_target;
 
             std::unique_ptr<RenderPassBase> m_litPass;
             std::unique_ptr<RenderPassBase> m_skyboxPass;

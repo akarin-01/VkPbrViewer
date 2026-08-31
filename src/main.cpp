@@ -114,8 +114,8 @@ namespace
             const Resource::PerMaterialSet::Handle mat1 =
                 resources.GetOrCreatePerMaterialSet(emptyDesc);
             assert(mat1.IsValid());
-            assert(mat1->GetLayout() != VK_NULL_HANDLE);
-            assert(mat1->GetSet() != VK_NULL_HANDLE);
+            assert(mat1->m_layout != VK_NULL_HANDLE);
+            assert(mat1->m_set != VK_NULL_HANDLE);
             for (uint32_t i = 0; i < Resource::kMaterialSlotCount; ++i)
             {
                 assert(!mat1->m_textures[i].IsEmpty());

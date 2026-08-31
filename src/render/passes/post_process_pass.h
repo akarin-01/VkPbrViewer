@@ -10,13 +10,14 @@ namespace Kita::Pbrv
     {
         class GraphicsPipeline;
     }
+    namespace Resource
+    {
+        struct PostProcessSet;
+    }
 
     namespace Render
     {
         class RenderScene;
-        class RenderTarget;
-        class RenderFrameData;
-        class RenderPostProcessData;
 
         class PostProcessPass : public RenderPassBase
         {
@@ -34,9 +35,7 @@ namespace Kita::Pbrv
             void CreatePipeline(VkDescriptorSetLayout emptyLayout);
 
         private:
-            const RenderTarget& m_target;
-            const RenderFrameData& m_frameData;
-            const RenderPostProcessData& m_postProcessData;
+            const Resource::PostProcessSet& m_postProcessSet;
 
             std::unique_ptr<Rhi::GraphicsPipeline> m_pipeline;
         };

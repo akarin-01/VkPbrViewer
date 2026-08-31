@@ -17,9 +17,9 @@ namespace Kita::Pbrv
             const Rhi::SwapChain& swapChain,
             const RenderScene& scene)
             : RenderPassBase(context, resources, swapChain),
-            m_target(scene.GetTarget()),
+            m_target(scene.GetGlobal().m_target),
             m_frameData(scene.GetFrameData()),
-            m_objectState(scene.GetObjectState())
+            m_objectState(scene.GetObject())
         {
             CreatePipeline(scene.GetEmptyLayout());
         }
@@ -71,18 +71,18 @@ namespace Kita::Pbrv
                     0, 1, &m_frameData.GetSet(frameIndex), 0, nullptr);
                 {
                     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                        2, 1, &m_objectState.GetMaterialSet(), 0, nullptr);
+                        2, 1, &m_objectState.m_materialSet->m_set, 0, nullptr);
                     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                        3, 1, &m_objectState.GetObjectSet(frameIndex), 0, nullptr);
+                        3, 1, &m_objectState.m_objectSet.m_sets[frameIndex], 0, nullptr);
 
-                    if (m_objectState.HasMesh())
+                    if (m_objectState.m_mesh)
                     {
-                        VkBuffer buffers[]{ m_objectState.GetVertexBuffer() };
+                        VkBuffer buffers[]{ m_objectState.m_mesh->GetVertexBuffer() };
                         VkDeviceSize offsets[]{ 0 };
                         vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
-                        vkCmdBindIndexBuffer(commandBuffer, m_objectState.GetIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+                        vkCmdBindIndexBuffer(commandBuffer, m_objectState.m_mesh->GetIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
-                        vkCmdDrawIndexed(commandBuffer, m_objectState.GetIndexCount(), 1, 0, 0, 0);
+                        vkCmdDrawIndexed(commandBuffer, m_objectState.m_mesh->GetIndexCount(), 1, 0, 0, 0);
                     }
                 }
             }
@@ -101,8 +101,8 @@ namespace Kita::Pbrv
                     {
                         m_frameData.GetSetLayout(),
                         emptyLayout,
-                        m_objectState.GetMaterialLayout(),
-                        m_objectState.GetObjectLayout(),
+                        m_objectState.m_materialSet->m_layout,
+                        m_objectState.m_objectSet.m_layout,
                     })
                     .SetDynamicRendering({ m_target.GetColorFormat() }, m_target.GetDepthFormat());
             m_pipeline = builder.Build();

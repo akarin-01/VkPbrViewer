@@ -10,11 +10,14 @@ namespace Kita::Pbrv
     {
         class GraphicsPipeline;
     }
+    namespace Resource
+    {
+        struct TargetResource;
+    }
 
     namespace Render
     {
         class RenderScene;
-        class RenderTarget;
         class RenderFrameData;
         struct ObjectState;
 
@@ -34,7 +37,7 @@ namespace Kita::Pbrv
             void CreatePipeline(VkDescriptorSetLayout emptyLayout);
 
         private:
-            const RenderTarget& m_target;
+            const Resource::TargetResource& m_target;
             const RenderFrameData& m_frameData;
             const ObjectState& m_objectState;
 

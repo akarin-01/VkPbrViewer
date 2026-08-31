@@ -47,9 +47,11 @@ namespace Kita::Pbrv
             TextureResource CreateTexture(ImageRhi::Handle image,
                 const ImageViewDesc& imageViewDesc, const SamplerDesc& samplerDesc);
             MeshResource::Handle GetOrCreateMesh(ResourceId meshId);
+            TargetResource CreateTarget(const TargetDesc& desc);
 
             PerObjectSet CreatePerObjectSet();
             PerMaterialSet::Handle GetOrCreatePerMaterialSet(const MaterialDesc& desc);
+            PostProcessSet CreatePostProcessSet(const TextureResource& texture);
 
             void FlushGraveyard();
 

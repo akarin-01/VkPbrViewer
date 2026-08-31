@@ -16,7 +16,7 @@ namespace Kita::Pbrv
             const Rhi::SwapChain& swapChain,
             const RenderScene& scene)
             : RenderPassBase(context, resources, swapChain),
-            m_target(scene.GetTarget()),
+            m_target(scene.GetGlobal().m_target),
             m_frameData(scene.GetFrameData())
         {
             CreatePipeline();
