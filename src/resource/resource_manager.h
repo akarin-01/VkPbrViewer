@@ -1,12 +1,11 @@
 #pragma once
 
-#include "resource/handle_table.h"
+#include "resource/cache_table.h"
 #include "resource/resource_types.h"
 #include "resource/resource_id.h"
 #include "resource/graveyard.h"
 
 #include <array>
-#include <unordered_map>
 #include <cstdint>
 
 namespace Kita::Pbrv
@@ -40,7 +39,6 @@ namespace Kita::Pbrv
                 ImageRhi::Handle image);
             SamplerRhi::Handle GetOrCreateSampler(const SamplerDesc& desc);
 
-            MeshResource::Handle GetOrCreateMesh(ResourceId meshId);
             TextureResource CreateTexture(ResourceId textureId,
                 const ImageViewDesc& imageViewDesc, const SamplerDesc& samplerDesc);
             TextureResource CreateTexture(const ImageDesc& imageDesc,
@@ -48,6 +46,7 @@ namespace Kita::Pbrv
                 const void* data = nullptr, size_t size = 0);
             TextureResource CreateTexture(ImageRhi::Handle image,
                 const ImageViewDesc& imageViewDesc, const SamplerDesc& samplerDesc);
+            MeshResource::Handle GetOrCreateMesh(ResourceId meshId);
 
             PerObjectSet CreatePerObjectSet();
             PerMaterialSet::Handle GetOrCreatePerMaterialSet(const MaterialDesc& desc);
@@ -55,10 +54,12 @@ namespace Kita::Pbrv
             void FlushGraveyard();
 
         private:
-            MeshResource::Handle CreateMesh(const MeshAsset& asset);
-            ImageRhi::Handle CreateImage(const TextureAsset& asset);
+            ImageRhi CreateImage(const TextureAsset& asset);
+
             UboResource CreateUbo(const BufferDesc& desc);
-            PerMaterialSet::Handle CreatePerMaterialSet(const MaterialDesc& desc);
+            MeshResource CreateMesh(const MeshAsset& asset);
+
+            PerMaterialSet CreatePerMaterialSet(const MaterialDesc& desc);
 
         private:
             const Rhi::Context& m_context;
@@ -67,25 +68,20 @@ namespace Kita::Pbrv
 
             Graveyard m_graveyard;      // Graveyard must be destroyed after table
 
-            // ------------- Unique resources (no dedup) ----------------
+            // ------------- L0: Rhi (vk objects) -------------
             HandleTable<BufferRhi> m_bufferTable;
-            HandleTable<ImageRhi> m_imageTable;
+            CacheTable<ImageRhi, ResourceId> m_imageCache;   // asset path cached, desc path direct
             HandleTable<ImageViewRhi> m_imageViewTable;
+            CacheTable<SamplerRhi, SamplerDesc, SamplerDesc::Hash> m_samplerCache;
 
-            // ------------- Cached resources (dedup) ----------------
-            std::unordered_map<ResourceId, ResourceId> m_imageIds;      // Part of image table
+            // ------------- L1: Resource (render resources) -------------
+            CacheTable<MeshResource, ResourceId> m_meshCache;
 
-            HandleTable<SamplerRhi> m_samplerTable;
-            std::unordered_map<SamplerDesc, ResourceId, SamplerDesc::Hash> m_samplerIds;
+            // ------------- L2: Set (descriptor sets) -------------
+            CacheTable<PerMaterialSet, MaterialDesc, MaterialDesc::Hash> m_materialCache;
 
-            HandleTable<MeshResource> m_meshTable;
-            std::unordered_map<ResourceId, ResourceId> m_meshIds;
-
-            HandleTable<PerMaterialSet> m_materialTable;
-            std::unordered_map<MaterialDesc, ResourceId, MaterialDesc::Hash> m_materialIds;
-
-            // Fallback images per material slot (1x1); empty slots assemble a
-            // fresh view + shared sampler over these.
+            // Fallback images per material slot (1x1), shared by empty slots.
+            // Declared last: they release into the tables first on teardown.
             std::array<ImageRhi::Handle, kMaterialSlotCount> m_fallbacks{};
         };
     }

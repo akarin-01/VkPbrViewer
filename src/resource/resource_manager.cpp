@@ -79,7 +79,7 @@ namespace Kita::Pbrv
                     m_graveyard.PushBuffer(buffer.m_buffer);
                     m_graveyard.PushMemory(buffer.m_memory);
                 }),
-            m_imageTable([this](ImageRhi&& image)
+            m_imageCache("image resource", [this](ImageRhi&& image)
                 {
                     KITA_LOG_DEBUG("[Resource] Release image: ", image.m_extent.width, "x",
                         image.m_extent.height, ", ", image.m_mipLevels, " mips");
@@ -93,17 +93,17 @@ namespace Kita::Pbrv
                     // (Handle dtor), while every table is still alive.
                     m_graveyard.PushImageView(imageView.m_imageView);
                 }),
-            m_samplerTable([this](SamplerRhi&& sampler)
+            m_samplerCache("sampler resource", [this](SamplerRhi&& sampler)
                 {
                     KITA_LOG_DEBUG("[Resource] Release sampler");
                     m_graveyard.PushSampler(sampler.m_sampler);
                 }),
-            m_meshTable([](MeshResource&& mesh)
+            m_meshCache("mesh resource", [](MeshResource&& mesh)
                 {
                     Core::Log::Info("[Resource] Release mesh resource: vb ",
                         mesh.m_vertexBuffer->m_size, " + ib ", mesh.m_indexBuffer->m_size, " bytes");
                 }),
-            m_materialTable([](PerMaterialSet&&)
+            m_materialCache("per material set", [](PerMaterialSet&&)
                 {
                     KITA_LOG_DEBUG("[Resource] Release per material set");
                     // Texture handles release with the entry; each pushes into
@@ -154,7 +154,21 @@ namespace Kita::Pbrv
 
             KITA_LOG_DEBUG("[Resource] Create image: ", desc.m_extent.width, "x",
                 desc.m_extent.height, ", ", desc.m_mipLevels, " mips");
-            return m_imageTable.Create(std::move(image));
+            return m_imageCache.Create(std::move(image));
+        }
+
+        ImageRhi::Handle ResourceManager::GetOrCreateImage(ResourceId textureId)
+        {
+            return m_imageCache.GetOrCreate(textureId, [this](ResourceId textureKey) -> std::optional<ImageRhi>
+                {
+                    auto asset = m_assetMgr.GetTexture(textureKey);
+                    if (!asset)
+                    {
+                        // Invalid texture id, return invalid handle
+                        return std::nullopt;
+                    }
+                    return CreateImage(*asset);
+                });
         }
 
         ImageViewRhi::Handle ResourceManager::CreateImageView(const ImageViewDesc& desc, ImageRhi::Handle image)
@@ -173,60 +187,15 @@ namespace Kita::Pbrv
 
         SamplerRhi::Handle ResourceManager::GetOrCreateSampler(const SamplerDesc& desc)
         {
-            auto it = m_samplerIds.find(desc);
-            if (it != m_samplerIds.end())
-            {
-                const ResourceId id = it->second;
-                // The mapping can outlive its entry (every handle released):
-                // a stale id falls through and is rebuilt below.
-                if (m_samplerTable.Has(id))
+            return m_samplerCache.GetOrCreate(desc, [this](const SamplerDesc& d) -> std::optional<SamplerRhi>
                 {
-                    // Cache hit: add ref
-                    KITA_LOG_DEBUG("[Resource] Reuse sampler resource");
-                    return m_samplerTable.GetShared(id);
-                }
-            }
+                    SamplerRhi sampler = ResourceUtils::CreateSamplerRhi(m_context, d);
 
-            // Cache miss: create
-            SamplerRhi sampler = ResourceUtils::CreateSamplerRhi(m_context, desc);
-
-            KITA_LOG_DEBUG("[Resource] Create sampler resource: filter ", ToString(desc.m_magFilter),
-                "/", ToString(desc.m_minFilter), ", mip ", ToString(desc.m_mipMode),
-                ", address ", ToString(desc.m_addressModeU), ", anisotropy ", desc.m_anisotropy);
-
-            SamplerRhi::Handle handle = m_samplerTable.Create(std::move(sampler));
-            m_samplerIds[desc] = handle.GetId();
-            return handle;
-        }
-
-        MeshResource::Handle ResourceManager::GetOrCreateMesh(ResourceId meshId)
-        {
-            auto it = m_meshIds.find(meshId);
-            if (it != m_meshIds.end())
-            {
-                const ResourceId id = it->second;
-                // The mapping can outlive its entry (every handle released):
-                // a stale id falls through and is rebuilt below.
-                if (m_meshTable.Has(id))
-                {
-                    // Cache hit: add ref
-                    KITA_LOG_DEBUG("[Resource] Reuse mesh resource: mesh asset(", meshId, ")");
-                    return m_meshTable.GetShared(id);
-                }
-            }
-
-            // Cache miss: create
-            auto asset = m_assetMgr.GetMesh(meshId);
-            if (!asset)
-            {
-                // Invalid mesh id, return invalid handle
-                return MeshResource::Handle();
-            }
-
-            MeshResource::Handle handle = CreateMesh(*asset);
-
-            m_meshIds[meshId] = handle.GetId();
-            return handle;
+                    KITA_LOG_DEBUG("[Resource] Create sampler resource: filter ", ToString(d.m_magFilter),
+                        "/", ToString(d.m_minFilter), ", mip ", ToString(d.m_mipMode),
+                        ", address ", ToString(d.m_addressModeU), ", anisotropy ", d.m_anisotropy);
+                    return sampler;
+                });
         }
 
         TextureResource ResourceManager::CreateTexture(ResourceId textureId, const ImageViewDesc& imageViewDesc, const SamplerDesc& samplerDesc)
@@ -262,33 +231,18 @@ namespace Kita::Pbrv
             return texture;
         }
 
-        ImageRhi::Handle ResourceManager::GetOrCreateImage(ResourceId textureId)
+        MeshResource::Handle ResourceManager::GetOrCreateMesh(ResourceId meshId)
         {
-            auto it = m_imageIds.find(textureId);
-            if (it != m_imageIds.end())
-            {
-                const ResourceId id = it->second;
-                // The mapping can outlive its entry (every handle released):
-                // a stale id falls through and is rebuilt below.
-                if (m_imageTable.Has(id))
+            return m_meshCache.GetOrCreate(meshId, [this](ResourceId meshKey) -> std::optional<MeshResource>
                 {
-                    // Cache hit: add ref
-                    KITA_LOG_DEBUG("[Resource] Reuse image resource: texture asset(", textureId, ")");
-                    return m_imageTable.GetShared(id);
-                }
-            }
-
-            // Cache miss: create
-            auto asset = m_assetMgr.GetTexture(textureId);
-            if (!asset)
-            {
-                // Invalid texture id, return invalid handle
-                return ImageRhi::Handle();
-            }
-
-            ImageRhi::Handle handle = CreateImage(*asset);
-            m_imageIds[textureId] = handle.GetId();
-            return handle;
+                    auto asset = m_assetMgr.GetMesh(meshKey);
+                    if (!asset)
+                    {
+                        // Invalid mesh id, return invalid handle
+                        return std::nullopt;
+                    }
+                    return CreateMesh(*asset);
+                });
         }
 
         PerObjectSet ResourceManager::CreatePerObjectSet()
@@ -323,24 +277,10 @@ namespace Kita::Pbrv
 
         PerMaterialSet::Handle ResourceManager::GetOrCreatePerMaterialSet(const MaterialDesc& desc)
         {
-            auto it = m_materialIds.find(desc);
-            if (it != m_materialIds.end())
-            {
-                const ResourceId id = it->second;
-                // The mapping can outlive its entry (every handle released):
-                // a stale id falls through and is rebuilt below.
-                if (m_materialTable.Has(id))
+            return m_materialCache.GetOrCreate(desc, [this](const MaterialDesc& d) -> std::optional<PerMaterialSet>
                 {
-                    // Cache hit: add ref
-                    KITA_LOG_DEBUG("[Resource] Reuse per material set");
-                    return m_materialTable.GetShared(id);
-                }
-            }
-
-            // Cache miss: create
-            PerMaterialSet::Handle handle = CreatePerMaterialSet(desc);
-            m_materialIds[desc] = handle.GetId();
-            return handle;
+                    return CreatePerMaterialSet(d);
+                });
         }
 
         void ResourceManager::FlushGraveyard()
@@ -348,7 +288,26 @@ namespace Kita::Pbrv
             m_graveyard.Flush();
         }
 
-        MeshResource::Handle ResourceManager::CreateMesh(const MeshAsset& asset)
+        ImageRhi ResourceManager::CreateImage(const TextureAsset& asset)
+        {
+            ImageDesc desc{};
+            desc.m_extent = { asset.m_width, asset.m_height, 1 };
+            desc.m_format = ToImageFormat(asset.m_type);
+            desc.m_aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            desc.m_mipLevels = ResourceUtils::CalculateMipLevels(asset.m_width, asset.m_height);
+            desc.m_usage = VK_IMAGE_USAGE_SAMPLED_BIT;
+
+            KITA_LOG_DEBUG("[Resource] Create image: ", desc.m_extent.width, "x",
+                desc.m_extent.height, ", ", desc.m_mipLevels, " mips");
+            return ResourceUtils::CreateImageRhi(m_context, desc, asset.m_bytes.data(), asset.m_bytes.size());
+        }
+
+        UboResource ResourceManager::CreateUbo(const BufferDesc& desc)
+        {
+            return UboResource{ CreateBuffer(desc) };
+        }
+
+        MeshResource ResourceManager::CreateMesh(const MeshAsset& asset)
         {
             MeshResource mesh{};
 
@@ -379,15 +338,10 @@ namespace Kita::Pbrv
             Core::Log::Info("[Resource] Create mesh resource: ", asset.m_name, ", vb ",
                 asset.GetVertexDataSize(), " bytes, ib ", asset.GetIndexDataSize(), " bytes");
 
-            return m_meshTable.Create(std::move(mesh));
+            return mesh;
         }
 
-        UboResource ResourceManager::CreateUbo(const BufferDesc& desc)
-        {
-            return UboResource{ CreateBuffer(desc) };
-        }
-
-        PerMaterialSet::Handle ResourceManager::CreatePerMaterialSet(const MaterialDesc& desc)
+        PerMaterialSet ResourceManager::CreatePerMaterialSet(const MaterialDesc& desc)
         {
             // Material sampling policy, spelled out at the only assembly point.
             ImageViewDesc imageViewDesc{};
@@ -423,19 +377,7 @@ namespace Kita::Pbrv
 
             KITA_LOG_DEBUG("[Resource] Create per-material set: ", Resource::kMaterialSlotCount,
                 " texture slots, 1 set");
-            return m_materialTable.Create(std::move(material));
-        }
-
-        ImageRhi::Handle ResourceManager::CreateImage(const TextureAsset& asset)
-        {
-            ImageDesc desc{};
-            desc.m_extent = { asset.m_width, asset.m_height, 1 };
-            desc.m_format = ToImageFormat(asset.m_type);
-            desc.m_aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            desc.m_mipLevels = ResourceUtils::CalculateMipLevels(asset.m_width, asset.m_height);
-            desc.m_usage = VK_IMAGE_USAGE_SAMPLED_BIT;
-
-            return CreateImage(desc, asset.m_bytes.data(), asset.m_bytes.size());
+            return material;
         }
     }
 }

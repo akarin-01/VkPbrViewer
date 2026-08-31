@@ -1,11 +1,10 @@
 #pragma once
 
-#include "resource/handle_table.h"
+#include "resource/cache_table.h"
 #include "resource/resource_id.h"
 #include "resource/asset_types.h"
 
 #include <string>
-#include <unordered_map>
 
 namespace Kita::Pbrv
 {
@@ -20,18 +19,15 @@ namespace Kita::Pbrv
             MeshAsset::Handle LoadMesh(const std::string& path);
             TextureAsset::Handle LoadTexture(const std::string& path, TextureAsset::Type type);
 
-            const MeshAsset* GetMesh(ResourceId id) const { return m_meshTable.Get(id); }
-            const TextureAsset* GetTexture(ResourceId id) const { return m_textureTable.Get(id); }
+            const MeshAsset* GetMesh(ResourceId id) const { return m_meshCache.Get(id); }
+            const TextureAsset* GetTexture(ResourceId id) const { return m_textureCache.Get(id); }
 
-            size_t GetMeshCount() const { return m_meshTable.Size(); }
-            size_t GetTextureCount() const { return m_textureTable.Size(); }
+            size_t GetMeshCount() const { return m_meshCache.Size(); }
+            size_t GetTextureCount() const { return m_textureCache.Size(); }
 
         private:
-            HandleTable<MeshAsset> m_meshTable;
-            HandleTable<TextureAsset> m_textureTable;
-
-            std::unordered_map<std::string, ResourceId> m_meshIds;
-            std::unordered_map<TextureKey, ResourceId, TextureKey::Hash> m_textureIds;
+            CacheTable<MeshAsset, std::string> m_meshCache;
+            CacheTable<TextureAsset, TextureKey, TextureKey::Hash> m_textureCache;
         };
     }
 }
