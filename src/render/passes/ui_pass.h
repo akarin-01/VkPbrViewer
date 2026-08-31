@@ -15,7 +15,6 @@ namespace Kita::Pbrv
         {
         public:
             UIPass(const Rhi::Context& context,
-                Resource::Resources& resources,
                 const Rhi::SwapChain& swapChain,
                 const Core::Window& window);
             ~UIPass();

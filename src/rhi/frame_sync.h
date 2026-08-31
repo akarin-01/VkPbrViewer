@@ -1,11 +1,10 @@
 #pragma once
 
 #include "rhi/frame_info.h"
-#include "resource/types.h"
 
-#include <vulkan/vulkan.h>
 #include <memory>
 #include <vector>
+#include <vulkan/vulkan.h>
 
 namespace Kita::Pbrv
 {

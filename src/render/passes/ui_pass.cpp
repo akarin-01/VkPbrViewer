@@ -1,7 +1,8 @@
+#include "ui_pass.h"
+
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_vulkan.h"
-#include "ui_pass.h"
 #include "core/window.h"
 #include "rhi/context.h"
 #include "rhi/rendering_scope.h"
@@ -15,10 +16,9 @@ namespace Kita::Pbrv
     namespace Render
     {
         UIPass::UIPass(const Rhi::Context& context,
-            Resource::Resources& resources,
             const Rhi::SwapChain& swapChain,
             const Core::Window& window)
-            : RenderPassBase(context, resources, swapChain)
+            : RenderPassBase(context, swapChain)
         {
             IMGUI_CHECKVERSION();
             ImGui::CreateContext();

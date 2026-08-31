@@ -3,10 +3,9 @@
 #include "rhi/constants.h"
 #include "rhi/context.h"
 #include "rhi/swap_chain.h"
-#include "resource/constants.h"
 
-#include <stdexcept>
 #include <array>
+#include <stdexcept>
 
 namespace Kita::Pbrv
 {

@@ -1,4 +1,5 @@
 #include "lit_pass.h"
+
 #include "rhi/context.h"
 #include "rhi/graphics_pipeline.h"
 #include "rhi/rendering_scope.h"
@@ -13,12 +14,11 @@ namespace Kita::Pbrv
     namespace Render
     {
         LitPass::LitPass(const Rhi::Context& context,
-            Resource::Resources& resources,
             const Rhi::SwapChain& swapChain,
             const RenderScene& scene)
-            : RenderPassBase(context, resources, swapChain),
+            : RenderPassBase(context, swapChain),
             m_target(scene.GetGlobal().m_target),
-            m_frameData(scene.GetFrameData()),
+            m_frameSet(scene.GetGlobal().m_frameSet),
             m_objectState(scene.GetObject())
         {
             CreatePipeline(scene.GetEmptyLayout());
@@ -68,7 +68,7 @@ namespace Kita::Pbrv
 
                 // Draw
                 vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                    0, 1, &m_frameData.GetSet(frameIndex), 0, nullptr);
+                    0, 1, &m_frameSet.m_sets[frameIndex], 0, nullptr);
                 {
                     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
                         2, 1, &m_objectState.m_materialSet->m_set, 0, nullptr);
@@ -99,7 +99,7 @@ namespace Kita::Pbrv
                 .SetDepth(true, true, VK_COMPARE_OP_LESS)
                 .SetDescriptorSetLayouts(
                     {
-                        m_frameData.GetSetLayout(),
+                        m_frameSet.m_layout,
                         emptyLayout,
                         m_objectState.m_materialSet->m_layout,
                         m_objectState.m_objectSet.m_layout,

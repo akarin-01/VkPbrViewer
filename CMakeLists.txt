@@ -113,7 +113,6 @@ add_executable(VkPbrViewer
     # rhi
     src/rhi/compute_pipeline.cpp
     src/rhi/context.cpp
-    src/rhi/descriptor_writer.cpp
     src/rhi/frame_sync.cpp
     src/rhi/graphics_pipeline.cpp
     src/rhi/one_shot_command.cpp
@@ -127,19 +126,16 @@ add_executable(VkPbrViewer
     src/resource/asset_utils.cpp
     src/resource/compute_conversion.cpp
     src/resource/descriptor_manager.cpp
-    src/resource/render_texture.cpp
+    src/resource/descriptor_writer.cpp
+    src/resource/environment_baker.cpp
     src/resource/graveyard.cpp
     src/resource/resource_manager.cpp
     src/resource/resource_utils.cpp
-    src/resource/resources.cpp
 
     # render
     src/render/render_pipeline.cpp
     src/render/render_scene.cpp
     src/render/renderer.cpp
-
-    # render data
-    src/render/data/render_frame_data.cpp
 
     # render passes
     src/render/passes/lit_pass.cpp

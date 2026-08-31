@@ -1,19 +1,19 @@
+#include "renderer.h"
+
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_vulkan.h"
-#include "renderer.h"
 #include "rhi/context.h"
 #include "rhi/frame_sync.h"
 #include "rhi/swap_chain.h"
 #include "rhi/utils.h"
 #include "resource/descriptor_manager.h"
 #include "resource/resource_manager.h"
-#include "resource/resources.h"
 #include "render/render_pipeline.h"
 #include "render/render_scene.h"
 
-#include <fstream>
 #include <cassert>
+#include <fstream>
 
 namespace Kita::Pbrv
 {
@@ -22,15 +22,14 @@ namespace Kita::Pbrv
         Renderer::Renderer(Core::Window& window, const Resource::AssetManager& assetMgr)
         {
             m_context = std::make_unique<Rhi::Context>(window);
-            m_resources = std::make_unique<Resource::Resources>(*m_context);
             m_swapChain = std::make_unique<Rhi::SwapChain>(window, *m_context);
             m_frameSync = std::make_unique<Rhi::FrameSync>(*m_context, *m_swapChain);
 
             m_descriptorMgr = std::make_unique<Resource::DescriptorManager>(*m_context);
             m_resourceMgr = std::make_unique<Resource::ResourceManager>(*m_context, assetMgr, *m_descriptorMgr);
 
-            m_renderScene = std::make_unique<RenderScene>(*m_context, *m_resources, *m_swapChain, *m_descriptorMgr, *m_resourceMgr);
-            m_pipeline = std::make_unique<RenderPipeline>(window, *m_context, *m_resources, *m_swapChain, *m_renderScene);
+            m_renderScene = std::make_unique<RenderScene>(*m_context, *m_swapChain, *m_descriptorMgr, *m_resourceMgr);
+            m_pipeline = std::make_unique<RenderPipeline>(window, *m_context, *m_swapChain, *m_renderScene);
         }
 
         Renderer::~Renderer()
@@ -52,12 +51,11 @@ namespace Kita::Pbrv
             // Deferred destruction advances every frame, recreate included:
             // recreating the render target also queues old textures.
             m_resourceMgr->FlushGraveyard();
-            m_resources->FlushDeferred(frameInfo.m_frameIndex);
 
             if (frameInfo.m_swapChainRecreated)
             {
                 // Recreate
-                m_renderScene->Recreate(m_swapChain->Extent());
+                m_renderScene->Recreate();
                 m_pipeline->RecreateResources();
 
                 return;
@@ -72,7 +70,7 @@ namespace Kita::Pbrv
             if (m_frameSync->EndFrame())
             {
                 // Recreate
-                m_renderScene->Recreate(m_swapChain->Extent());
+                m_renderScene->Recreate();
                 m_pipeline->RecreateResources();
             }
         }

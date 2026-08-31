@@ -1,7 +1,6 @@
 #pragma once
 
 #include "rhi/frame_info.h"
-#include "resource/types.h"
 
 namespace Kita::Pbrv
 {
@@ -10,10 +9,6 @@ namespace Kita::Pbrv
         class Context;
         class SwapChain;
     }
-    namespace Resource
-    {
-        class Resources;
-    }
 
     namespace Render
     {
@@ -21,10 +16,8 @@ namespace Kita::Pbrv
         {
         public:
             RenderPassBase(const Rhi::Context& context,
-                Resource::Resources& resources,
                 const Rhi::SwapChain& swapChain)
                 : m_context(context),
-                m_resources(resources),
                 m_swapChain(swapChain)
             {
             }
@@ -35,7 +28,6 @@ namespace Kita::Pbrv
 
         protected:
             const Rhi::Context& m_context;
-            Resource::Resources& m_resources;
             const Rhi::SwapChain& m_swapChain;
         };
     }

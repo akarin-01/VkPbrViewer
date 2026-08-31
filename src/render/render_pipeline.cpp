@@ -8,8 +8,8 @@
 #include "render/passes/ui_pass.h"
 #include "render/render_scene.h"
 
-#include <vulkan/vulkan.h>
 #include <cassert>
+#include <vulkan/vulkan.h>
 
 namespace Kita::Pbrv
 {
@@ -17,13 +17,12 @@ namespace Kita::Pbrv
     {
         RenderPipeline::RenderPipeline(const Core::Window& window,
             const Rhi::Context& context,
-            Resource::Resources& resources,
             const Rhi::SwapChain& swapChain,
             RenderScene& scene)
             : m_swapChain(swapChain),
             m_target(scene.GetGlobal().m_target)
         {
-            CreateRenderPasses(window, context, resources, swapChain, scene);
+            CreateRenderPasses(window, context, swapChain, scene);
         }
 
         RenderPipeline::~RenderPipeline() = default;
@@ -151,18 +150,17 @@ namespace Kita::Pbrv
 
         void RenderPipeline::CreateRenderPasses(const Core::Window& window,
             const Rhi::Context& context,
-            Resource::Resources& resources,
             const Rhi::SwapChain& swapChain,
             const RenderScene& scene)
         {
             m_litPass = std::make_unique<LitPass>(
-                context, resources, swapChain, scene);
+                context, swapChain, scene);
             m_skyboxPass = std::make_unique<SkyboxPass>(
-                context, resources, swapChain, scene);
+                context, swapChain, scene);
             m_postProcessPass = std::make_unique<PostProcessPass>(
-                context, resources, swapChain, scene);
+                context, swapChain, scene);
             m_uiPass = std::make_unique<UIPass>(
-                context, resources, swapChain, window);
+                context, swapChain, window);
         }
     }
 }

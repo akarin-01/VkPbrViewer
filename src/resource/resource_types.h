@@ -6,9 +6,9 @@
 #include "resource/handle.h"
 #include "resource/resource_id.h"
 
-#include <vulkan/vulkan.h>
 #include <array>
 #include <cstring>
+#include <vulkan/vulkan.h>
 
 namespace Kita::Pbrv
 {
@@ -255,11 +255,28 @@ namespace Kita::Pbrv
 
         struct PostProcessSet
         {
+            // Set 1: K UBO slots + K descriptor sets, bound once at creation.
             std::array<UboResource, Rhi::kMaxFramesInFlight> m_ubos{};
             std::array<VkDescriptorSet, Rhi::kMaxFramesInFlight> m_sets{};
             VkDescriptorSetLayout m_layout{ VK_NULL_HANDLE };
 
             void WriteData(uint32_t frameIndex, const Gpu::PostProcess& data)
+            {
+                m_ubos[frameIndex].Write(&data, sizeof(data));
+            }
+        };
+
+        struct PerFrameSet
+        {
+            // Set 0: K UBO slots + K descriptor sets; IBL textures fixed at creation.
+            std::array<UboResource, Rhi::kMaxFramesInFlight> m_ubos{};
+            TextureResource m_skybox{};
+            TextureResource m_irradiance{};
+            TextureResource m_prefilter{};
+            std::array<VkDescriptorSet, Rhi::kMaxFramesInFlight> m_sets{};
+            VkDescriptorSetLayout m_layout{ VK_NULL_HANDLE };
+
+            void WriteData(uint32_t frameIndex, const Gpu::PerFrame& data)
             {
                 m_ubos[frameIndex].Write(&data, sizeof(data));
             }

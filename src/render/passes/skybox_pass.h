@@ -12,19 +12,18 @@ namespace Kita::Pbrv
     }
     namespace Resource
     {
+        struct PerFrameSet;
         struct TargetResource;
     }
 
     namespace Render
     {
         class RenderScene;
-        class RenderFrameData;
 
         class SkyboxPass : public RenderPassBase
         {
         public:
             SkyboxPass(const Rhi::Context& context,
-                Resource::Resources& resources,
                 const Rhi::SwapChain& swapChain,
                 const RenderScene& scene);
             ~SkyboxPass();
@@ -37,7 +36,7 @@ namespace Kita::Pbrv
 
         private:
             const Resource::TargetResource& m_target;
-            const RenderFrameData& m_frameData;
+            const Resource::PerFrameSet& m_frameSet;
 
             std::unique_ptr<Rhi::GraphicsPipeline> m_pipeline;
         };

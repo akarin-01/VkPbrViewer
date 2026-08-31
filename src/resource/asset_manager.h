@@ -1,8 +1,8 @@
 #pragma once
 
+#include "resource/asset_types.h"
 #include "resource/cache_table.h"
 #include "resource/resource_id.h"
-#include "resource/asset_types.h"
 
 #include <string>
 

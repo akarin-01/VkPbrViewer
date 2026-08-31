@@ -1,10 +1,9 @@
 #pragma once
 
 #include "rhi/frame_info.h"
-#include "resource/types.h"
 
-#include <vector>
 #include <memory>
+#include <vector>
 
 namespace Kita::Pbrv
 {
@@ -19,21 +18,19 @@ namespace Kita::Pbrv
     }
     namespace Resource
     {
-        class Resources;
         struct TargetResource;
     }
 
     namespace Render
     {
-        class RenderScene;
         class RenderPassBase;
+        class RenderScene;
 
         class RenderPipeline
         {
         public:
             RenderPipeline(const Core::Window& window,
                 const Rhi::Context& context,
-                Resource::Resources& resources,
                 const Rhi::SwapChain& swapChain,
                 RenderScene& scene);
             ~RenderPipeline();
@@ -44,7 +41,6 @@ namespace Kita::Pbrv
         private:
             void CreateRenderPasses(const Core::Window& window,
                 const Rhi::Context& context,
-                Resource::Resources& resources,
                 const Rhi::SwapChain& swapChain,
                 const RenderScene& scene);
 

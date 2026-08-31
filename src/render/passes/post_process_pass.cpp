@@ -1,4 +1,5 @@
 #include "post_process_pass.h"
+
 #include "rhi/context.h"
 #include "rhi/graphics_pipeline.h"
 #include "rhi/rendering_scope.h"
@@ -12,10 +13,9 @@ namespace Kita::Pbrv
     namespace Render
     {
         PostProcessPass::PostProcessPass(const Rhi::Context& context,
-            Resource::Resources& resources,
             const Rhi::SwapChain& swapChain,
             const RenderScene& scene)
-            : RenderPassBase(context, resources, swapChain),
+            : RenderPassBase(context, swapChain),
             m_postProcessSet(scene.GetGlobal().m_postProcessSet)
         {
             CreatePipeline(scene.GetEmptyLayout());

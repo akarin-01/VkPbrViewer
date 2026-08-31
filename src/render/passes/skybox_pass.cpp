@@ -1,4 +1,5 @@
 #include "skybox_pass.h"
+
 #include "rhi/context.h"
 #include "rhi/graphics_pipeline.h"
 #include "rhi/rendering_scope.h"
@@ -12,12 +13,11 @@ namespace Kita::Pbrv
     namespace Render
     {
         SkyboxPass::SkyboxPass(const Rhi::Context& context,
-            Resource::Resources& resources,
             const Rhi::SwapChain& swapChain,
             const RenderScene& scene)
-            : RenderPassBase(context, resources, swapChain),
+            : RenderPassBase(context, swapChain),
             m_target(scene.GetGlobal().m_target),
-            m_frameData(scene.GetFrameData())
+            m_frameSet(scene.GetGlobal().m_frameSet)
         {
             CreatePipeline();
         }
@@ -61,7 +61,7 @@ namespace Kita::Pbrv
 
                 // Draw
                 vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                    0, 1, &m_frameData.GetSet(frameIndex), 0, nullptr);
+                    0, 1, &m_frameSet.m_sets[frameIndex], 0, nullptr);
                 vkCmdDraw(commandBuffer, 36, 1, 0, 0);
             }
             // End rendering
@@ -75,7 +75,7 @@ namespace Kita::Pbrv
                 .SetDepth(true, false, VK_COMPARE_OP_LESS_OR_EQUAL)
                 .SetDescriptorSetLayouts(
                     {
-                        m_frameData.GetSetLayout()
+                        m_frameSet.m_layout
                     })
                 .SetDynamicRendering({ m_target.GetColorFormat() }, m_target.GetDepthFormat());
             m_pipeline = builder.Build();

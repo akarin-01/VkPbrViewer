@@ -1,12 +1,13 @@
 #pragma once
 
 #include "resource/cache_table.h"
-#include "resource/resource_types.h"
-#include "resource/resource_id.h"
 #include "resource/graveyard.h"
+#include "resource/resource_id.h"
+#include "resource/resource_types.h"
 
 #include <array>
 #include <cstdint>
+#include <memory>
 
 namespace Kita::Pbrv
 {
@@ -19,6 +20,7 @@ namespace Kita::Pbrv
     {
         class AssetManager;
         class DescriptorManager;
+        class EnvironmentBaker;
         struct MeshAsset;
         struct TextureAsset;
 
@@ -52,11 +54,15 @@ namespace Kita::Pbrv
             PerObjectSet CreatePerObjectSet();
             PerMaterialSet::Handle GetOrCreatePerMaterialSet(const MaterialDesc& desc);
             PostProcessSet CreatePostProcessSet(const TextureResource& texture);
+            PerFrameSet CreatePerFrameSet(ResourceId equirectId);
 
             void FlushGraveyard();
 
         private:
             ImageRhi CreateImage(const TextureAsset& asset);
+            TextureResource CreateEquirect(const TextureAsset& asset);
+            std::array<ImageRhi::Handle, kMaterialSlotCount> CreateMaterialFallbacks();
+            ImageRhi::Handle CreateCubemapFallback();
 
             UboResource CreateUbo(const BufferDesc& desc);
             MeshResource CreateMesh(const MeshAsset& asset);
@@ -68,7 +74,7 @@ namespace Kita::Pbrv
             const AssetManager& m_assetMgr;
             DescriptorManager& m_descriptorMgr;
 
-            Graveyard m_graveyard;      // Graveyard must be destroyed after table
+            Graveyard m_graveyard;      // Destroyed last: table destroyers keep pushing into it
 
             // ------------- L0: Rhi (vk objects) -------------
             HandleTable<BufferRhi> m_bufferTable;
@@ -85,6 +91,11 @@ namespace Kita::Pbrv
             // Fallback images per material slot (1x1), shared by empty slots.
             // Declared last: they release into the tables first on teardown.
             std::array<ImageRhi::Handle, kMaterialSlotCount> m_fallbacks{};
+            ImageRhi::Handle m_cubemapFallback{};
+            TextureResource m_brdfLut{};
+
+            // IBL conversions: cubemap / irradiance / prefilter baking and the brdf lut.
+            std::unique_ptr<EnvironmentBaker> m_environmentBaker{};
         };
     }
 }

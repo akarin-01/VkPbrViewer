@@ -1,7 +1,5 @@
 #pragma once
 
-#include "resource/types.h"
-
 #include <memory>
 #include <vulkan/vulkan.h>
 
@@ -14,17 +12,15 @@ namespace Kita::Pbrv
     namespace Rhi
     {
         class Context;
-        class SwapChain;
         class FrameSync;
+        class SwapChain;
     }
     namespace Resource
     {
-        class Resources;
-        class DescriptorManager;
         class AssetManager;
+        class DescriptorManager;
         class ResourceManager;
     }
-
     namespace Scene
     {
         class Scene;
@@ -32,8 +28,8 @@ namespace Kita::Pbrv
 
     namespace Render
     {
-        class RenderScene;
         class RenderPipeline;
+        class RenderScene;
         class Renderer
         {
         public:
@@ -45,7 +41,6 @@ namespace Kita::Pbrv
 
         private:
             std::unique_ptr<Rhi::Context> m_context;
-            std::unique_ptr<Resource::Resources> m_resources;
             std::unique_ptr<Rhi::SwapChain> m_swapChain;
             std::unique_ptr<Rhi::FrameSync> m_frameSync;
 

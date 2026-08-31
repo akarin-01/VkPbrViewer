@@ -1,11 +1,11 @@
 #pragma once
 
-#include "resource/resource_types.h"
-#include "resource/resource_id.h"
 #include "resource/constants.h"
+#include "resource/resource_id.h"
+#include "resource/resource_types.h"
 
-#include <vulkan/vulkan.h>
 #include <array>
+#include <vulkan/vulkan.h>
 
 namespace Kita::Pbrv
 {
@@ -16,7 +16,11 @@ namespace Kita::Pbrv
         struct GlobalState
         {
             Resource::TargetResource m_target{};
+
+            Resource::PerFrameSet m_frameSet{};
             Resource::PostProcessSet m_postProcessSet{};
+
+            Resource::ResourceId m_lastEquirectId{ Resource::kInvalidId };
         };
 
         /// One render-scene entity: material set (set 2) + per-object set

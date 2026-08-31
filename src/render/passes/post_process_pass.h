@@ -23,7 +23,6 @@ namespace Kita::Pbrv
         {
         public:
             PostProcessPass(const Rhi::Context& context,
-                Resource::Resources& resources,
                 const Rhi::SwapChain& swapChain,
                 const RenderScene& scene);
             ~PostProcessPass();

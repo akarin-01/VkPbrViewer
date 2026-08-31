@@ -2,12 +2,17 @@
 
 #include "core/log.h"
 #include "rhi/context.h"
-#include "rhi/descriptor_writer.h"
+#include "rhi/one_shot_command.h"
+#include "rhi/utils.h"
 #include "resource/asset_manager.h"
 #include "resource/asset_types.h"
-#include "resource/resource_utils.h"
-#include "resource/gpu_layouts.h"
 #include "resource/descriptor_manager.h"
+#include "resource/descriptor_writer.h"
+#include "resource/environment_baker.h"
+#include "resource/gpu_layouts.h"
+#include "resource/resource_utils.h"
+
+#include <cmath>
 
 namespace Kita::Pbrv
 {
@@ -110,32 +115,12 @@ namespace Kita::Pbrv
                     // its own graveyard queue through the tables above.
                 })
         {
-            // One 1x1 fallback image per material slot; empty slots assemble a
-            // fresh view + shared sampler over the image.
-            constexpr uint8_t white[] = { 255, 255, 255, 255 };
-            constexpr uint8_t black[] = { 0, 0, 0, 255 };
-            constexpr uint8_t flat[] = { 128, 128, 255, 255 };
+            m_fallbacks = CreateMaterialFallbacks();
+            m_cubemapFallback = CreateCubemapFallback();
 
-            const auto makeFallback = [this](VkFormat format, const uint8_t* bytes, size_t size)
-                {
-                    ImageDesc desc{};
-                    desc.m_extent = { 1, 1, 1 };
-                    desc.m_aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-                    desc.m_usage = VK_IMAGE_USAGE_SAMPLED_BIT;
-                    desc.m_format = format;
-                    return CreateImage(desc, bytes, size);
-                };
-
-            m_fallbacks[static_cast<size_t>(Resource::MaterialSlot::Albedo)] =
-                makeFallback(VK_FORMAT_R8G8B8A8_SRGB, white, 4);    // opaque white
-            m_fallbacks[static_cast<size_t>(Resource::MaterialSlot::Normal)] =
-                makeFallback(VK_FORMAT_R8G8B8A8_UNORM, flat, 4);    // flat tangent-space normal
-            m_fallbacks[static_cast<size_t>(Resource::MaterialSlot::MetallicRoughness)] =
-                makeFallback(VK_FORMAT_R8G8B8A8_UNORM, white, 4);   // metal 1, rough 0
-            m_fallbacks[static_cast<size_t>(Resource::MaterialSlot::AO)] =
-                makeFallback(VK_FORMAT_R8_UNORM, white, 1);         // no occlusion
-            m_fallbacks[static_cast<size_t>(Resource::MaterialSlot::Emissive)] =
-                makeFallback(VK_FORMAT_R8G8B8A8_SRGB, black, 4);    // no emission
+            m_environmentBaker =
+                std::make_unique<EnvironmentBaker>(m_context, m_descriptorMgr, *this);
+            m_brdfLut = m_environmentBaker->BakeBrdfLut();
         }
 
         ResourceManager::~ResourceManager() = default;
@@ -306,7 +291,7 @@ namespace Kita::Pbrv
             {
                 perObject.m_sets[i] = m_descriptorMgr.Allocate(kLayoutType);
 
-                Rhi::V2::DescriptorWriter writer(m_context.Device());
+                DescriptorWriter writer(m_context.Device());
                 writer.WriteBuffer(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                     perObject.m_ubos[i].GetBuffer(), 0, sizeof(Gpu::PerObject))
                     .UpdateSet(perObject.m_sets[i]);
@@ -347,7 +332,7 @@ namespace Kita::Pbrv
             {
                 postProcess.m_sets[i] = m_descriptorMgr.Allocate(kLayoutType);
 
-                Rhi::V2::DescriptorWriter writer(m_context.Device());
+                DescriptorWriter writer(m_context.Device());
                 writer.WriteBuffer(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                     postProcess.m_ubos[i].GetBuffer(), 0, sizeof(Gpu::PostProcess))
                     .WriteImage(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
@@ -358,6 +343,73 @@ namespace Kita::Pbrv
             KITA_LOG_DEBUG("[Resource] Create post process set: ", postProcess.m_ubos.size(), " ubo slots, ",
                 sizeof(Gpu::PostProcess), " bytes, ", postProcess.m_sets.size(), " sets, 1 texture slot");
             return postProcess;
+        }
+
+        PerFrameSet ResourceManager::CreatePerFrameSet(ResourceId equirectId)
+        {
+            constexpr DescriptorLayoutType kLayoutType = DescriptorLayoutType::PerFrame;
+
+            PerFrameSet perFrame{};
+            perFrame.m_layout = m_descriptorMgr.GetLayout(kLayoutType);
+
+            Resource::BufferDesc desc{};
+            desc.m_size = sizeof(Gpu::PerFrame);
+            desc.m_usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+            desc.m_properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+            desc.m_mapped = true;
+
+            for (size_t i = 0; i < perFrame.m_ubos.size(); ++i)
+            {
+                perFrame.m_ubos[i] = CreateUbo(desc);
+            }
+
+            const TextureAsset* asset = m_assetMgr.GetTexture(equirectId);
+            if (asset)
+            {
+                perFrame.m_skybox = m_environmentBaker->BakeSkybox(CreateEquirect(*asset));
+                perFrame.m_irradiance = m_environmentBaker->BakeIrradiance(perFrame.m_skybox);
+                perFrame.m_prefilter = m_environmentBaker->BakePrefilter(perFrame.m_skybox);
+            }
+            else
+            {
+                ImageViewDesc imageViewDesc{};
+                imageViewDesc.m_type = VK_IMAGE_VIEW_TYPE_CUBE;
+                imageViewDesc.m_fullRange = true;
+
+                SamplerDesc samplerDesc{};
+                samplerDesc.m_magFilter = VK_FILTER_LINEAR;
+                samplerDesc.m_minFilter = VK_FILTER_LINEAR;
+                samplerDesc.m_mipMode = SamplerDesc::MipMode::None;
+                samplerDesc.m_addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+                samplerDesc.m_addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+                samplerDesc.m_addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+
+                perFrame.m_skybox = CreateTexture(m_cubemapFallback, imageViewDesc, samplerDesc);
+                perFrame.m_irradiance = CreateTexture(m_cubemapFallback, imageViewDesc, samplerDesc);
+                perFrame.m_prefilter = CreateTexture(m_cubemapFallback, imageViewDesc, samplerDesc);
+            }
+
+            for (size_t i = 0; i < perFrame.m_sets.size(); ++i)
+            {
+                perFrame.m_sets[i] = m_descriptorMgr.Allocate(kLayoutType);
+
+                DescriptorWriter writer(m_context.Device());
+                writer.WriteBuffer(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                    perFrame.m_ubos[i].GetBuffer(), 0, sizeof(Gpu::PerFrame))
+                    .WriteImage(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, m_brdfLut.GetImageView(), m_brdfLut.GetSampler())
+                    .WriteImage(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, perFrame.m_skybox.GetImageView(), perFrame.m_skybox.GetSampler())
+                    .WriteImage(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, perFrame.m_irradiance.GetImageView(), perFrame.m_irradiance.GetSampler())
+                    .WriteImage(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, perFrame.m_prefilter.GetImageView(), perFrame.m_prefilter.GetSampler())
+                    .UpdateSet(perFrame.m_sets[i]);
+            }
+
+            KITA_LOG_DEBUG("[Resource] Create per frame set: ", perFrame.m_ubos.size(), " ubo slots, ",
+                sizeof(Gpu::PerFrame), " bytes, ", perFrame.m_sets.size(), " sets, 4 texture slots");
+            return perFrame;
         }
 
         void ResourceManager::FlushGraveyard()
@@ -418,6 +470,71 @@ namespace Kita::Pbrv
             return mesh;
         }
 
+        TextureResource ResourceManager::CreateEquirect(const TextureAsset& asset)
+        {
+            ImageDesc desc{};
+            desc.m_extent = { asset.m_width, asset.m_height, 1 };
+            desc.m_format = VK_FORMAT_R32G32B32A32_SFLOAT;
+            desc.m_aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            desc.m_usage = VK_IMAGE_USAGE_SAMPLED_BIT;
+            desc.m_properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+            SamplerDesc samplerDesc{};
+            samplerDesc.m_magFilter = VK_FILTER_LINEAR;
+            samplerDesc.m_minFilter = VK_FILTER_LINEAR;
+            samplerDesc.m_mipMode = SamplerDesc::MipMode::None;
+            samplerDesc.m_addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            samplerDesc.m_addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+            samplerDesc.m_addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+
+            return CreateTexture(desc, {}, samplerDesc, asset.m_bytes.data(), asset.m_bytes.size());
+        }
+
+        std::array<ImageRhi::Handle, kMaterialSlotCount> ResourceManager::CreateMaterialFallbacks()
+        {
+            constexpr uint8_t white[] = { 255, 255, 255, 255 };
+            constexpr uint8_t black[] = { 0, 0, 0, 255 };
+            constexpr uint8_t flat[] = { 128, 128, 255, 255 };
+
+            const auto makeFallback = [this](VkFormat format, const uint8_t* bytes, size_t size)
+                {
+                    ImageDesc desc{};
+                    desc.m_extent = { 1, 1, 1 };
+                    desc.m_aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                    desc.m_usage = VK_IMAGE_USAGE_SAMPLED_BIT;
+                    desc.m_format = format;
+                    return CreateImage(desc, bytes, size);
+                };
+
+            std::array<ImageRhi::Handle, kMaterialSlotCount> fallbacks{};
+            fallbacks[static_cast<size_t>(Resource::MaterialSlot::Albedo)] =
+                makeFallback(VK_FORMAT_R8G8B8A8_SRGB, white, 4);    // opaque white
+            fallbacks[static_cast<size_t>(Resource::MaterialSlot::Normal)] =
+                makeFallback(VK_FORMAT_R8G8B8A8_UNORM, flat, 4);    // flat tangent-space normal
+            fallbacks[static_cast<size_t>(Resource::MaterialSlot::MetallicRoughness)] =
+                makeFallback(VK_FORMAT_R8G8B8A8_UNORM, white, 4);   // metal 1, rough 0
+            fallbacks[static_cast<size_t>(Resource::MaterialSlot::AO)] =
+                makeFallback(VK_FORMAT_R8_UNORM, white, 1);         // no occlusion
+            fallbacks[static_cast<size_t>(Resource::MaterialSlot::Emissive)] =
+                makeFallback(VK_FORMAT_R8G8B8A8_SRGB, black, 4);    // no emission
+            return fallbacks;
+        }
+
+        ImageRhi::Handle ResourceManager::CreateCubemapFallback()
+        {
+            ImageDesc desc{};
+            desc.m_extent = { 1, 1, 1 };
+            desc.m_arrayLayers = 6;
+            desc.m_format = m_context.HdrFormat();
+            desc.m_aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            desc.m_usage = VK_IMAGE_USAGE_SAMPLED_BIT;
+            desc.m_properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+            desc.m_flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+
+            std::array<uint32_t, 24> blackData{};   // 6 layers * 1 texel * RGBA32F zeros
+            return CreateImage(desc, blackData.data(), blackData.size() * sizeof(uint32_t));
+        }
+
         PerMaterialSet ResourceManager::CreatePerMaterialSet(const MaterialDesc& desc)
         {
             // Material sampling policy, spelled out at the only assembly point.
@@ -443,7 +560,7 @@ namespace Kita::Pbrv
                 material.m_textures[i] = tex.IsEmpty() ? CreateTexture(m_fallbacks[i], imageViewDesc, samplerDesc) : tex;
             }
 
-            Rhi::V2::DescriptorWriter writer(m_context.Device());
+            DescriptorWriter writer(m_context.Device());
             for (uint32_t i = 0; i < Resource::kMaterialSlotCount; ++i)
             {
                 writer.WriteImage(i, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,

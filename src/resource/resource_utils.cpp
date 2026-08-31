@@ -17,6 +17,24 @@ namespace Kita::Pbrv
     {
         namespace
         {
+            uint32_t FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter,
+                VkMemoryPropertyFlags properties)
+            {
+                VkPhysicalDeviceMemoryProperties memoryProperties;
+                vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProperties);
+
+                for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; ++i)
+                {
+                    if (typeFilter & (1 << i)
+                        && (memoryProperties.memoryTypes[i].propertyFlags & properties) == properties)
+                    {
+                        return i;
+                    }
+                }
+
+                throw std::runtime_error("Failed to find suitable memory type!");
+            }
+
             BufferRhi CreateBufferHelper(const Rhi::Context& context, const BufferDesc& desc)
             {
                 BufferRhi buffer{};
@@ -37,7 +55,7 @@ namespace Kita::Pbrv
 
                 VkMemoryAllocateInfo allocInfo{ VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
                 allocInfo.allocationSize = req.size;
-                allocInfo.memoryTypeIndex = Rhi::FindMemoryType(context.PhysicalDevice(), req.memoryTypeBits, desc.m_properties);
+                allocInfo.memoryTypeIndex = FindMemoryType(context.PhysicalDevice(), req.memoryTypeBits, desc.m_properties);
                 if (vkAllocateMemory(context.Device(), &allocInfo, nullptr, &buffer.m_memory) != VK_SUCCESS)
                 {
                     throw std::runtime_error("Failed to allocate buffer memory!");
@@ -88,7 +106,7 @@ namespace Kita::Pbrv
                 VkMemoryAllocateInfo allocInfo{};
                 allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
                 allocInfo.allocationSize = memRequirements.size;
-                allocInfo.memoryTypeIndex = Rhi::FindMemoryType(context.PhysicalDevice(), memRequirements.memoryTypeBits, desc.m_properties);
+                allocInfo.memoryTypeIndex = FindMemoryType(context.PhysicalDevice(), memRequirements.memoryTypeBits, desc.m_properties);
 
                 if (vkAllocateMemory(context.Device(), &allocInfo, nullptr, &image.m_memory) != VK_SUCCESS)
                 {
@@ -365,24 +383,8 @@ namespace Kita::Pbrv
                 VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask,
                 const VkImageSubresourceRange& range)
             {
-                VkImageMemoryBarrier2 barrier{};
-                barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-                barrier.srcStageMask = srcStageMask;
-                barrier.srcAccessMask = srcAccessMask;
-                barrier.dstStageMask = dstStageMask;
-                barrier.dstAccessMask = dstAccessMask;
-                barrier.oldLayout = oldLayout;
-                barrier.newLayout = newLayout;
-                barrier.image = image.m_image;
-                barrier.subresourceRange = range;
-
-                VkDependencyInfo dependencyInfo{};
-                dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-                dependencyInfo.dependencyFlags = 0;
-                dependencyInfo.imageMemoryBarrierCount = 1;
-                dependencyInfo.pImageMemoryBarriers = &barrier;
-
-                vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
+                Rhi::TransitionImageLayout(commandBuffer, image.m_image, oldLayout, newLayout,
+                    srcStageMask, srcAccessMask, dstStageMask, dstAccessMask, range);
             }
 
             void GenerateImageMipmaps(VkCommandBuffer commandBuffer, const ImageRhi& image,

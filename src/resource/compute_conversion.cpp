@@ -1,12 +1,11 @@
 #include "compute_conversion.h"
 
-#include "rhi/context.h"
-#include "rhi/utils.h"
 #include "rhi/compute_pipeline.h"
-#include "rhi/descriptor_writer.h"
+#include "rhi/context.h"
 #include "rhi/one_shot_command.h"
-#include "resource/resources.h"
+#include "rhi/utils.h"
 #include "resource/descriptor_manager.h"
+#include "resource/descriptor_writer.h"
 
 #include <cassert>
 
@@ -15,12 +14,10 @@ namespace Kita::Pbrv
     namespace Resource
     {
         ComputeConversion::ComputeConversion(const Rhi::Context& context,
-            Resources& resources,
             DescriptorManager& descriptorMgr,
             DescriptorLayoutType layoutType,
             const std::string& shaderPath, uint32_t pushConstantSize)
             : m_context(context),
-            m_resources(resources),
             m_descriptorMgr(descriptorMgr),
             m_layoutType(layoutType),
             m_pushConstantSize(pushConstantSize)
@@ -57,18 +54,17 @@ namespace Kita::Pbrv
             // Sets will be destroyed automatically
         }
 
-        void ComputeConversion::Dispatch(const Output& output, VkExtent3D dispatchSize, const std::vector<Input>& inputs, const void* pushData) const
+        void ComputeConversion::Dispatch(const Output& output, VkExtent3D dispatchSize,
+            const std::vector<Input>& inputs,
+            const void* pushData) const
         {
             assert(m_pipeline && "ComputeConversion: pipeline is null");
 
-            RenderImage* outputImage = m_resources.GetImage(output.m_image);
-            assert(outputImage && "ComputeConversion: output image handle is invalid");
-
             // 1. Write set
             {
-                Rhi::DescriptorWriter writer(m_resources, m_context.Device());
+                DescriptorWriter writer(m_context.Device());
                 writer.WriteImage(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-                    VK_IMAGE_LAYOUT_GENERAL, output.m_imageView, 0);
+                    VK_IMAGE_LAYOUT_GENERAL, output.m_imageView, VK_NULL_HANDLE);
                 for (size_t i = 0; i < inputs.size(); ++i)
                 {
                     auto& input = inputs[i];
@@ -77,7 +73,6 @@ namespace Kita::Pbrv
                         writer.WriteImage(static_cast<uint32_t>(i + 1), input.m_type,
                             input.m_layout, input.m_imageView, input.m_sampler);
                     }
-                    // Other type...
                 }
                 writer.UpdateSet(m_set);
             }
@@ -87,7 +82,7 @@ namespace Kita::Pbrv
                 Rhi::OneShotCommand command(m_context);
 
                 // Output: UNDEFINED -> GENERAL
-                Rhi::TransitionImageLayout(command.Handle(), outputImage->m_image,
+                Rhi::TransitionImageLayout(command.Handle(), output.m_image,
                     VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
                     VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
                     VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
@@ -105,7 +100,7 @@ namespace Kita::Pbrv
                 vkCmdDispatch(command.Handle(), dispatchSize.width, dispatchSize.height, dispatchSize.depth);
 
                 // Output: GENERAL -> final layout
-                Rhi::TransitionImageLayout(command.Handle(), outputImage->m_image,
+                Rhi::TransitionImageLayout(command.Handle(), output.m_image,
                     VK_IMAGE_LAYOUT_GENERAL, output.m_finalLayout,
                     VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
                     output.m_finalStage, output.m_finalAccess,
