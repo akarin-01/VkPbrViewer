@@ -165,6 +165,11 @@ namespace Kita::Pbrv
             ImageRhi::Handle m_image{};
             ImageViewRhi::Handle m_imageView{};
             SamplerRhi::Handle m_sampler{};
+
+            VkImage GetImage() const { return m_image->m_image; }
+            VkImageView GetImageView() const { return m_imageView->m_imageView; }
+            VkSampler GetSampler() const { return m_sampler->m_sampler; }
+            bool IsEmpty() const { return !m_image; }
         };
 
         // ------------- L2: Set (descriptor sets) -------------

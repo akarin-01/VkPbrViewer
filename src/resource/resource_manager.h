@@ -40,6 +40,11 @@ namespace Kita::Pbrv
             SamplerRhi::Handle GetOrCreateSampler(const SamplerDesc& desc);
 
             MeshResource::Handle GetOrCreateMesh(ResourceId meshId);
+            TextureResource CreateTexture(ResourceId textureId,
+                const ImageViewDesc& imageViewDesc, const SamplerDesc& samplerDesc);
+            TextureResource CreateTexture(const ImageDesc& imageDesc,
+                const ImageViewDesc& imageViewDesc, const SamplerDesc& samplerDesc,
+                const void* data = nullptr, size_t size = 0);
 
             PerObjectSet CreatePerObjectSet();
 

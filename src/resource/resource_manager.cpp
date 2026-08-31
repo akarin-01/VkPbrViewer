@@ -197,6 +197,35 @@ namespace Kita::Pbrv
             return handle;
         }
 
+        TextureResource ResourceManager::CreateTexture(ResourceId textureId, const ImageViewDesc& imageViewDesc, const SamplerDesc& samplerDesc)
+        {
+            TextureResource texture{};
+            texture.m_image = GetOrCreateImage(textureId);
+            if (!texture.m_image)
+            {
+                // Invalid texture id: empty texture, matching GetOrCreate* convention
+                return TextureResource{};
+            }
+
+            texture.m_imageView = CreateImageView(imageViewDesc, texture.m_image);
+            texture.m_sampler = GetOrCreateSampler(samplerDesc);
+
+            Core::Log::Info("[Resource] Create texture resource: texture asset(", textureId, ")");
+            return texture;
+        }
+
+        TextureResource ResourceManager::CreateTexture(const ImageDesc& imageDesc, const ImageViewDesc& imageViewDesc, const SamplerDesc& samplerDesc, const void* data, size_t size)
+        {
+            TextureResource texture{};
+            texture.m_image = CreateImage(imageDesc, data, size);
+            texture.m_imageView = CreateImageView(imageViewDesc, texture.m_image);
+            texture.m_sampler = GetOrCreateSampler(samplerDesc);
+
+            Core::Log::Info("[Resource] Create texture resource: image data ", size, " bytes, ",
+                imageDesc.m_extent.width, "x", imageDesc.m_extent.height);
+            return texture;
+        }
+
         ImageRhi::Handle ResourceManager::GetOrCreateImage(ResourceId textureId)
         {
             auto it = m_imageIds.find(textureId);
