@@ -222,7 +222,6 @@ namespace Kita::Pbrv
             // Set 3: K UBO slots + K descriptor sets, bound once at creation.
             std::array<UboResource, Rhi::kMaxFramesInFlight> m_ubos{};
             std::array<DescriptorSetRhi::Handle, Rhi::kMaxFramesInFlight> m_sets{};
-            VkDescriptorSetLayout m_layout{ VK_NULL_HANDLE };
 
             void WriteData(uint32_t frameIndex, const Gpu::PerObject& data)
             {
@@ -264,7 +263,6 @@ namespace Kita::Pbrv
             // Set 2 (one immutable set; empty slots share the manager's fallbacks).
             std::array<TextureResource, kMaterialSlotCount> m_textures{};
             DescriptorSetRhi::Handle m_set{};
-            VkDescriptorSetLayout m_layout{ VK_NULL_HANDLE };
 
             const VkDescriptorSet& GetSet() const { return m_set->GetSet(); }
         };
@@ -274,7 +272,6 @@ namespace Kita::Pbrv
             // Set 1: K UBO slots + K descriptor sets, bound once at creation.
             std::array<UboResource, Rhi::kMaxFramesInFlight> m_ubos{};
             std::array<DescriptorSetRhi::Handle, Rhi::kMaxFramesInFlight> m_sets{};
-            VkDescriptorSetLayout m_layout{ VK_NULL_HANDLE };
 
             void WriteData(uint32_t frameIndex, const Gpu::PostProcess& data)
             {
@@ -292,7 +289,6 @@ namespace Kita::Pbrv
             TextureResource m_irradiance{};
             TextureResource m_prefilter{};
             std::array<DescriptorSetRhi::Handle, Rhi::kMaxFramesInFlight> m_sets{};
-            VkDescriptorSetLayout m_layout{ VK_NULL_HANDLE };
 
             void WriteData(uint32_t frameIndex, const Gpu::PerFrame& data)
             {

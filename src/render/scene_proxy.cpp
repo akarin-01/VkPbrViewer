@@ -45,6 +45,19 @@ namespace Kita::Pbrv
         }
 
         SceneProxy::SceneProxy() = default;
+
+        SceneProxy::ObjectInput& SceneProxy::FindOrAddObjectInput(Resource::ResourceId id)
+        {
+            for (auto& objectInput : m_objectInputs)
+            {
+                if (objectInput.m_id == id)
+                {
+                    return objectInput;
+                }
+            }
+
+            return m_objectInputs.emplace_back(ObjectInput{ id });
+        }
         SceneProxy::~SceneProxy() = default;
 
         void SceneProxy::WriteCameraData(const glm::vec3& position, const glm::vec3& front,
@@ -65,23 +78,25 @@ namespace Kita::Pbrv
             m_lightInput.m_intensity = intensity;
         }
 
-        void SceneProxy::WriteObjectData(const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale)
+        void SceneProxy::WriteObjectData(Resource::ResourceId id, const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale)
         {
-            m_objectInput.m_position = position;
-            m_objectInput.m_rotation = rotation;
-            m_objectInput.m_scale = scale;
+            auto& objectInput = FindOrAddObjectInput(id);
+            objectInput.m_position = position;
+            objectInput.m_rotation = rotation;
+            objectInput.m_scale = scale;
         }
 
-        void SceneProxy::WriteObjectMaterial(const glm::vec4& albedo,
-            float metallic, float roughness, float ao, const glm::vec3& emissive,
-            float emissiveIntensity)
+        void SceneProxy::WriteObjectMaterial(Resource::ResourceId id,
+            const glm::vec4& albedo, float metallic, float roughness, float ao,
+            const glm::vec3& emissive, float emissiveIntensity)
         {
-            m_objectInput.m_albedo = albedo;
-            m_objectInput.m_metallic = metallic;
-            m_objectInput.m_roughness = roughness;
-            m_objectInput.m_ao = ao;
-            m_objectInput.m_emissive = emissive;
-            m_objectInput.m_emissiveIntensity = emissiveIntensity;
+            auto& objectInput = FindOrAddObjectInput(id);
+            objectInput.m_albedo = albedo;
+            objectInput.m_metallic = metallic;
+            objectInput.m_roughness = roughness;
+            objectInput.m_ao = ao;
+            objectInput.m_emissive = emissive;
+            objectInput.m_emissiveIntensity = emissiveIntensity;
         }
 
         void SceneProxy::WritePostProcessData(float ev)
@@ -94,14 +109,19 @@ namespace Kita::Pbrv
             m_environment = EnvironmentRecord{ equirectId };
         }
 
-        void SceneProxy::UpdateMesh(Resource::ResourceId meshId)
+        void SceneProxy::UpdateMesh(Resource::ResourceId id, Resource::ResourceId meshId)
         {
-            m_mesh = MeshRecord{ meshId };
+            m_meshRecords.emplace_back(MeshRecord{ id, meshId });
         }
 
-        void SceneProxy::UpdateMaterial(const std::array<Resource::ResourceId, Resource::kMaterialSlotCount>& textureIds)
+        void SceneProxy::UpdateMaterial(Resource::ResourceId id, const std::array<Resource::ResourceId, Resource::kMaterialSlotCount>& textureIds)
         {
-            m_material = MaterialRecord{ textureIds };
+            m_materialRecords.emplace_back(MaterialRecord{ id, textureIds });
+        }
+
+        void SceneProxy::DeleteObject(Resource::ResourceId id)
+        {
+            m_deletedObjects.push_back(id);
         }
 
         void SceneProxy::BuildSceneProxy(float aspect)
@@ -124,19 +144,29 @@ namespace Kita::Pbrv
                 glm::vec4(std::exp2(m_postProcessInput.m_ev), 0.0f, 0.0f, 0.0f);
 
             // Object
-            m_objectData.m_transform.m_model = CalculateModelMatrix(
-                m_objectInput.m_position, m_objectInput.m_rotation, m_objectInput.m_scale);
-            m_objectData.m_transform.m_normal = CalculateNormalMatrix(m_objectData.m_transform.m_model);
-            m_objectData.m_material.m_albedo = m_objectInput.m_albedo;
-            m_objectData.m_material.m_pbrParams = glm::vec4(
-                m_objectInput.m_metallic, m_objectInput.m_roughness, m_objectInput.m_ao, 0.0f);
-            m_objectData.m_material.m_emissive =
-                glm::vec4(m_objectInput.m_emissive, m_objectInput.m_emissiveIntensity);
+            m_objectDatas.resize(m_objectInputs.size());
+            for (size_t i = 0; i < m_objectInputs.size(); ++i)
+            {
+                auto& objectData = m_objectDatas[i];
+                auto& object = objectData.m_object;
+                auto& objectInput = m_objectInputs[i];
+
+                objectData.m_id = objectInput.m_id;
+
+                object.m_transform.m_model = CalculateModelMatrix(
+                    objectInput.m_position, objectInput.m_rotation, objectInput.m_scale);
+                object.m_transform.m_normal = CalculateNormalMatrix(object.m_transform.m_model);
+                object.m_material.m_albedo = objectInput.m_albedo;
+                object.m_material.m_pbrParams = glm::vec4(
+                    objectInput.m_metallic, objectInput.m_roughness, objectInput.m_ao, 0.0f);
+                object.m_material.m_emissive =
+                    glm::vec4(objectInput.m_emissive, objectInput.m_emissiveIntensity);
+            }
 
             // Raw inputs are fully converted: drop them for the next frame
             m_cameraInput = {};
             m_lightInput = {};
-            m_objectInput = {};
+            m_objectInputs.clear();
             m_postProcessInput = {};
         }
 
@@ -145,10 +175,11 @@ namespace Kita::Pbrv
             // GPU outputs and records were consumed: clear them
             m_frameData = {};
             m_postProcessData = {};
-            m_objectData = {};
+            m_objectDatas.clear();
             m_environment = {};
-            m_mesh = {};
-            m_material = {};
+            m_meshRecords.clear();
+            m_materialRecords.clear();
+            m_deletedObjects.clear();
         }
     }
 }

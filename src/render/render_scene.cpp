@@ -19,8 +19,6 @@ namespace Kita::Pbrv
             Recreate();
 
             m_global.m_frameSet = m_resourceMgr.CreatePerFrameSet(Resource::kInvalidId);
-
-            m_object = CreateObject();
         }
 
         RenderScene::~RenderScene() = default;
@@ -34,7 +32,7 @@ namespace Kita::Pbrv
 
             UpdateFrameSet(frameIndex, sceneProxy);
             UpdatePostProcessSet(frameIndex, sceneProxy);
-            UpdateObject(frameIndex, sceneProxy);
+            UpdateObjects(frameIndex, sceneProxy);
 
             sceneProxy.Reset();
         }
@@ -78,9 +76,9 @@ namespace Kita::Pbrv
             m_global.m_postProcessSet = m_resourceMgr.CreatePostProcessSet(m_global.m_target.m_resolveTexture);
         }
 
-        VkDescriptorSetLayout RenderScene::GetEmptyLayout() const
+        VkDescriptorSetLayout RenderScene::GetDescriptorSetLayout(Resource::DescriptorSetRhi::Type type) const
         {
-            return m_resourceMgr.GetDescriptorSetLayout(Resource::DescriptorSetRhi::Type::Empty);
+            return m_resourceMgr.GetDescriptorSetLayout(type);
         }
 
         ObjectState RenderScene::CreateObject() const
@@ -102,23 +100,54 @@ namespace Kita::Pbrv
             return object;
         }
 
-        void RenderScene::UpdateObject(uint32_t frameIndex, const SceneProxy& proxy)
+        void RenderScene::UpdateObjects(uint32_t frameIndex, const SceneProxy& proxy)
         {
-            auto& mesh = proxy.GetMeshRecord();
-            if (mesh.has_value())
+            auto& deleteObjects = proxy.GetDeletedObjects();
+            for (auto& id : deleteObjects)
             {
-                m_object.m_mesh = m_resourceMgr.GetOrCreateMesh(mesh->m_meshId);
+                m_objects.erase(id);
             }
 
-            auto& mat = proxy.GetMaterialRecord();
-            if (mat.has_value())
+            auto& meshRecords = proxy.GetMeshRecords();
+            for (auto& meshRecord : meshRecords)
             {
+                auto it = m_objects.find(meshRecord.m_id);
+                if (it == m_objects.end())
+                {
+                    it = m_objects.emplace(meshRecord.m_id, CreateObject()).first;
+                }
+
+                auto& object = it->second;
+                object.m_mesh = m_resourceMgr.GetOrCreateMesh(meshRecord.m_meshId);
+            }
+
+            auto& materialRecords = proxy.GetMaterialRecords();
+            for (auto& materialRecord : materialRecords)
+            {
+                auto it = m_objects.find(materialRecord.m_id);
+                if (it == m_objects.end())
+                {
+                    it = m_objects.emplace(materialRecord.m_id, CreateObject()).first;
+                }
+
                 Resource::MaterialDesc desc{};
-                desc.m_textureIds = mat->m_textureIds;
-                m_object.m_materialSet = m_resourceMgr.GetOrCreatePerMaterialSet(desc);
+                desc.m_textureIds = materialRecord.m_textureIds;
+                auto& object = it->second;
+                object.m_materialSet = m_resourceMgr.GetOrCreatePerMaterialSet(desc);
             }
 
-            m_object.m_objectSet.WriteData(frameIndex, proxy.GetObjectData());
+            auto& objectDatas = proxy.GetObjectDatas();
+            for (auto& objectData : objectDatas)
+            {
+                auto it = m_objects.find(objectData.m_id);
+                if (it == m_objects.end())
+                {
+                    continue;   // records create new states above; skip anything else
+                }
+
+                auto& object = it->second;
+                object.m_objectSet.WriteData(frameIndex, objectData.m_object);
+            }
         }
     }
 }

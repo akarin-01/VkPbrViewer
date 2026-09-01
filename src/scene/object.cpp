@@ -18,7 +18,7 @@ namespace Kita::Pbrv
             if (m_meshDirty)
             {
                 m_meshDirty = false;
-                proxy.UpdateMesh(m_mesh.GetId());   // empty handle -> kInvalidId = remove mesh
+                proxy.UpdateMesh(m_id, m_mesh.GetId());   // empty handle -> kInvalidId = remove mesh
             }
             if (m_material.ConsumeTexturesDirty())
             {
@@ -28,12 +28,12 @@ namespace Kita::Pbrv
                     textureIds[i] = m_material.GetTexture(
                         static_cast<Resource::MaterialSlot>(i)).GetId();
                 }
-                proxy.UpdateMaterial(textureIds);
+                proxy.UpdateMaterial(m_id, textureIds);
             }
 
             // Per-frame data
-            proxy.WriteObjectData(m_position, m_rotation, m_scale);
-            proxy.WriteObjectMaterial(m_material.GetAlbedo(), m_material.GetMetallic(),
+            proxy.WriteObjectData(m_id, m_position, m_rotation, m_scale);
+            proxy.WriteObjectMaterial(m_id, m_material.GetAlbedo(), m_material.GetMetallic(),
                 m_material.GetRoughness(), m_material.GetAO(), m_material.GetEmissive(),
                 m_material.GetEmissiveIntensity());
         }

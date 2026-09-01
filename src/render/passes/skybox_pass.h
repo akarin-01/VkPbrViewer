@@ -3,6 +3,7 @@
 #include "render/render_pass_base.h"
 
 #include <memory>
+#include <vector>
 
 namespace Kita::Pbrv
 {
@@ -32,7 +33,7 @@ namespace Kita::Pbrv
             void Draw(const Rhi::FrameInfo& frameInfo) const override;
 
         private:
-            void CreatePipeline();
+            void CreatePipeline(const std::vector<VkDescriptorSetLayout>& layouts);
 
         private:
             const Resource::TargetResource& m_target;

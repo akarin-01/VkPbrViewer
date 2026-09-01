@@ -7,7 +7,9 @@
 #include "render/vertex_input.h"
 #include "render/render_scene.h"
 
+#include <algorithm>
 #include <cassert>
+#include <unordered_map>
 
 namespace Kita::Pbrv
 {
@@ -19,9 +21,15 @@ namespace Kita::Pbrv
             : RenderPassBase(context, swapChain),
             m_target(scene.GetGlobal().m_target),
             m_frameSet(scene.GetGlobal().m_frameSet),
-            m_objectState(scene.GetObject())
+            m_objectMap(scene.GetObjects())
         {
-            CreatePipeline(scene.GetEmptyLayout());
+            CreatePipeline(
+                {
+                    scene.GetDescriptorSetLayout(Resource::DescriptorSetRhi::Type::PerFrame),
+                    scene.GetDescriptorSetLayout(Resource::DescriptorSetRhi::Type::Empty),
+                    scene.GetDescriptorSetLayout(Resource::DescriptorSetRhi::Type::PerMaterial),
+                    scene.GetDescriptorSetLayout(Resource::DescriptorSetRhi::Type::PerObject),
+                });
         }
 
         LitPass::~LitPass() = default;
@@ -63,33 +71,70 @@ namespace Kita::Pbrv
 
                 Rhi::RenderingScope scope(commandBuffer, extent, { colorDesc }, &depthDesc);
 
+                // Sort by material, then by mesh: minimal bind switches
+                std::vector<const Render::ObjectState*> sortedObjects;
+                sortedObjects.reserve(m_objectMap.size());
+                for (auto& [id, objectState] : m_objectMap)
+                {
+                    sortedObjects.push_back(&objectState);
+                }
+                std::sort(sortedObjects.begin(), sortedObjects.end(),
+                    [](const Render::ObjectState* a, const Render::ObjectState* b)
+                    {
+                        const Resource::ResourceId aMaterial = a->m_materialSet.GetId();
+                        const Resource::ResourceId bMaterial = b->m_materialSet.GetId();
+                        if (aMaterial != bMaterial)
+                        {
+                            return aMaterial < bMaterial;
+                        }
+                        return a->m_mesh.GetId() < b->m_mesh.GetId();
+                    });
+
                 // Bind pipeline
                 vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Handle());
 
                 // Draw
                 vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
                     0, 1, &m_frameSet.GetSet(frameIndex), 0, nullptr);
-                {
-                    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                        2, 1, &m_objectState.m_materialSet->GetSet(), 0, nullptr);
-                    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                        3, 1, &m_objectState.m_objectSet.GetSet(frameIndex), 0, nullptr);
 
-                    if (m_objectState.m_mesh)
+                Resource::ResourceId lastMaterialId{ Resource::kInvalidId };
+                Resource::ResourceId lastMeshId{ Resource::kInvalidId };
+                for (const auto* objectState : sortedObjects)
+                {
+                    if (!objectState->m_mesh)
                     {
-                        VkBuffer buffers[]{ m_objectState.m_mesh->GetVertexBuffer() };
+                        continue;
+                    }
+
+                    const Resource::ResourceId materialId = objectState->m_materialSet.GetId();
+                    if (materialId != lastMaterialId)
+                    {
+                        lastMaterialId = materialId;
+
+                        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
+                            2, 1, &objectState->m_materialSet->GetSet(), 0, nullptr);
+                    }
+                    const Resource::ResourceId meshId = objectState->m_mesh.GetId();
+                    if (meshId != lastMeshId)
+                    {
+                        lastMeshId = meshId;
+
+                        VkBuffer buffers[]{ objectState->m_mesh->GetVertexBuffer() };
                         VkDeviceSize offsets[]{ 0 };
                         vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
-                        vkCmdBindIndexBuffer(commandBuffer, m_objectState.m_mesh->GetIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
-
-                        vkCmdDrawIndexed(commandBuffer, m_objectState.m_mesh->GetIndexCount(), 1, 0, 0, 0);
+                        vkCmdBindIndexBuffer(commandBuffer, objectState->m_mesh->GetIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
                     }
+
+                    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
+                        3, 1, &objectState->m_objectSet.GetSet(frameIndex), 0, nullptr);
+
+                    vkCmdDrawIndexed(commandBuffer, objectState->m_mesh->GetIndexCount(), 1, 0, 0, 0);
                 }
             }
             // End rendering
         }
 
-        void LitPass::CreatePipeline(VkDescriptorSetLayout emptyLayout)
+        void LitPass::CreatePipeline(const std::vector<VkDescriptorSetLayout>& layouts)
         {
             Rhi::GraphicsPipelineBuilder builder(m_context.Device());
             builder.SetShaders("assets/shaders/lit_vert.spv", "assets/shaders/lit_frag.spv")
@@ -97,14 +142,8 @@ namespace Kita::Pbrv
                 .SetCullMode(VK_CULL_MODE_BACK_BIT)
                 .SetRasterizationSamples(m_context.SampleCount())
                 .SetDepth(true, true, VK_COMPARE_OP_LESS)
-                .SetDescriptorSetLayouts(
-                    {
-                        m_frameSet.m_layout,
-                        emptyLayout,
-                        m_objectState.m_materialSet->m_layout,
-                        m_objectState.m_objectSet.m_layout,
-                    })
-                    .SetDynamicRendering({ m_target.GetColorFormat() }, m_target.GetDepthFormat());
+                .SetDescriptorSetLayouts(layouts)
+                .SetDynamicRendering({ m_target.GetColorFormat() }, m_target.GetDepthFormat());
             m_pipeline = builder.Build();
         }
     }

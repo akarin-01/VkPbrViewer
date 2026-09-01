@@ -18,7 +18,11 @@ namespace Kita::Pbrv
             : RenderPassBase(context, swapChain),
             m_postProcessSet(scene.GetGlobal().m_postProcessSet)
         {
-            CreatePipeline(scene.GetEmptyLayout());
+            CreatePipeline(
+                {
+                    scene.GetDescriptorSetLayout(Resource::DescriptorSetRhi::Type::Empty),
+                    scene.GetDescriptorSetLayout(Resource::DescriptorSetRhi::Type::PostProcess),
+                });
         }
 
         PostProcessPass::~PostProcessPass()
@@ -63,16 +67,12 @@ namespace Kita::Pbrv
             // End rendering
         }
 
-        void PostProcessPass::CreatePipeline(VkDescriptorSetLayout emptyLayout)
+        void PostProcessPass::CreatePipeline(const std::vector<VkDescriptorSetLayout>& layouts)
         {
             Rhi::GraphicsPipelineBuilder builder(m_context.Device());
             builder.SetShaders("assets/shaders/post_process_vert.spv", "assets/shaders/post_process_frag.spv")
-                .SetDescriptorSetLayouts(
-                    {
-                        emptyLayout,
-                        m_postProcessSet.m_layout,
-                    })
-                    .SetDynamicRendering({ m_swapChain.Format() }, VK_FORMAT_UNDEFINED);
+                .SetDescriptorSetLayouts(layouts)
+                .SetDynamicRendering({ m_swapChain.Format() }, VK_FORMAT_UNDEFINED);
             m_pipeline = builder.Build();
         }
     }

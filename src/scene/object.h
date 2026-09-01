@@ -1,6 +1,7 @@
 #pragma once
 
 #include "resource/asset_types.h"
+#include "resource/resource_id.h"
 #include "scene/material.h"
 
 #include <glm/glm.hpp>
@@ -12,12 +13,20 @@ namespace Kita::Pbrv
         class Object
         {
         public:
-            Object() = default;
+            explicit Object(Resource::ResourceId id)
+                : m_id(id)
+            {
+            }
+
             ~Object() = default;
 
             /// Writes the per-frame object data and any pending mesh/texture
             /// changes into the SceneProxy
             void Update();
+
+            Resource::ResourceId GetId() const { return m_id; }
+            void MarkDelete() { m_deletePending = true; }
+            bool IsDeletePending() const { return m_deletePending; }
 
             Object& SetMesh(Resource::MeshAsset::Handle mesh);
             Object& SetPosition(const glm::vec3& position);
@@ -33,6 +42,9 @@ namespace Kita::Pbrv
             Material& GetMaterial() { return const_cast<Material&>(static_cast<const Object*>(this)->GetMaterial()); }
 
         private:
+            Resource::ResourceId m_id{ Resource::kInvalidId };
+            bool m_deletePending{ false };
+
             Resource::MeshAsset::Handle m_mesh{};
             bool m_meshDirty{ true };
 

@@ -286,7 +286,6 @@ namespace Kita::Pbrv
             constexpr DescriptorSetRhi::Type kLayoutType = DescriptorSetRhi::Type::PerObject;
 
             PerObjectSet perObject{};
-            perObject.m_layout = m_descriptorMgr->GetLayout(kLayoutType);
 
             Resource::BufferDesc desc{};
             desc.m_size = sizeof(Gpu::PerObject);
@@ -328,7 +327,6 @@ namespace Kita::Pbrv
             constexpr DescriptorSetRhi::Type kLayoutType = DescriptorSetRhi::Type::PostProcess;
 
             PostProcessSet postProcess{};
-            postProcess.m_layout = m_descriptorMgr->GetLayout(kLayoutType);
 
             Resource::BufferDesc desc{};
             desc.m_size = sizeof(Gpu::PostProcess);
@@ -363,7 +361,6 @@ namespace Kita::Pbrv
             constexpr DescriptorSetRhi::Type kLayoutType = DescriptorSetRhi::Type::PerFrame;
 
             PerFrameSet perFrame{};
-            perFrame.m_layout = m_descriptorMgr->GetLayout(kLayoutType);
 
             Resource::BufferDesc desc{};
             desc.m_size = sizeof(Gpu::PerFrame);
@@ -572,7 +569,6 @@ namespace Kita::Pbrv
             samplerDesc.m_addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 
             PerMaterialSet material{};
-            material.m_layout = m_descriptorMgr->GetLayout(DescriptorSetRhi::Type::PerMaterial);
             material.m_set = CreateDescriptorSet(DescriptorSetRhi::Type::PerMaterial);
 
             for (uint32_t i = 0; i < Resource::kMaterialSlotCount; ++i)

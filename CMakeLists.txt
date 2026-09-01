@@ -150,6 +150,7 @@ add_executable(VkPbrViewer
     src/scene/material.cpp
     src/scene/object.cpp
     src/scene/post_process.cpp
+    src/scene/scene.cpp
     src/scene/skybox.cpp
 
     # application

@@ -20,7 +20,7 @@ namespace Kita::Pbrv
         {
             void InitScene(Scene::Scene& scene, Resource::AssetManager& assetMgr)
             {
-                auto& object = scene.GetObject();
+                auto& object = scene.CreateObject();
                 object.SetMesh(assetMgr.LoadMesh("assets/models/DamagedHelmet.gltf"));
 
                 auto& mat = object.GetMaterial();

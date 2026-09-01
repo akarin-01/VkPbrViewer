@@ -1,8 +1,11 @@
 #pragma once
 
 #include "render/render_pass_base.h"
+#include "resource/resource_id.h"
 
 #include <memory>
+#include <unordered_map>
+#include <vector>
 
 namespace Kita::Pbrv
 {
@@ -33,12 +36,12 @@ namespace Kita::Pbrv
             void Draw(const Rhi::FrameInfo& frameInfo) const override;
 
         private:
-            void CreatePipeline(VkDescriptorSetLayout emptyLayout);
+            void CreatePipeline(const std::vector<VkDescriptorSetLayout>& layouts);
 
         private:
             const Resource::TargetResource& m_target;
             const Resource::PerFrameSet& m_frameSet;
-            const ObjectState& m_objectState;
+            const std::unordered_map<Resource::ResourceId, ObjectState>& m_objectMap;
 
             std::unique_ptr<Rhi::GraphicsPipeline> m_pipeline;
         };

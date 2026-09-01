@@ -19,7 +19,7 @@ namespace Kita::Pbrv
             m_target(scene.GetGlobal().m_target),
             m_frameSet(scene.GetGlobal().m_frameSet)
         {
-            CreatePipeline();
+            CreatePipeline({ scene.GetDescriptorSetLayout(Resource::DescriptorSetRhi::Type::PerFrame) });
         }
 
         SkyboxPass::~SkyboxPass() = default;
@@ -67,16 +67,13 @@ namespace Kita::Pbrv
             // End rendering
         }
 
-        void SkyboxPass::CreatePipeline()
+        void SkyboxPass::CreatePipeline(const std::vector<VkDescriptorSetLayout>& layouts)
         {
             Rhi::GraphicsPipelineBuilder builder(m_context.Device());
             builder.SetShaders("assets/shaders/skybox_vert.spv", "assets/shaders/skybox_frag.spv")
                 .SetRasterizationSamples(m_context.SampleCount())
                 .SetDepth(true, false, VK_COMPARE_OP_LESS_OR_EQUAL)
-                .SetDescriptorSetLayouts(
-                    {
-                        m_frameSet.m_layout
-                    })
+                .SetDescriptorSetLayouts(layouts)
                 .SetDynamicRendering({ m_target.GetColorFormat() }, m_target.GetDepthFormat());
             m_pipeline = builder.Build();
         }

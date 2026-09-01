@@ -8,6 +8,7 @@
 #include "application/ui_utils.h"
 
 #include <glm/glm.hpp>
+#include <string>
 
 namespace Kita::Pbrv
 {
@@ -257,16 +258,6 @@ namespace Kita::Pbrv
                     });
             }
 
-            void DrawObject(Scene::Object& object, Resource::AssetManager& assets)
-            {
-                DrawBox("##ObjectBox", "Object", [&object, &assets]()
-                    {
-                        DrawTransform(object);
-                        DrawMesh(object, assets);
-                        DrawMaterial(object.GetMaterial(), assets);
-                    });
-            }
-
             void DrawPostProcess(Scene::PostProcess& postProcess)
             {
                 DrawBox("##PostProcessBox", "Post Process", [&postProcess]()
@@ -299,11 +290,40 @@ namespace Kita::Pbrv
                 }
             }
 
-            void DrawObjectsPanel(Scene::Object& object, Resource::AssetManager& assets)
+            void DrawObjectsPanel(Scene::Scene& scene, Resource::AssetManager& assets)
             {
                 if (ImGui::CollapsingHeader("Objects"))
                 {
-                    DrawObject(object, assets);
+                    ImGui::Indent();
+
+                    for (auto& object : scene.GetObjects())
+                    {
+                        ImGui::PushID(static_cast<int>(object.GetId()));
+
+                        const std::string title = "Object " + std::to_string(object.GetId());
+                        if (ImGui::CollapsingHeader(title.c_str()))
+                        {
+                            // Delete the object as the first row
+                            if (ImGui::Button("Delete"))
+                            {
+                                scene.DestroyObject(object.GetId());
+                            }
+
+                            DrawTransform(object);
+                            DrawMesh(object, assets);
+                            DrawMaterial(object.GetMaterial(), assets);
+                        }
+
+                        ImGui::PopID();
+                    }
+
+                    // Create a new object below the list
+                    if (ImGui::Button("Create Object"))
+                    {
+                        scene.CreateObject();
+                    }
+
+                    ImGui::Unindent();
                 }
             }
 
@@ -341,7 +361,7 @@ namespace Kita::Pbrv
             if (ImGui::Begin("Inspector", nullptr, ImGuiWindowFlags_NoMove))
             {
                 DrawEnvironmentPanel(m_scene.GetCamera(), m_scene.GetLight(), m_scene.GetSkybox(), m_assets);
-                DrawObjectsPanel(m_scene.GetObject(), m_assets);
+                DrawObjectsPanel(m_scene, m_assets);
                 DrawPostProcessPanel(m_scene.GetPostProcess());
                 DrawStatsPanel(deltaTime);
             }
