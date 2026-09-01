@@ -3,13 +3,8 @@
 #include "rhi/context.h"
 #include "rhi/swap_chain.h"
 #include "resource/descriptor_manager.h"
-#include "resource/gpu_layouts.h"
 #include "resource/resource_manager.h"
-#include "scene/camera.h"
-#include "scene/light.h"
-#include "scene/scene.h"
-
-#include <glm/glm.hpp>
+#include "render/scene_proxy.h"
 
 namespace Kita::Pbrv
 {
@@ -25,48 +20,42 @@ namespace Kita::Pbrv
             m_descriptorMgr(descriptorMgr)
         {
             Recreate();
-            m_global.m_frameSet = m_resourceMgr.CreatePerFrameSet(m_global.m_lastEquirectId);
+
+            m_global.m_frameSet = m_resourceMgr.CreatePerFrameSet(Resource::kInvalidId);
+
             m_object = CreateObject();
         }
 
         RenderScene::~RenderScene() = default;
 
-        void RenderScene::Update(const Scene::Scene& scene, const Rhi::FrameInfo& frameInfo)
+        void RenderScene::Update(const Rhi::FrameInfo& frameInfo)
         {
             auto& frameIndex = frameInfo.m_frameIndex;
+            auto& sceneProxy = SceneProxy::Get();
 
-            UpdateFrameSet(frameIndex, scene);
-            UpdatePostProcessSet(frameIndex, scene);
-            UpdateObject(m_object, frameIndex, scene.GetObject());
+            sceneProxy.BuildSceneProxy(m_swapChain.Aspect());
+
+            UpdateFrameSet(frameIndex, sceneProxy);
+            UpdatePostProcessSet(frameIndex, sceneProxy);
+            UpdateObject(frameIndex, sceneProxy);
+
+            sceneProxy.Reset();
         }
 
-        void RenderScene::UpdateFrameSet(uint32_t frameIndex, const Scene::Scene& scene)
+        void RenderScene::UpdateFrameSet(uint32_t frameIndex, const SceneProxy& proxy)
         {
-            const Resource::ResourceId equirectId = scene.GetSkybox().GetSkybox().GetId();
-            if (m_global.m_lastEquirectId != equirectId)
+            auto environmentRecord = proxy.GetEnvironmentRecord();
+            if (environmentRecord.has_value())
             {
-                m_global.m_lastEquirectId = equirectId;
-                m_global.m_frameSet = m_resourceMgr.CreatePerFrameSet(equirectId);
+                m_global.m_frameSet = m_resourceMgr.CreatePerFrameSet(environmentRecord->m_equirectId);
             }
 
-            Gpu::PerFrame perFrame{};
-            glm::mat4 view = scene.GetCamera().GetViewMatrix();
-            glm::mat4 proj = scene.GetCamera().GetProjectMatrix(m_swapChain.Aspect());
-            perFrame.m_camera.m_viewProj = proj * view;
-            perFrame.m_camera.m_skyboxViewProj = proj * glm::mat4(glm::mat3(view));
-            perFrame.m_camera.m_position = glm::vec4(scene.GetCamera().GetPosition(), 1.0f);
-            perFrame.m_light.m_position = glm::vec4(scene.GetLight().GetPosition(), 0.0f);
-            perFrame.m_light.m_colorIntensity =
-                glm::vec4(scene.GetLight().GetColor(), scene.GetLight().GetIntensity());
-            m_global.m_frameSet.WriteData(frameIndex, perFrame);
+            m_global.m_frameSet.WriteData(frameIndex, proxy.GetFrameData());
         }
 
-        void RenderScene::UpdatePostProcessSet(uint32_t frameIndex, const Scene::Scene& scene)
+        void RenderScene::UpdatePostProcessSet(uint32_t frameIndex, const SceneProxy& proxy)
         {
-            Gpu::PostProcess postProcess{};
-            postProcess.m_exposure =
-                glm::vec4(std::exp2(scene.GetPostProcess().GetEV()), 0.0f, 0.0f, 0.0f);
-            m_global.m_postProcessSet.WriteData(frameIndex, postProcess);
+            m_global.m_postProcessSet.WriteData(frameIndex, proxy.GetPostProcessData());
         }
 
         void RenderScene::Recreate()
@@ -77,7 +66,7 @@ namespace Kita::Pbrv
             desc.m_depthFormat = m_context.DepthFormat();
             desc.m_msaaSamples = m_context.SampleCount();
 
-            // Linear + clamp + no mips: render target sampling.
+            // Linear + clamp + no mips: render target sampling
             Resource::SamplerDesc samplerDesc{};
             samplerDesc.m_magFilter = VK_FILTER_LINEAR;
             samplerDesc.m_minFilter = VK_FILTER_LINEAR;
@@ -89,8 +78,7 @@ namespace Kita::Pbrv
 
             m_global.m_target = m_resourceMgr.CreateTarget(desc);
 
-            m_global.m_postProcessSet =
-                m_resourceMgr.CreatePostProcessSet(m_global.m_target.m_resolveTexture);
+            m_global.m_postProcessSet = m_resourceMgr.CreatePostProcessSet(m_global.m_target.m_resolveTexture);
         }
 
         VkDescriptorSetLayout RenderScene::GetEmptyLayout() const
@@ -102,53 +90,38 @@ namespace Kita::Pbrv
         {
             ObjectState object{};
 
-            Resource::MaterialDesc matDesc{};
-            matDesc.m_textureIds = object.m_lastTextureIds;
-
+            Resource::MaterialDesc matDesc
+            {
+                Resource::kInvalidId,
+                Resource::kInvalidId,
+                Resource::kInvalidId,
+                Resource::kInvalidId,
+                Resource::kInvalidId
+            };
             object.m_materialSet = m_resourceMgr.GetOrCreatePerMaterialSet(matDesc);
             object.m_objectSet = m_resourceMgr.CreatePerObjectSet();
+            object.m_mesh = m_resourceMgr.GetOrCreateMesh(Resource::kInvalidId);
 
             return object;
         }
 
-        void RenderScene::UpdateObject(ObjectState& object, uint32_t frameIndex, const Scene::Object& sceneObject) const
+        void RenderScene::UpdateObject(uint32_t frameIndex, const SceneProxy& proxy)
         {
-            // Mesh
-            const Resource::ResourceId meshId = sceneObject.GetMesh().GetId();
-            if (meshId != object.m_lastMeshId)
+            auto& mesh = proxy.GetMeshRecord();
+            if (mesh.has_value())
             {
-                object.m_lastMeshId = meshId;
-                object.m_mesh = m_resourceMgr.GetOrCreateMesh(meshId);
+                m_object.m_mesh = m_resourceMgr.GetOrCreateMesh(mesh->m_meshId);
             }
 
-            auto& mat = sceneObject.GetMaterial();
-
-            // Material set
-            bool anyTexUpdated = false;
-            for (uint32_t i = 0; i < Resource::kMaterialSlotCount; ++i)
-            {
-                const Resource::ResourceId textureId = mat.GetTexture(static_cast<Resource::MaterialSlot>(i)).GetId();
-                if (object.m_lastTextureIds[i] != textureId)
-                {
-                    object.m_lastTextureIds[i] = textureId;
-                    anyTexUpdated = true;
-                }
-            }
-            if (anyTexUpdated)
+            auto& mat = proxy.GetMaterialRecord();
+            if (mat.has_value())
             {
                 Resource::MaterialDesc desc{};
-                desc.m_textureIds = object.m_lastTextureIds;
-                object.m_materialSet = m_resourceMgr.GetOrCreatePerMaterialSet(desc);
+                desc.m_textureIds = mat->m_textureIds;
+                m_object.m_materialSet = m_resourceMgr.GetOrCreatePerMaterialSet(desc);
             }
 
-            // Object set
-            Gpu::PerObject data{};
-            data.m_transform.m_model = glm::mat4(1.0f);
-            data.m_transform.m_normal = glm::mat4(1.0f);
-            data.m_material.m_albedo = mat.GetAlbedo();
-            data.m_material.m_pbrParams = glm::vec4(mat.GetMetallic(), mat.GetRoughness(), mat.GetAO(), 0.0f);
-            data.m_material.m_emissive = glm::vec4(mat.GetEmissive(), 1.0f);
-            object.m_objectSet.WriteData(frameIndex, data);
+            m_object.m_objectSet.WriteData(frameIndex, proxy.GetObjectData());
         }
     }
 }

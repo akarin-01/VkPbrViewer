@@ -95,7 +95,7 @@ namespace Kita::Pbrv
                 {
                     KITA_LOG_DEBUG("[Resource] Release image view");
                     // m_image releases automatically when the temporary dies
-                    // (Handle dtor), while every table is still alive.
+                    // (Handle dtor), while every table is still alive
                     m_graveyard.PushImageView(imageView.m_imageView);
                 }),
             m_samplerCache("sampler resource", [this](SamplerRhi&& sampler)
@@ -112,7 +112,7 @@ namespace Kita::Pbrv
                 {
                     KITA_LOG_DEBUG("[Resource] Release per material set");
                     // Texture handles release with the entry; each pushes into
-                    // its own graveyard queue through the tables above.
+                    // its own graveyard queue through the tables above
                 })
         {
             m_fallbacks = CreateMaterialFallbacks();
@@ -233,7 +233,7 @@ namespace Kita::Pbrv
         TargetResource ResourceManager::CreateTarget(const TargetDesc& desc)
         {
             // Color (MSAA) + resolve + depth. Color and resolve share the
-            // format: vkCmdResolveImage requires identical src/dst formats.
+            // format: vkCmdResolveImage requires identical src/dst formats
             ImageDesc colorDesc{};
             colorDesc.m_extent = { desc.m_extent.width, desc.m_extent.height, 1 };
             colorDesc.m_format = desc.m_colorFormat;
@@ -537,7 +537,7 @@ namespace Kita::Pbrv
 
         PerMaterialSet ResourceManager::CreatePerMaterialSet(const MaterialDesc& desc)
         {
-            // Material sampling policy, spelled out at the only assembly point.
+            // Material sampling policy, spelled out at the only assembly point
             ImageViewDesc imageViewDesc{};
             imageViewDesc.m_type = VK_IMAGE_VIEW_TYPE_2D;
             imageViewDesc.m_fullRange = true;

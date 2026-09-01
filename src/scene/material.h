@@ -21,22 +21,26 @@ namespace Kita::Pbrv
             Material& SetRoughness(float roughness);
             Material& SetAO(float ao);
             Material& SetEmissive(glm::vec3 emissive);
+            Material& SetEmissiveIntensity(float intensity);
+
+            Material& SetAlbedoTex(Resource::TextureAsset::Handle texture);
+            Material& SetNormalTex(Resource::TextureAsset::Handle texture);
+            Material& SetMRTex(Resource::TextureAsset::Handle texture);
+            Material& SetAOTex(Resource::TextureAsset::Handle texture);
+            Material& SetEmissiveTex(Resource::TextureAsset::Handle texture);
+            Material& SetTexture(Resource::MaterialSlot slot, Resource::TextureAsset::Handle texture);
 
             glm::vec4 GetAlbedo() const { return m_albedo; }
             float GetMetallic() const { return m_metallic; }
             float GetRoughness() const { return m_roughness; }
             float GetAO() const { return m_ao; }
             glm::vec3 GetEmissive() const { return m_emissive; }
+            float GetEmissiveIntensity() const { return m_emissiveIntensity; }
 
-            void SetAlbedoTex(Resource::TextureAsset::Handle texture) { m_albedoTex = std::move(texture); }
             Resource::TextureAsset::Handle GetAlbedoTex() const { return m_albedoTex; }
-            void SetNormalTex(Resource::TextureAsset::Handle texture) { m_normalTex = std::move(texture); }
             Resource::TextureAsset::Handle GetNormalTex() const { return m_normalTex; }
-            void SetMRTex(Resource::TextureAsset::Handle texture) { m_mrTex = std::move(texture); }
             Resource::TextureAsset::Handle GetMRTex() const { return m_mrTex; }
-            void SetAOTex(Resource::TextureAsset::Handle texture) { m_aoTex = std::move(texture); }
             Resource::TextureAsset::Handle GetAOTex() const { return m_aoTex; }
-            void SetEmissiveTex(Resource::TextureAsset::Handle texture) { m_emissiveTex = std::move(texture); }
             Resource::TextureAsset::Handle GetEmissiveTex() const { return m_emissiveTex; }
 
             Resource::TextureAsset::Handle GetTexture(Resource::MaterialSlot slot) const
@@ -53,18 +57,12 @@ namespace Kita::Pbrv
                 }
             }
 
-            void SetTexture(Resource::MaterialSlot slot, Resource::TextureAsset::Handle texture)
+            /// Returns true when any texture handle changed since the last consume
+            bool ConsumeTexturesDirty()
             {
-                switch (slot)
-                {
-                case Resource::MaterialSlot::Albedo:            SetAlbedoTex(std::move(texture)); break;
-                case Resource::MaterialSlot::Normal:            SetNormalTex(std::move(texture)); break;
-                case Resource::MaterialSlot::MetallicRoughness: SetMRTex(std::move(texture)); break;
-                case Resource::MaterialSlot::AO:                SetAOTex(std::move(texture)); break;
-                case Resource::MaterialSlot::Emissive:          SetEmissiveTex(std::move(texture)); break;
-                default:
-                    throw std::runtime_error("Invalid texture slot!");
-                }
+                const bool dirty = m_texturesDirty;
+                m_texturesDirty = false;
+                return dirty;
             }
 
         private:
@@ -73,12 +71,15 @@ namespace Kita::Pbrv
             float m_roughness{ 1.0f };
             float m_ao{ 1.0f };
             glm::vec3 m_emissive{ 1.0f, 1.0f, 1.0f };
+            float m_emissiveIntensity{ 1.0f };
 
             Resource::TextureAsset::Handle m_albedoTex;
             Resource::TextureAsset::Handle m_normalTex;
             Resource::TextureAsset::Handle m_mrTex;
             Resource::TextureAsset::Handle m_aoTex;
             Resource::TextureAsset::Handle m_emissiveTex;
+
+            bool m_texturesDirty{ true };
         };
     }
 }

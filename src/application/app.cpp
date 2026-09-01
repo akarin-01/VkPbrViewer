@@ -6,7 +6,7 @@
 #include "resource/asset_manager.h"
 #include "render/renderer.h"
 #include "scene/scene.h"
-#include "application/camera_controller.h"
+#include "application/orbit_camera_controller.h"
 #include "application/ui.h"
 
 #include <filesystem>
@@ -61,7 +61,7 @@ namespace Kita::Pbrv
 
         void App::Run()
         {
-            Application::CameraController cameraController(*m_input, m_scene->GetCamera());
+            Application::OrbitCameraController cameraController(*m_input, m_scene->GetCamera());
 
             while (!m_window->ShouldClose())
             {
@@ -85,7 +85,9 @@ namespace Kita::Pbrv
                 }
 
                 m_ui->Update(deltaTime);
-                m_renderer->DrawFrame(*m_scene);
+
+                m_scene->Update();
+                m_renderer->DrawFrame();
             }
         }
     }

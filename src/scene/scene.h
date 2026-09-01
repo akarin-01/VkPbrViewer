@@ -10,12 +10,23 @@ namespace Kita::Pbrv
 {
     namespace Scene
     {
-        /// Only supports one model for now.
+        /// Only supports one model for now
         class Scene
         {
         public:
             Scene() = default;
             ~Scene() = default;
+
+            /// Writes the render-facing data (camera, light, object, skybox,
+            /// post process) into the SceneProxy; called every frame
+            void Update()
+            {
+                m_camera.Update();
+                m_light.Update();
+                m_object.Update();
+                m_skybox.Update();
+                m_postProcess.Update();
+            }
 
             const Camera& GetCamera() const { return m_camera; }
             Camera& GetCamera() { return m_camera; }

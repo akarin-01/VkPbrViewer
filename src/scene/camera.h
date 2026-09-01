@@ -1,40 +1,47 @@
 #pragma once
 
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 
 namespace Kita::Pbrv
 {
     namespace Scene
     {
+        /// Pure view state: position, yaw/pitch and projection parameters.
+        /// Axes are derived on demand; matrices are assembled in the SceneProxy
         class Camera
         {
         public:
             Camera();
             ~Camera();
 
-            Camera& SetTarget(const glm::vec3& target);
-            Camera& Pan(float offsetX, float offsetY);
+            /// Writes position + derived axes + projection params into the
+            /// SceneProxy, which assembles the view matrix immediately
+            void Update() const;
+
+            Camera& SetPosition(const glm::vec3& position);
+            Camera& Move(const glm::vec3& local);    // translate along local right/up/front
+
             Camera& SetYaw(float yaw);
             Camera& RotateYaw(float delta);
+
             Camera& SetPitch(float pitch);
             Camera& RotatePitch(float delta);
-            Camera& SetDistance(float distance);
-            Camera& Zoom(float delta);
 
             Camera& SetView(float fov, float near, float far);
 
-            glm::vec3 GetPosition() const;
-            glm::mat4 GetViewMatrix() const;
-            glm::mat4 GetProjectMatrix(float aspect) const;
+            glm::vec3 GetPosition() const { return m_position; }
+            float GetYaw() const { return m_yaw; }
+            float GetPitch() const { return m_pitch; }
+            float GetFov() const { return m_fov; }
+            float GetNear() const { return m_near; }
+            float GetFar() const { return m_far; }
+
+            glm::vec3 GetFront() const;
+            glm::vec3 GetRight() const;
+            glm::vec3 GetUp() const;
 
         private:
-            /// Calculate the vec from target to camera
-            glm::vec3 GetOrbitDirection() const;
-
-        private:
-            glm::vec3 m_target{ 0.0f };
-            float m_distance{ 3.0f };
+            glm::vec3 m_position{ 0.0f, 0.0f, 3.0f };
             float m_yaw{ 0.0f };
             float m_pitch{ 0.0f };
 

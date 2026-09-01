@@ -1,19 +1,21 @@
-#include "camera_controller.h"
+#include "orbit_camera_controller.h"
+
 #include "core/input.h"
 #include "scene/camera.h"
 
+#include <algorithm>
 #include <glm/glm.hpp>
 
 namespace Kita::Pbrv
 {
     namespace Application
     {
-        CameraController::CameraController(const Core::Input& input, Scene::Camera& camera)
+        OrbitCameraController::OrbitCameraController(const Core::Input& input, Scene::Camera& camera)
             : m_input(input), m_camera(camera)
         {
         }
 
-        void CameraController::Update(float delta)
+        void OrbitCameraController::Update(float delta)
         {
             if (m_input.IsMouseButtonDown(Core::MouseButton::Right))
             {
@@ -24,26 +26,29 @@ namespace Kita::Pbrv
             else if (m_input.IsMouseButtonDown(Core::MouseButton::Middle))
             {
                 glm::vec2 pan = m_input.GetCursorDelta() * m_panSpeed * delta;
-                m_camera.Pan(-pan.x, pan.y);
+                m_target += m_camera.GetRight() * (-pan.x) + m_camera.GetUp() * pan.y;
             }
 
-            float zoom = m_input.GetScrollDelta();
-            m_camera.Zoom(zoom * m_zoomSpeed);
+            m_distance = std::clamp(m_distance - m_input.GetScrollDelta() * m_zoomSpeed,
+                m_camera.GetNear(), m_camera.GetFar());
+
+            // The camera looks along GetFront(); place it on the opposite side of the target
+            m_camera.SetPosition(m_target - m_camera.GetFront() * m_distance);
         }
 
-        CameraController& CameraController::SetRotateSpeed(float speed)
+        OrbitCameraController& OrbitCameraController::SetRotateSpeed(float speed)
         {
             m_rotateSpeed = speed;
             return *this;
         }
 
-        CameraController& CameraController::SetPanSpeed(float speed)
+        OrbitCameraController& OrbitCameraController::SetPanSpeed(float speed)
         {
             m_panSpeed = speed;
             return *this;
         }
 
-        CameraController& CameraController::SetZoomSpeed(float speed)
+        OrbitCameraController& OrbitCameraController::SetZoomSpeed(float speed)
         {
             m_zoomSpeed = speed;
             return *this;

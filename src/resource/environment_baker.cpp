@@ -66,7 +66,7 @@ namespace Kita::Pbrv
 
         TextureResource EnvironmentBaker::BakeSkybox(const TextureResource& equirect)
         {
-            // 1. Cubemap target: kCubemapFaceSize^2 x6, full mip chain.
+            // 1. Cubemap target: kCubemapFaceSize^2 x6, full mip chain
             const uint32_t mipLevels = ResourceUtils::CalculateMipLevels(kCubemapFaceSize, kCubemapFaceSize);
             ImageDesc cubeDesc{};
             cubeDesc.m_extent = { kCubemapFaceSize, kCubemapFaceSize, 1 };
@@ -81,7 +81,7 @@ namespace Kita::Pbrv
 
             ImageRhi::Handle cubeImage = m_resourceMgr.CreateImage(cubeDesc);
 
-            // One-shot storage view: base mip, all 6 layers.
+            // One-shot storage view: base mip, all 6 layers
             ImageViewRhi::Handle storageView =
                 m_resourceMgr.CreateImageView(MakeCubeViewDesc(false), cubeImage);
 
@@ -92,7 +92,7 @@ namespace Kita::Pbrv
             range.baseArrayLayer = 0;
             range.layerCount = 6;
 
-            // 2. GPU conversion: equirect -> cubemap base mip.
+            // 2. GPU conversion: equirect -> cubemap base mip
             ComputeConversion::Output output{};
             output.m_image = cubeImage->m_image;
             output.m_imageView = storageView->m_imageView;
@@ -108,7 +108,7 @@ namespace Kita::Pbrv
             m_skyboxConversion->Dispatch(output,
                 { (kCubemapFaceSize + 7) / 8, (kCubemapFaceSize + 7) / 8, 6 }, { input });
 
-            // 3. Generate the remaining mips (1..N).
+            // 3. Generate the remaining mips (1..N)
             {
                 VkImageSubresourceRange mipRange{};
                 mipRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -126,7 +126,7 @@ namespace Kita::Pbrv
                 ResourceUtils::GenerateImageMipmaps(command.Handle(), *cubeImage);
             }
 
-            // 4. Assemble the sampler-facing cubemap texture.
+            // 4. Assemble the sampler-facing cubemap texture
             Core::Log::Info("[Resource] Create skybox cubemap: ", kCubemapFaceSize, "x",
                 kCubemapFaceSize, "x6, ", mipLevels, " mips");
             return m_resourceMgr.CreateTexture(cubeImage,
@@ -146,7 +146,7 @@ namespace Kita::Pbrv
 
             ImageRhi::Handle image = m_resourceMgr.CreateImage(desc);
 
-            // One-shot storage view: base mip, all 6 layers.
+            // One-shot storage view: base mip, all 6 layers
             ImageViewRhi::Handle storageView =
                 m_resourceMgr.CreateImageView(MakeCubeViewDesc(false), image);
 
@@ -163,7 +163,7 @@ namespace Kita::Pbrv
             output.m_range = range;
 
             // Sample the source from the mip matching the irradiance resolution
-            // (low-pass filter kills the sun-peak variance in the convolution).
+            // (low-pass filter kills the sun-peak variance in the convolution)
             ComputeConversion::Input input{};
             input.m_imageView = skybox.GetImageView();
             input.m_sampler = skybox.GetSampler();
@@ -201,7 +201,7 @@ namespace Kita::Pbrv
             input.m_imageView = skybox.GetImageView();
             input.m_sampler = skybox.GetSampler();
 
-            // Convolve each mip separately: its own storage view and roughness.
+            // Convolve each mip separately: its own storage view and roughness
             for (uint32_t mip = 0; mip < mipLevels; ++mip)
             {
                 const uint32_t mipSize = kPrefilterBaseSize >> mip;

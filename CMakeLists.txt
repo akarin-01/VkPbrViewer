@@ -136,6 +136,7 @@ add_executable(VkPbrViewer
     src/render/render_pipeline.cpp
     src/render/render_scene.cpp
     src/render/renderer.cpp
+    src/render/scene_proxy.cpp
 
     # render passes
     src/render/passes/lit_pass.cpp
@@ -147,11 +148,13 @@ add_executable(VkPbrViewer
     src/scene/camera.cpp
     src/scene/light.cpp
     src/scene/material.cpp
+    src/scene/object.cpp
     src/scene/post_process.cpp
+    src/scene/skybox.cpp
 
     # application
     src/application/app.cpp
-    src/application/camera_controller.cpp
+    src/application/orbit_camera_controller.cpp
     src/application/ui.cpp
     src/application/ui_utils.cpp
 )

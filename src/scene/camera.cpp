@@ -1,6 +1,10 @@
 #include "camera.h"
 
+#include "core/math.h"
+#include "render/scene_proxy.h"
+
 #include <algorithm>
+#include <cmath>
 
 namespace Kita::Pbrv
 {
@@ -15,24 +19,27 @@ namespace Kita::Pbrv
 
         Camera::~Camera() = default;
 
-        Camera& Camera::SetTarget(const glm::vec3& target)
+        void Camera::Update() const
         {
-            m_target = target;
+            Render::SceneProxy::Get().WriteCameraData(
+                m_position, GetFront(), GetUp(), m_fov, m_near, m_far);
+        }
+
+        Camera& Camera::SetPosition(const glm::vec3& position)
+        {
+            m_position = position;
             return *this;
         }
 
-        Camera& Camera::Pan(float offsetX, float offsetY)
+        Camera& Camera::Move(const glm::vec3& local)
         {
-            glm::vec3 front = -GetOrbitDirection();
-            glm::vec3 right = glm::normalize(glm::cross(front, kWorldUp));
-            glm::vec3 up = glm::normalize(glm::cross(right, front));
-
-            return SetTarget(m_target + right * offsetX + up * offsetY);
+            m_position += GetRight() * local.x + GetUp() * local.y + GetFront() * local.z;
+            return *this;
         }
 
         Camera& Camera::SetYaw(float yaw)
         {
-            m_yaw = yaw;
+            m_yaw = Core::WrapDegrees(yaw);
             return *this;
         }
 
@@ -52,53 +59,31 @@ namespace Kita::Pbrv
             return SetPitch(m_pitch + delta);
         }
 
-        Camera& Camera::SetDistance(float distance)
-        {
-            m_distance = std::clamp(distance, m_near, m_far);
-            return *this;
-        }
-
-        Camera& Camera::Zoom(float delta)
-        {
-            return SetDistance(m_distance - delta);
-        }
-
         Camera& Camera::SetView(float fov, float near, float far)
         {
-            m_fov = fov;
+            m_fov = std::clamp(fov, 30.0f, 90.0f);
             m_near = near;
             m_far = far;
             return *this;
         }
 
-        glm::vec3 Camera::GetPosition() const
+        glm::vec3 Camera::GetFront() const
         {
-            return m_target + GetOrbitDirection() * m_distance;
-        }
-
-        glm::mat4 Camera::GetViewMatrix() const
-        {
-            return glm::lookAt(GetPosition(), m_target, kWorldUp);
-        }
-
-        glm::mat4 Camera::GetProjectMatrix(float aspect) const
-        {
-            glm::mat4 proj = glm::perspective(glm::radians(m_fov), aspect, m_near, m_far);
-            proj[1][1] *= -1.0f;        // Reverse y axis
-            return proj;
-        }
-
-        glm::vec3 Camera::GetOrbitDirection() const
-        {
-            /*
-             * +x -> right
-             * +y -> up
-             * +z -> back
-            */
-            float x = cos(glm::radians(m_pitch)) * sin(glm::radians(m_yaw));
-            float y = sin(glm::radians(m_pitch));
-            float z = cos(glm::radians(m_pitch)) * cos(glm::radians(m_yaw));
+            // yaw = pitch = 0 looks down -Z
+            float x = -cos(glm::radians(m_pitch)) * sin(glm::radians(m_yaw));
+            float y = -sin(glm::radians(m_pitch));
+            float z = -cos(glm::radians(m_pitch)) * cos(glm::radians(m_yaw));
             return { x, y, z };
+        }
+
+        glm::vec3 Camera::GetRight() const
+        {
+            return glm::normalize(glm::cross(GetFront(), kWorldUp));
+        }
+
+        glm::vec3 Camera::GetUp() const
+        {
+            return glm::normalize(glm::cross(GetRight(), GetFront()));
         }
     }
 }

@@ -8,7 +8,6 @@
 #include "application/ui_utils.h"
 
 #include <glm/glm.hpp>
-#include <array>
 
 namespace Kita::Pbrv
 {
@@ -17,6 +16,7 @@ namespace Kita::Pbrv
         namespace
         {
             constexpr float kDragSpeed = 0.005f;
+            constexpr float kAngleDragSpeed = 0.1f;
 
             void DrawTextureRaw(const char* title, Scene::Material& mat, Resource::MaterialSlot slot,
                 Resource::TextureAsset::Type type, Resource::AssetManager& assets)
@@ -24,7 +24,7 @@ namespace Kita::Pbrv
                 const auto tex = mat.GetTexture(slot);
 
                 ImGui::TextUnformatted(title);
-                ImGui::SameLine();
+
                 if (tex.IsValid())
                 {
                     ImGui::TextUnformatted(tex->m_name.c_str());
@@ -37,7 +37,7 @@ namespace Kita::Pbrv
                 }
 
                 ImGui::PushID(title);
-                if (ImGui::Button("Open"))
+                if (ImGui::Button("Select"))
                 {
                     auto path = OpenFileDialog("TextureAsset Files\0*.jpg;*.png;*.tga\0All Files\0*.*\0");
                     if (path)
@@ -60,6 +60,225 @@ namespace Kita::Pbrv
                 ImGui::PopID();
             }
 
+            void DrawLight(Scene::Light& light)
+            {
+                DrawBox("##LightBox", "Light", [&light]()
+                    {
+                        glm::vec3 pos = light.GetPosition();
+                        if (ImGui::DragFloat3("Position", &pos.x, kDragSpeed))
+                        {
+                            light.SetPosition(pos);
+                        }
+
+                        glm::vec3 color = light.GetColor();
+                        if (ImGui::ColorEdit3("Color", &color.x))
+                        {
+                            light.SetColor(color);
+                        }
+
+                        float intensity = light.GetIntensity();
+                        if (ImGui::DragFloat("Intensity", &intensity, kDragSpeed, 0.0f, 100.0f))
+                        {
+                            light.SetIntensity(intensity);
+                        }
+                    });
+            }
+
+            void DrawCamera(Scene::Camera& camera)
+            {
+                DrawBox("##CameraBox", "Camera", [&camera]()
+                    {
+                        // Position is derived by the camera controller each frame.
+                        const glm::vec3 position = camera.GetPosition();
+                        ImGui::Text("Position: X:%.2f Y:%.2f Z:%.2f", position.x, position.y, position.z);
+                        ImGui::Text("Yaw: %.1f  Pitch: %.1f", camera.GetYaw(), camera.GetPitch());
+
+                        float fov = camera.GetFov();
+                        if (ImGui::SliderFloat("FOV", &fov, 30.0f, 90.0f))
+                        {
+                            camera.SetView(fov, camera.GetNear(), camera.GetFar());
+                        }
+                    });
+            }
+
+            void DrawSkybox(Scene::Skybox& skybox, Resource::AssetManager& assets)
+            {
+                DrawBox("##SkyboxBox", "Skybox", [&skybox, &assets]()
+                    {
+                        const auto& tex = skybox.GetSkybox();
+                        if (tex.IsValid())
+                        {
+                            ImGui::TextUnformatted(tex->m_name.c_str());
+                            ImGui::SameLine();
+                            ImGui::Text("(%ux%u)", tex->m_width, tex->m_height);
+                        }
+                        else
+                        {
+                            ImGui::TextUnformatted("empty");
+                        }
+
+                        if (ImGui::Button("Select##Skybox"))
+                        {
+                            auto path = OpenFileDialog("Equirect Files\0*.hdr\0All Files\0*.*\0");
+                            if (path)
+                            {
+                                try
+                                {
+                                    skybox.SetSkybox(assets.LoadTexture(path.value(), Resource::TextureAsset::Type::Hdr));
+                                }
+                                catch (const std::exception& e)
+                                {
+                                    Core::Log::Error("[UI] ", e.what());
+                                }
+                            }
+                        }
+                        ImGui::SameLine();
+                        if (ImGui::Button("Delete##Skybox"))
+                        {
+                            skybox.SetSkybox(Resource::TextureAsset::Handle{});
+                        }
+                    });
+            }
+
+            void DrawTransform(Scene::Object& object)
+            {
+                DrawBox("##TransformBox", "Transform", [&object]()
+                    {
+                        glm::vec3 position = object.GetPosition();
+                        if (ImGui::DragFloat3("Position", &position.x, kDragSpeed))
+                        {
+                            object.SetPosition(position);
+                        }
+
+                        glm::vec3 rotation = object.GetRotation();
+                        if (ImGui::DragFloat3("Rotation", &rotation.x, kAngleDragSpeed))
+                        {
+                            object.SetRotation(rotation);
+                        }
+
+                        glm::vec3 scale = object.GetScale();
+                        if (ImGui::DragFloat3("Scale", &scale.x, kDragSpeed))
+                        {
+                            object.SetScale(scale);
+                        }
+                    });
+            }
+
+            void DrawMesh(Scene::Object& object, Resource::AssetManager& assets)
+            {
+                DrawBox("##MeshBox", "Mesh", [&object, &assets]()
+                    {
+                        const auto& mesh = object.GetMesh();
+                        if (mesh.IsValid())
+                        {
+                            ImGui::TextUnformatted(mesh->m_name.c_str());
+                            ImGui::SameLine();
+                            ImGui::Text("(%zu verts, %zu idx)", mesh->GetVertexCount(), mesh->GetIndexCount());
+                        }
+                        else
+                        {
+                            ImGui::TextUnformatted("empty");
+                        }
+
+                        if (ImGui::Button("Select##Mesh"))
+                        {
+                            auto path = OpenFileDialog("Mesh Files\0*.glb;*.gltf\0All Files\0*.*\0");
+                            if (path)
+                            {
+                                try
+                                {
+                                    object.SetMesh(assets.LoadMesh(path.value()));
+                                }
+                                catch (const std::exception& e)
+                                {
+                                    Core::Log::Error("[UI] ", e.what());
+                                }
+                            }
+                        }
+                        ImGui::SameLine();
+                        if (ImGui::Button("Delete##Mesh"))
+                        {
+                            object.SetMesh(Resource::MeshAsset::Handle{});
+                        }
+                    });
+            }
+
+            void DrawMaterial(Scene::Material& mat, Resource::AssetManager& assets)
+            {
+                DrawBox("##MaterialBox", "Material", [&mat, &assets]()
+                    {
+                        DrawBox("##ParamsBox", "Params", [&mat]()
+                            {
+                                glm::vec4 albedo = mat.GetAlbedo();
+                                if (ImGui::ColorEdit4("Albedo", &albedo.x))
+                                {
+                                    mat.SetAlbedo(albedo);
+                                }
+
+                                float metallic = mat.GetMetallic();
+                                if (ImGui::SliderFloat("Metallic", &metallic, 0.0f, 1.0f))
+                                {
+                                    mat.SetMetallic(metallic);
+                                }
+
+                                float roughness = mat.GetRoughness();
+                                if (ImGui::SliderFloat("Roughness", &roughness, 0.0f, 1.0f))
+                                {
+                                    mat.SetRoughness(roughness);
+                                }
+
+                                float ao = mat.GetAO();
+                                if (ImGui::SliderFloat("AO", &ao, 0.0f, 1.0f))
+                                {
+                                    mat.SetAO(ao);
+                                }
+
+                                glm::vec3 emissive = mat.GetEmissive();
+                                if (ImGui::ColorEdit3("Emissive", &emissive.x))
+                                {
+                                    mat.SetEmissive(emissive);
+                                }
+
+                                float emissiveIntensity = mat.GetEmissiveIntensity();
+                                if (ImGui::DragFloat("Emissive Intensity", &emissiveIntensity, kDragSpeed, 0.0f, 10.0f))
+                                {
+                                    mat.SetEmissiveIntensity(emissiveIntensity);
+                                }
+                            });
+
+                        DrawBox("##TexturesBox", "Textures", [&mat, &assets]()
+                            {
+                                DrawTextureRaw("Albedo:   ", mat, Resource::MaterialSlot::Albedo, Resource::TextureAsset::Type::Srgb, assets);
+                                DrawTextureRaw("Normal:   ", mat, Resource::MaterialSlot::Normal, Resource::TextureAsset::Type::Normal, assets);
+                                DrawTextureRaw("MR:       ", mat, Resource::MaterialSlot::MetallicRoughness, Resource::TextureAsset::Type::MetallicRoughness, assets);
+                                DrawTextureRaw("AO:       ", mat, Resource::MaterialSlot::AO, Resource::TextureAsset::Type::Linear, assets);
+                                DrawTextureRaw("Emissive: ", mat, Resource::MaterialSlot::Emissive, Resource::TextureAsset::Type::Srgb, assets);
+                            });
+                    });
+            }
+
+            void DrawObject(Scene::Object& object, Resource::AssetManager& assets)
+            {
+                DrawBox("##ObjectBox", "Object", [&object, &assets]()
+                    {
+                        DrawTransform(object);
+                        DrawMesh(object, assets);
+                        DrawMaterial(object.GetMaterial(), assets);
+                    });
+            }
+
+            void DrawPostProcess(Scene::PostProcess& postProcess)
+            {
+                DrawBox("##PostProcessBox", "Post Process", [&postProcess]()
+                    {
+                        float ev = postProcess.GetEV();
+                        if (ImGui::SliderFloat("EV", &ev, -10.0f, 10.0f))
+                        {
+                            postProcess.SetEV(ev);
+                        }
+                    });
+            }
+
             void DrawStatsPanel(float deltaTime)
             {
                 if (ImGui::CollapsingHeader("Stats"))
@@ -69,154 +288,22 @@ namespace Kita::Pbrv
                 }
             }
 
-            void DrawEnvironmentPanel(Scene::Skybox& skybox, Scene::Light& light, Resource::AssetManager& assets)
+            void DrawEnvironmentPanel(Scene::Camera& camera, Scene::Light& light,
+                Scene::Skybox& skybox, Resource::AssetManager& assets)
             {
                 if (ImGui::CollapsingHeader("Environment"))
                 {
-                    DrawBox("##SkyboxBox", "Skybox", [&skybox, &assets]()
-                        {
-                            const auto& tex = skybox.GetSkybox();
-                            if (tex.IsValid())
-                            {
-                                ImGui::TextUnformatted(tex->m_name.c_str());
-                                ImGui::SameLine();
-                                ImGui::Text("(%ux%u)", tex->m_width, tex->m_height);
-                            }
-                            else
-                            {
-                                ImGui::TextUnformatted("empty");
-                            }
-
-                            if (ImGui::Button("Open##Skybox"))
-                            {
-                                auto path = OpenFileDialog("Equirect Files\0*.hdr\0All Files\0*.*\0");
-                                if (path)
-                                {
-                                    try
-                                    {
-                                        skybox.SetSkybox(assets.LoadTexture(path.value(), Resource::TextureAsset::Type::Hdr));
-                                    }
-                                    catch (const std::exception& e)
-                                    {
-                                        Core::Log::Error("[UI] ", e.what());
-                                    }
-                                }
-                            }
-                            ImGui::SameLine();
-                            if (ImGui::Button("Delete##Skybox"))
-                            {
-                                skybox.SetSkybox(Resource::TextureAsset::Handle{});
-                            }
-                        });
-
-                    DrawBox("##LightBox", "Light", [&light]()
-                        {
-                            glm::vec3 pos = light.GetPosition();
-                            if (ImGui::DragFloat3("Position", &pos.x, kDragSpeed))
-                            {
-                                light.SetPosition(pos);
-                            }
-
-                            glm::vec3 color = light.GetColor();
-                            if (ImGui::ColorEdit3("Color", &color.x))
-                            {
-                                light.SetColor(color);
-                            }
-
-                            float intensity = light.GetIntensity();
-                            if (ImGui::DragFloat("Intensity", &intensity, kDragSpeed, 0.0f, 100.0f))
-                            {
-                                light.SetIntensity(intensity);
-                            }
-                        });
+                    DrawSkybox(skybox, assets);
+                    DrawLight(light);
+                    DrawCamera(camera);
                 }
             }
 
-            void DrawObjectPanel(Scene::Object& object, Resource::AssetManager& assets)
+            void DrawObjectsPanel(Scene::Object& object, Resource::AssetManager& assets)
             {
-                if (ImGui::CollapsingHeader("Object"))
+                if (ImGui::CollapsingHeader("Objects"))
                 {
-                    DrawBox("##MeshBox", "Mesh", [&object, &assets]()
-                        {
-                            const auto& mesh = object.GetMesh();
-                            if (mesh.IsValid())
-                            {
-                                ImGui::TextUnformatted(mesh->m_name.c_str());
-                                ImGui::Text("%zu vertices, %zu indices", mesh->GetVertexCount(), mesh->GetIndexCount());
-                            }
-                            else
-                            {
-                                ImGui::TextUnformatted("empty");
-                            }
-
-                            if (ImGui::Button("Open##Mesh"))
-                            {
-                                auto path = OpenFileDialog("Mesh Files\0*.glb;*.gltf\0All Files\0*.*\0");
-                                if (path)
-                                {
-                                    try
-                                    {
-                                        object.SetMesh(assets.LoadMesh(path.value()));
-                                    }
-                                    catch (const std::exception& e)
-                                    {
-                                        Core::Log::Error("[UI] ", e.what());
-                                    }
-                                }
-                            }
-                            ImGui::SameLine();
-                            if (ImGui::Button("Delete##Mesh"))
-                            {
-                                object.SetMesh(Resource::MeshAsset::Handle{});
-                            }
-                        });
-
-                    DrawBox("##MaterialBox", "Material", [&object, &assets]()
-                        {
-                            auto& mat = object.GetMaterial();
-
-                            DrawBox("##ParamsBox", "Params", [&mat]()
-                                {
-                                    glm::vec4 albedo = mat.GetAlbedo();
-                                    if (ImGui::ColorEdit4("Albedo", &albedo.x))
-                                    {
-                                        mat.SetAlbedo(albedo);
-                                    }
-
-                                    float metallic = mat.GetMetallic();
-                                    if (ImGui::SliderFloat("Metallic", &metallic, 0.0f, 1.0f))
-                                    {
-                                        mat.SetMetallic(metallic);
-                                    }
-
-                                    float roughness = mat.GetRoughness();
-                                    if (ImGui::SliderFloat("Roughness", &roughness, 0.0f, 1.0f))
-                                    {
-                                        mat.SetRoughness(roughness);
-                                    }
-
-                                    float ao = mat.GetAO();
-                                    if (ImGui::SliderFloat("AO", &ao, 0.0f, 1.0f))
-                                    {
-                                        mat.SetAO(ao);
-                                    }
-
-                                    glm::vec3 emissive = mat.GetEmissive();
-                                    if (ImGui::ColorEdit3("Emissive", &emissive.x))
-                                    {
-                                        mat.SetEmissive(emissive);
-                                    }
-                                });
-
-                            DrawBox("##TexturesBox", "Textures", [&mat, &assets]()
-                                {
-                                    DrawTextureRaw("Albedo:   ", mat, Resource::MaterialSlot::Albedo, Resource::TextureAsset::Type::Srgb, assets);
-                                    DrawTextureRaw("Normal:   ", mat, Resource::MaterialSlot::Normal, Resource::TextureAsset::Type::Normal, assets);
-                                    DrawTextureRaw("MR:       ", mat, Resource::MaterialSlot::MetallicRoughness, Resource::TextureAsset::Type::MetallicRoughness, assets);
-                                    DrawTextureRaw("AO:       ", mat, Resource::MaterialSlot::AO, Resource::TextureAsset::Type::Linear, assets);
-                                    DrawTextureRaw("Emissive: ", mat, Resource::MaterialSlot::Emissive, Resource::TextureAsset::Type::Srgb, assets);
-                                });
-                        });
+                    DrawObject(object, assets);
                 }
             }
 
@@ -224,11 +311,7 @@ namespace Kita::Pbrv
             {
                 if (ImGui::CollapsingHeader("Post Process"))
                 {
-                    float ev = postProcess.GetEV();
-                    if (ImGui::SliderFloat("EV", &ev, -10.0f, 10.0f))
-                    {
-                        postProcess.SetEV(ev);
-                    }
+                    DrawPostProcess(postProcess);
                 }
             }
         }
@@ -257,8 +340,8 @@ namespace Kita::Pbrv
 
             if (ImGui::Begin("Inspector", nullptr, ImGuiWindowFlags_NoMove))
             {
-                DrawEnvironmentPanel(m_scene.GetSkybox(), m_scene.GetLight(), m_assets);
-                DrawObjectPanel(m_scene.GetObject(), m_assets);
+                DrawEnvironmentPanel(m_scene.GetCamera(), m_scene.GetLight(), m_scene.GetSkybox(), m_assets);
+                DrawObjectsPanel(m_scene.GetObject(), m_assets);
                 DrawPostProcessPanel(m_scene.GetPostProcess());
                 DrawStatsPanel(deltaTime);
             }

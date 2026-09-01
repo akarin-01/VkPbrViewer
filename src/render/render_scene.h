@@ -17,16 +17,13 @@ namespace Kita::Pbrv
         class DescriptorManager;
         class ResourceManager;
     }
-    namespace Scene
-    {
-        class Object;
-        class Scene;
-    }
 
     namespace Render
     {
-        /// Owns the GPU-side scene state and syncs the CPU scene data each frame.
-        /// Passes get their dependencies injected via GetXxx.
+        class SceneProxy;
+
+        /// Owns the GPU-side scene state; consumes the SceneProxy each frame.
+        /// Passes get their dependencies injected via GetXxx
         class RenderScene
         {
         public:
@@ -36,7 +33,7 @@ namespace Kita::Pbrv
                 Resource::ResourceManager& resourceMgr);
             ~RenderScene();
 
-            void Update(const Scene::Scene& scene, const Rhi::FrameInfo& frameInfo);
+            void Update(const Rhi::FrameInfo& frameInfo);
             void Recreate();
 
             const GlobalState& GetGlobal() const { return m_global; }
@@ -47,9 +44,9 @@ namespace Kita::Pbrv
 
         private:
             ObjectState CreateObject() const;
-            void UpdateFrameSet(uint32_t frameIndex, const Scene::Scene& scene);
-            void UpdatePostProcessSet(uint32_t frameIndex, const Scene::Scene& scene);
-            void UpdateObject(ObjectState& object, uint32_t frameIndex, const Scene::Object& sceneObject) const;
+            void UpdateFrameSet(uint32_t frameIndex, const SceneProxy& proxy);
+            void UpdatePostProcessSet(uint32_t frameIndex, const SceneProxy& proxy);
+            void UpdateObject(uint32_t frameIndex, const SceneProxy& proxy);
 
         private:
             const Rhi::Context& m_context;

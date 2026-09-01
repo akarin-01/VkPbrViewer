@@ -207,7 +207,7 @@ namespace Kita::Pbrv
 
         struct PerObjectSet
         {
-            // Set 3: K UBO slots + K descriptor sets, bound once at creation.
+            // Set 3: K UBO slots + K descriptor sets, bound once at creation
             std::array<UboResource, Rhi::kMaxFramesInFlight> m_ubos{};
             std::array<VkDescriptorSet, Rhi::kMaxFramesInFlight> m_sets{};
             VkDescriptorSetLayout m_layout{ VK_NULL_HANDLE };
@@ -220,7 +220,7 @@ namespace Kita::Pbrv
 
         struct MaterialDesc
         {
-            // One texture id per material slot; kInvalidId = fallback.
+            // One texture id per material slot; kInvalidId = fallback
             std::array<ResourceId, kMaterialSlotCount> m_textureIds{};
 
             bool operator==(const MaterialDesc& other) const
@@ -247,7 +247,7 @@ namespace Kita::Pbrv
         {
             using Handle = Handle<PerMaterialSet>;
 
-            // Set 2 (one immutable set; empty slots share the manager's fallbacks).
+            // Set 2 (one immutable set; empty slots share the manager's fallbacks)
             std::array<TextureResource, kMaterialSlotCount> m_textures{};
             VkDescriptorSet m_set{ VK_NULL_HANDLE };
             VkDescriptorSetLayout m_layout{ VK_NULL_HANDLE };
@@ -255,7 +255,7 @@ namespace Kita::Pbrv
 
         struct PostProcessSet
         {
-            // Set 1: K UBO slots + K descriptor sets, bound once at creation.
+            // Set 1: K UBO slots + K descriptor sets, bound once at creation
             std::array<UboResource, Rhi::kMaxFramesInFlight> m_ubos{};
             std::array<VkDescriptorSet, Rhi::kMaxFramesInFlight> m_sets{};
             VkDescriptorSetLayout m_layout{ VK_NULL_HANDLE };
@@ -268,7 +268,7 @@ namespace Kita::Pbrv
 
         struct PerFrameSet
         {
-            // Set 0: K UBO slots + K descriptor sets; IBL textures fixed at creation.
+            // Set 0: K UBO slots + K descriptor sets; IBL textures fixed at creation
             std::array<UboResource, Rhi::kMaxFramesInFlight> m_ubos{};
             TextureResource m_skybox{};
             TextureResource m_irradiance{};

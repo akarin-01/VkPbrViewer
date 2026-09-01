@@ -44,12 +44,12 @@ namespace Kita::Pbrv
             ImGui::NewFrame();
         }
 
-        void Renderer::DrawFrame(const Scene::Scene& scene)
+        void Renderer::DrawFrame()
         {
             auto frameInfo = m_frameSync->BeginFrame();
 
             // Deferred destruction advances every frame, recreate included:
-            // recreating the render target also queues old textures.
+            // recreating the render target also queues old textures
             m_resourceMgr->FlushGraveyard();
 
             if (frameInfo.m_swapChainRecreated)
@@ -62,7 +62,7 @@ namespace Kita::Pbrv
             }
 
             // Update scene data
-            m_renderScene->Update(scene, frameInfo);
+            m_renderScene->Update(frameInfo);
 
             // Draw
             m_pipeline->Draw(frameInfo);

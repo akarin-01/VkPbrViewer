@@ -1,5 +1,7 @@
 #include "light.h"
 
+#include "render/scene_proxy.h"
+
 namespace Kita::Pbrv
 {
     namespace Scene
@@ -7,6 +9,11 @@ namespace Kita::Pbrv
         Light::Light() = default;
 
         Light::~Light() = default;
+
+        void Light::Update() const
+        {
+            Render::SceneProxy::Get().WriteLightData(m_position, m_color, m_intensity);
+        }
 
         Light& Light::SetPosition(const glm::vec3& pos)
         {

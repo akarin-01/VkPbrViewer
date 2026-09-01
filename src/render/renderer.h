@@ -21,10 +21,6 @@ namespace Kita::Pbrv
         class DescriptorManager;
         class ResourceManager;
     }
-    namespace Scene
-    {
-        class Scene;
-    }
 
     namespace Render
     {
@@ -37,7 +33,7 @@ namespace Kita::Pbrv
             ~Renderer();
 
             void NewFrame() const;
-            void DrawFrame(const Scene::Scene& scene);
+            void DrawFrame();
 
         private:
             std::unique_ptr<Rhi::Context> m_context;
