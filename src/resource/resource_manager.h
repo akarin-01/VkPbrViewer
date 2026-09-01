@@ -1,7 +1,6 @@
 #pragma once
 
 #include "resource/cache_table.h"
-#include "resource/graveyard.h"
 #include "resource/resource_id.h"
 #include "resource/resource_types.h"
 
@@ -19,8 +18,10 @@ namespace Kita::Pbrv
     namespace Resource
     {
         class AssetManager;
+        struct BakedTexture;
         class DescriptorManager;
         class EnvironmentBaker;
+        class Graveyard;
         struct MeshAsset;
         struct TextureAsset;
 
@@ -28,10 +29,15 @@ namespace Kita::Pbrv
         {
         public:
             ResourceManager(const Rhi::Context& context,
-                const AssetManager& assetMgr,
-                DescriptorManager& descriptorMgr);
+                const AssetManager& assetMgr);
             ~ResourceManager();
 
+            VkDescriptorSetLayout GetDescriptorSetLayout(DescriptorSetRhi::Type type) const
+            {
+                return m_descriptorMgr->GetLayout(type);
+            }
+
+            // ---- Rhi resources ----
             BufferRhi::Handle CreateBuffer(const BufferDesc& desc,
                 const void* data = nullptr, size_t size = 0);
             ImageRhi::Handle CreateImage(const ImageDesc& desc,
@@ -40,7 +46,9 @@ namespace Kita::Pbrv
             ImageViewRhi::Handle CreateImageView(const ImageViewDesc& desc,
                 ImageRhi::Handle image);
             SamplerRhi::Handle GetOrCreateSampler(const SamplerDesc& desc);
+            DescriptorSetRhi::Handle CreateDescriptorSet(DescriptorSetRhi::Type type);
 
+            // ---- Render resources ----
             TextureResource CreateTexture(ResourceId textureId,
                 const ImageViewDesc& imageViewDesc, const SamplerDesc& samplerDesc);
             TextureResource CreateTexture(const ImageDesc& imageDesc,
@@ -51,6 +59,7 @@ namespace Kita::Pbrv
             MeshResource::Handle GetOrCreateMesh(ResourceId meshId);
             TargetResource CreateTarget(const TargetDesc& desc);
 
+            // ---- Sets ----
             PerObjectSet CreatePerObjectSet();
             PerMaterialSet::Handle GetOrCreatePerMaterialSet(const MaterialDesc& desc);
             PostProcessSet CreatePostProcessSet(const TextureResource& texture);
@@ -60,24 +69,28 @@ namespace Kita::Pbrv
 
         private:
             ImageRhi CreateImage(const TextureAsset& asset);
-            TextureResource CreateEquirect(const TextureAsset& asset);
             std::array<ImageRhi::Handle, kMaterialSlotCount> CreateMaterialFallbacks();
             ImageRhi::Handle CreateCubemapFallback();
 
             UboResource CreateUbo(const BufferDesc& desc);
             MeshResource CreateMesh(const MeshAsset& asset);
+            TextureResource CreateEquirect(const TextureAsset& asset);
+            TextureResource CreateTexture(BakedTexture baked);
 
             PerMaterialSet CreatePerMaterialSet(const MaterialDesc& desc);
 
         private:
             const Rhi::Context& m_context;
             const AssetManager& m_assetMgr;
-            DescriptorManager& m_descriptorMgr;
 
-            Graveyard m_graveyard;      // Destroyed last: table destroyers keep pushing into it
+            // The graveyard outlives the tables (their destroyers push into it),
+            // and the descriptor manager outlives the graveyard (its flush recycles).
+            std::unique_ptr<DescriptorManager> m_descriptorMgr{};
+            std::unique_ptr<Graveyard> m_graveyard{};
 
             // ------------- L0: Rhi (vk objects) -------------
             HandleTable<BufferRhi> m_bufferTable;
+            HandleTable<DescriptorSetRhi> m_descriptorSetTable;
             CacheTable<ImageRhi, ResourceId> m_imageCache;   // asset path cached, desc path direct
             HandleTable<ImageViewRhi> m_imageViewTable;
             CacheTable<SamplerRhi, SamplerDesc, SamplerDesc::Hash> m_samplerCache;

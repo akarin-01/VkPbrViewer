@@ -7,7 +7,6 @@
 #include "rhi/frame_sync.h"
 #include "rhi/swap_chain.h"
 #include "rhi/utils.h"
-#include "resource/descriptor_manager.h"
 #include "resource/resource_manager.h"
 #include "render/render_pipeline.h"
 #include "render/render_scene.h"
@@ -25,10 +24,9 @@ namespace Kita::Pbrv
             m_swapChain = std::make_unique<Rhi::SwapChain>(window, *m_context);
             m_frameSync = std::make_unique<Rhi::FrameSync>(*m_context, *m_swapChain);
 
-            m_descriptorMgr = std::make_unique<Resource::DescriptorManager>(*m_context);
-            m_resourceMgr = std::make_unique<Resource::ResourceManager>(*m_context, assetMgr, *m_descriptorMgr);
+            m_resourceMgr = std::make_unique<Resource::ResourceManager>(*m_context, assetMgr);
 
-            m_renderScene = std::make_unique<RenderScene>(*m_context, *m_swapChain, *m_descriptorMgr, *m_resourceMgr);
+            m_renderScene = std::make_unique<RenderScene>(*m_context, *m_swapChain, *m_resourceMgr);
             m_pipeline = std::make_unique<RenderPipeline>(window, *m_context, *m_swapChain, *m_renderScene);
         }
 

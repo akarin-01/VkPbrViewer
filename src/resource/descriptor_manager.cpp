@@ -13,17 +13,17 @@ namespace Kita::Pbrv
     {
         namespace
         {
-            std::string ToString(DescriptorLayoutType type)
+            std::string ToString(DescriptorManager::Type type)
             {
                 switch (type)
                 {
-                case DescriptorLayoutType::Empty:        return "Empty";
-                case DescriptorLayoutType::PerFrame:        return "PerFrame";
-                case DescriptorLayoutType::PerMaterial:     return "PerMaterial";
-                case DescriptorLayoutType::PerObject:       return "PerObject";
-                case DescriptorLayoutType::PostProcess:     return "PostProcess";
-                case DescriptorLayoutType::ComputeWrite:    return "ComputeWrite";
-                case DescriptorLayoutType::ComputeSample:   return "ComputeSample";
+                case DescriptorManager::Type::Empty:        return "Empty";
+                case DescriptorManager::Type::PerFrame:        return "PerFrame";
+                case DescriptorManager::Type::PerMaterial:     return "PerMaterial";
+                case DescriptorManager::Type::PerObject:       return "PerObject";
+                case DescriptorManager::Type::PostProcess:     return "PostProcess";
+                case DescriptorManager::Type::ComputeWrite:    return "ComputeWrite";
+                case DescriptorManager::Type::ComputeSample:   return "ComputeSample";
                 default: return "Unknown";
                 }
             }
@@ -92,6 +92,16 @@ namespace Kita::Pbrv
 
         VkDescriptorSet DescriptorSetPool::Allocate()
         {
+            if (!m_freeSets.empty())
+            {
+                VkDescriptorSet recycled = m_freeSets.back();
+                m_freeSets.pop_back();
+
+                KITA_LOG_DEBUG("[Resources] Reuse descriptor set: ", m_name, " (",
+                    m_freeSets.size(), " free)");
+                return recycled;
+            }
+
             if (m_used >= m_capacity)
             {
                 KITA_LOG_DEBUG("[Resources] Descriptor pool full: ", m_name,
@@ -119,6 +129,11 @@ namespace Kita::Pbrv
             KITA_LOG_DEBUG("[Resources] Allocate descriptor set: ", m_name,
                 " (", m_used, "/", m_capacity, ")");
             return set;
+        }
+
+        void DescriptorSetPool::Recycle(VkDescriptorSet set)
+        {
+            m_freeSets.push_back(set);
         }
 
         VkDescriptorPool DescriptorSetPool::CreatePool() const
@@ -189,6 +204,11 @@ namespace Kita::Pbrv
         VkDescriptorSet DescriptorManager::Allocate(Type type)
         {
             return GetPool(type).Allocate();
+        }
+
+        void DescriptorManager::Recycle(Type type, VkDescriptorSet set)
+        {
+            GetPool(type).Recycle(set);
         }
 
         void DescriptorManager::CreateSetPool(Type type, const Rhi::Context& context, const std::vector<BindingDesc>& bindingDescs)

@@ -9,6 +9,7 @@
 #include "resource/descriptor_manager.h"
 #include "resource/descriptor_writer.h"
 #include "resource/environment_baker.h"
+#include "resource/graveyard.h"
 #include "resource/gpu_layouts.h"
 #include "resource/resource_utils.h"
 
@@ -68,12 +69,11 @@ namespace Kita::Pbrv
         }
 
         ResourceManager::ResourceManager(const Rhi::Context& context,
-            const AssetManager& assetMgr,
-            DescriptorManager& descriptorMgr)
+            const AssetManager& assetMgr)
             : m_context(context),
             m_assetMgr(assetMgr),
-            m_descriptorMgr(descriptorMgr),
-            m_graveyard(context),
+            m_descriptorMgr(std::make_unique<DescriptorManager>(context)),
+            m_graveyard(std::make_unique<Graveyard>(context, *m_descriptorMgr)),
             m_bufferTable([this](BufferRhi&& buffer)
                 {
                     if (buffer.m_mapped)
@@ -81,27 +81,32 @@ namespace Kita::Pbrv
                         vkUnmapMemory(m_context.Device(), buffer.m_memory);
                     }
                     KITA_LOG_DEBUG("[Resource] Release buffer: ", buffer.m_size, " bytes");
-                    m_graveyard.PushBuffer(buffer.m_buffer);
-                    m_graveyard.PushMemory(buffer.m_memory);
+                    m_graveyard->PushBuffer(buffer.m_buffer);
+                    m_graveyard->PushMemory(buffer.m_memory);
+                }),
+            m_descriptorSetTable([this](DescriptorSetRhi&& set)
+                {
+                    KITA_LOG_DEBUG("[Resource] Release descriptor set");
+                    m_graveyard->PushDescriptorSet(set.m_set, set.m_layout);
                 }),
             m_imageCache("image resource", [this](ImageRhi&& image)
                 {
                     KITA_LOG_DEBUG("[Resource] Release image: ", image.m_extent.width, "x",
                         image.m_extent.height, ", ", image.m_mipLevels, " mips");
-                    m_graveyard.PushImage(image.m_image);
-                    m_graveyard.PushMemory(image.m_memory);
+                    m_graveyard->PushImage(image.m_image);
+                    m_graveyard->PushMemory(image.m_memory);
                 }),
             m_imageViewTable([this](ImageViewRhi&& imageView)
                 {
                     KITA_LOG_DEBUG("[Resource] Release image view");
                     // m_image releases automatically when the temporary dies
                     // (Handle dtor), while every table is still alive
-                    m_graveyard.PushImageView(imageView.m_imageView);
+                    m_graveyard->PushImageView(imageView.m_imageView);
                 }),
             m_samplerCache("sampler resource", [this](SamplerRhi&& sampler)
                 {
                     KITA_LOG_DEBUG("[Resource] Release sampler");
-                    m_graveyard.PushSampler(sampler.m_sampler);
+                    m_graveyard->PushSampler(sampler.m_sampler);
                 }),
             m_meshCache("mesh resource", [](MeshResource&& mesh)
                 {
@@ -113,14 +118,12 @@ namespace Kita::Pbrv
                     KITA_LOG_DEBUG("[Resource] Release per material set");
                     // Texture handles release with the entry; each pushes into
                     // its own graveyard queue through the tables above
-                })
+                }),
+            m_environmentBaker(std::make_unique<EnvironmentBaker>(m_context, *m_descriptorMgr))
         {
             m_fallbacks = CreateMaterialFallbacks();
             m_cubemapFallback = CreateCubemapFallback();
-
-            m_environmentBaker =
-                std::make_unique<EnvironmentBaker>(m_context, m_descriptorMgr, *this);
-            m_brdfLut = m_environmentBaker->BakeBrdfLut();
+            m_brdfLut = CreateTexture(m_environmentBaker->BakeBrdfLut());
         }
 
         ResourceManager::~ResourceManager() = default;
@@ -181,6 +184,16 @@ namespace Kita::Pbrv
                         ", address ", ToString(d.m_addressModeU), ", anisotropy ", d.m_anisotropy);
                     return sampler;
                 });
+        }
+
+        DescriptorSetRhi::Handle ResourceManager::CreateDescriptorSet(DescriptorSetRhi::Type type)
+        {
+            DescriptorSetRhi set{};
+            set.m_set = m_descriptorMgr->Allocate(type);
+            set.m_layout = type;
+
+            KITA_LOG_DEBUG("[Resource] Create descriptor set");
+            return m_descriptorSetTable.Create(std::move(set));
         }
 
         TextureResource ResourceManager::CreateTexture(ResourceId textureId, const ImageViewDesc& imageViewDesc, const SamplerDesc& samplerDesc)
@@ -270,10 +283,10 @@ namespace Kita::Pbrv
 
         PerObjectSet ResourceManager::CreatePerObjectSet()
         {
-            constexpr DescriptorLayoutType kLayoutType = DescriptorLayoutType::PerObject;
+            constexpr DescriptorSetRhi::Type kLayoutType = DescriptorSetRhi::Type::PerObject;
 
             PerObjectSet perObject{};
-            perObject.m_layout = m_descriptorMgr.GetLayout(kLayoutType);
+            perObject.m_layout = m_descriptorMgr->GetLayout(kLayoutType);
 
             Resource::BufferDesc desc{};
             desc.m_size = sizeof(Gpu::PerObject);
@@ -289,12 +302,12 @@ namespace Kita::Pbrv
 
             for (size_t i = 0; i < perObject.m_sets.size(); ++i)
             {
-                perObject.m_sets[i] = m_descriptorMgr.Allocate(kLayoutType);
+                perObject.m_sets[i] = CreateDescriptorSet(kLayoutType);
 
                 DescriptorWriter writer(m_context.Device());
                 writer.WriteBuffer(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                     perObject.m_ubos[i].GetBuffer(), 0, sizeof(Gpu::PerObject))
-                    .UpdateSet(perObject.m_sets[i]);
+                    .UpdateSet(perObject.m_sets[i]->GetSet());
             }
 
             KITA_LOG_DEBUG("[Resource] Create per-object set: ", perObject.m_ubos.size(), " ubo slots, ",
@@ -312,10 +325,10 @@ namespace Kita::Pbrv
 
         PostProcessSet ResourceManager::CreatePostProcessSet(const TextureResource& texture)
         {
-            constexpr DescriptorLayoutType kLayoutType = DescriptorLayoutType::PostProcess;
+            constexpr DescriptorSetRhi::Type kLayoutType = DescriptorSetRhi::Type::PostProcess;
 
             PostProcessSet postProcess{};
-            postProcess.m_layout = m_descriptorMgr.GetLayout(kLayoutType);
+            postProcess.m_layout = m_descriptorMgr->GetLayout(kLayoutType);
 
             Resource::BufferDesc desc{};
             desc.m_size = sizeof(Gpu::PostProcess);
@@ -330,14 +343,14 @@ namespace Kita::Pbrv
 
             for (size_t i = 0; i < postProcess.m_sets.size(); ++i)
             {
-                postProcess.m_sets[i] = m_descriptorMgr.Allocate(kLayoutType);
+                postProcess.m_sets[i] = CreateDescriptorSet(kLayoutType);
 
                 DescriptorWriter writer(m_context.Device());
                 writer.WriteBuffer(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                     postProcess.m_ubos[i].GetBuffer(), 0, sizeof(Gpu::PostProcess))
                     .WriteImage(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, texture.GetImageView(), texture.GetSampler())
-                    .UpdateSet(postProcess.m_sets[i]);
+                    .UpdateSet(postProcess.m_sets[i]->GetSet());
             }
 
             KITA_LOG_DEBUG("[Resource] Create post process set: ", postProcess.m_ubos.size(), " ubo slots, ",
@@ -347,10 +360,10 @@ namespace Kita::Pbrv
 
         PerFrameSet ResourceManager::CreatePerFrameSet(ResourceId equirectId)
         {
-            constexpr DescriptorLayoutType kLayoutType = DescriptorLayoutType::PerFrame;
+            constexpr DescriptorSetRhi::Type kLayoutType = DescriptorSetRhi::Type::PerFrame;
 
             PerFrameSet perFrame{};
-            perFrame.m_layout = m_descriptorMgr.GetLayout(kLayoutType);
+            perFrame.m_layout = m_descriptorMgr->GetLayout(kLayoutType);
 
             Resource::BufferDesc desc{};
             desc.m_size = sizeof(Gpu::PerFrame);
@@ -366,9 +379,9 @@ namespace Kita::Pbrv
             const TextureAsset* asset = m_assetMgr.GetTexture(equirectId);
             if (asset)
             {
-                perFrame.m_skybox = m_environmentBaker->BakeSkybox(CreateEquirect(*asset));
-                perFrame.m_irradiance = m_environmentBaker->BakeIrradiance(perFrame.m_skybox);
-                perFrame.m_prefilter = m_environmentBaker->BakePrefilter(perFrame.m_skybox);
+                perFrame.m_skybox = CreateTexture(m_environmentBaker->BakeSkybox(CreateEquirect(*asset)));
+                perFrame.m_irradiance = CreateTexture(m_environmentBaker->BakeIrradiance(perFrame.m_skybox));
+                perFrame.m_prefilter = CreateTexture(m_environmentBaker->BakePrefilter(perFrame.m_skybox));
             }
             else
             {
@@ -391,7 +404,7 @@ namespace Kita::Pbrv
 
             for (size_t i = 0; i < perFrame.m_sets.size(); ++i)
             {
-                perFrame.m_sets[i] = m_descriptorMgr.Allocate(kLayoutType);
+                perFrame.m_sets[i] = CreateDescriptorSet(kLayoutType);
 
                 DescriptorWriter writer(m_context.Device());
                 writer.WriteBuffer(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -404,7 +417,7 @@ namespace Kita::Pbrv
                         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, perFrame.m_irradiance.GetImageView(), perFrame.m_irradiance.GetSampler())
                     .WriteImage(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, perFrame.m_prefilter.GetImageView(), perFrame.m_prefilter.GetSampler())
-                    .UpdateSet(perFrame.m_sets[i]);
+                    .UpdateSet(perFrame.m_sets[i]->GetSet());
             }
 
             KITA_LOG_DEBUG("[Resource] Create per frame set: ", perFrame.m_ubos.size(), " ubo slots, ",
@@ -414,7 +427,7 @@ namespace Kita::Pbrv
 
         void ResourceManager::FlushGraveyard()
         {
-            m_graveyard.Flush();
+            m_graveyard->Flush();
         }
 
         ImageRhi ResourceManager::CreateImage(const TextureAsset& asset)
@@ -490,6 +503,14 @@ namespace Kita::Pbrv
             return CreateTexture(desc, {}, samplerDesc, asset.m_bytes.data(), asset.m_bytes.size());
         }
 
+        TextureResource ResourceManager::CreateTexture(BakedTexture baked)
+        {
+            KITA_LOG_DEBUG("[Resource] Create image: ", baked.m_image.m_extent.width, "x",
+                baked.m_image.m_extent.height, ", ", baked.m_image.m_mipLevels, " mips");
+            const ImageRhi::Handle image = m_imageCache.Create(std::move(baked.m_image));
+            return CreateTexture(image, baked.m_viewDesc, baked.m_samplerDesc);
+        }
+
         std::array<ImageRhi::Handle, kMaterialSlotCount> ResourceManager::CreateMaterialFallbacks()
         {
             constexpr uint8_t white[] = { 255, 255, 255, 255 };
@@ -551,8 +572,8 @@ namespace Kita::Pbrv
             samplerDesc.m_addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 
             PerMaterialSet material{};
-            material.m_layout = m_descriptorMgr.GetLayout(DescriptorLayoutType::PerMaterial);
-            material.m_set = m_descriptorMgr.Allocate(DescriptorLayoutType::PerMaterial);
+            material.m_layout = m_descriptorMgr->GetLayout(DescriptorSetRhi::Type::PerMaterial);
+            material.m_set = CreateDescriptorSet(DescriptorSetRhi::Type::PerMaterial);
 
             for (uint32_t i = 0; i < Resource::kMaterialSlotCount; ++i)
             {
@@ -567,7 +588,7 @@ namespace Kita::Pbrv
                     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                     material.m_textures[i].GetImageView(), material.m_textures[i].GetSampler());
             }
-            writer.UpdateSet(material.m_set);
+            writer.UpdateSet(material.m_set->GetSet());
 
             KITA_LOG_DEBUG("[Resource] Create per-material set: ", Resource::kMaterialSlotCount,
                 " texture slots, 1 set");

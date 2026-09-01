@@ -39,6 +39,7 @@ namespace Kita::Pbrv
 
             VkDescriptorSetLayout GetLayout() const { return m_layout; }
             VkDescriptorSet Allocate();
+            void Recycle(VkDescriptorSet set);
 
         private:
             VkDescriptorPool CreatePool() const;
@@ -50,6 +51,7 @@ namespace Kita::Pbrv
             VkDescriptorSetLayout m_layout{ VK_NULL_HANDLE };
             std::vector<VkDescriptorPoolSize> m_poolSizes;
             std::vector<VkDescriptorPool> m_pools;
+            std::vector<VkDescriptorSet> m_freeSets{};
             uint32_t m_capacity{ 8 };
             uint32_t m_used{ 0 };
         };
@@ -79,6 +81,7 @@ namespace Kita::Pbrv
 
             VkDescriptorSetLayout GetLayout(Type type) const;
             VkDescriptorSet Allocate(Type type);
+            void Recycle(Type type, VkDescriptorSet set);
 
         private:
             void CreateSetPool(Type type,
@@ -90,7 +93,5 @@ namespace Kita::Pbrv
         private:
             std::array<std::unique_ptr<DescriptorSetPool>, static_cast<size_t>(Type::Count)> m_pools;
         };
-
-        using DescriptorLayoutType = DescriptorManager::Type;
     }
 }

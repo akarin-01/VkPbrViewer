@@ -14,7 +14,6 @@ namespace Kita::Pbrv
     }
     namespace Resource
     {
-        class DescriptorManager;
         class ResourceManager;
     }
 
@@ -29,7 +28,6 @@ namespace Kita::Pbrv
         public:
             RenderScene(const Rhi::Context& context,
                 const Rhi::SwapChain& swapChain,
-                Resource::DescriptorManager& descriptorMgr,
                 Resource::ResourceManager& resourceMgr);
             ~RenderScene();
 
@@ -52,7 +50,6 @@ namespace Kita::Pbrv
             const Rhi::Context& m_context;
             const Rhi::SwapChain& m_swapChain;
             Resource::ResourceManager& m_resourceMgr;
-            Resource::DescriptorManager& m_descriptorMgr;
 
             GlobalState m_global{};
             ObjectState m_object{};

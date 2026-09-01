@@ -8,7 +8,6 @@
 #include "resource/constants.h"
 #include "resource/descriptor_manager.h"
 #include "resource/gpu_layouts.h"
-#include "resource/resource_manager.h"
 #include "resource/resource_utils.h"
 
 #include <cmath>
@@ -44,27 +43,25 @@ namespace Kita::Pbrv
         }
 
         EnvironmentBaker::EnvironmentBaker(const Rhi::Context& context,
-            DescriptorManager& descriptorMgr,
-            ResourceManager& resourceMgr)
+            DescriptorManager& descriptorMgr)
             : m_context(context),
-            m_descriptorMgr(descriptorMgr),
-            m_resourceMgr(resourceMgr)
+            m_descriptorMgr(descriptorMgr)
         {
             m_skyboxConversion = std::make_unique<ComputeConversion>(m_context, m_descriptorMgr,
-                DescriptorLayoutType::ComputeSample, "assets/shaders/equirect_to_cubemap_comp.spv", 0);
+                DescriptorSetRhi::Type::ComputeSample, "assets/shaders/equirect_to_cubemap_comp.spv", 0);
             m_irradianceConversion = std::make_unique<ComputeConversion>(m_context, m_descriptorMgr,
-                DescriptorLayoutType::ComputeSample, "assets/shaders/irradiance_convolution_comp.spv",
+                DescriptorSetRhi::Type::ComputeSample, "assets/shaders/irradiance_convolution_comp.spv",
                 static_cast<uint32_t>(sizeof(Gpu::IrradiancePC)));
             m_prefilterConversion = std::make_unique<ComputeConversion>(m_context, m_descriptorMgr,
-                DescriptorLayoutType::ComputeSample, "assets/shaders/prefilter_comp.spv",
+                DescriptorSetRhi::Type::ComputeSample, "assets/shaders/prefilter_comp.spv",
                 static_cast<uint32_t>(sizeof(Gpu::PrefilterPC)));
             m_brdfConversion = std::make_unique<ComputeConversion>(m_context, m_descriptorMgr,
-                DescriptorLayoutType::ComputeWrite, "assets/shaders/brdf_integration_comp.spv", 0);
+                DescriptorSetRhi::Type::ComputeWrite, "assets/shaders/brdf_integration_comp.spv", 0);
         }
 
         EnvironmentBaker::~EnvironmentBaker() = default;
 
-        TextureResource EnvironmentBaker::BakeSkybox(const TextureResource& equirect)
+        BakedTexture EnvironmentBaker::BakeSkybox(const TextureResource& equirect)
         {
             // 1. Cubemap target: kCubemapFaceSize^2 x6, full mip chain
             const uint32_t mipLevels = ResourceUtils::CalculateMipLevels(kCubemapFaceSize, kCubemapFaceSize);
@@ -79,11 +76,11 @@ namespace Kita::Pbrv
             cubeDesc.m_properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
             cubeDesc.m_flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 
-            ImageRhi::Handle cubeImage = m_resourceMgr.CreateImage(cubeDesc);
+            ImageRhi cubeImage = ResourceUtils::CreateImageRhi(m_context, cubeDesc, nullptr, 0);
 
-            // One-shot storage view: base mip, all 6 layers
-            ImageViewRhi::Handle storageView =
-                m_resourceMgr.CreateImageView(MakeCubeViewDesc(false), cubeImage);
+            // One-shot storage view: base mip, all 6 layers.
+            ImageViewRhi storageView =
+                ResourceUtils::CreateImageViewRhi(m_context, cubeImage, MakeCubeViewDesc(false));
 
             VkImageSubresourceRange range{};
             range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -92,10 +89,10 @@ namespace Kita::Pbrv
             range.baseArrayLayer = 0;
             range.layerCount = 6;
 
-            // 2. GPU conversion: equirect -> cubemap base mip
+            // 2. GPU conversion: equirect -> cubemap base mip.
             ComputeConversion::Output output{};
-            output.m_image = cubeImage->m_image;
-            output.m_imageView = storageView->m_imageView;
+            output.m_image = cubeImage.m_image;
+            output.m_imageView = storageView.m_imageView;
             output.m_range = range;
             output.m_finalLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
             output.m_finalStage = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
@@ -108,7 +105,7 @@ namespace Kita::Pbrv
             m_skyboxConversion->Dispatch(output,
                 { (kCubemapFaceSize + 7) / 8, (kCubemapFaceSize + 7) / 8, 6 }, { input });
 
-            // 3. Generate the remaining mips (1..N)
+            // 3. Generate the remaining mips (1..N).
             {
                 VkImageSubresourceRange mipRange{};
                 mipRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -118,22 +115,23 @@ namespace Kita::Pbrv
                 mipRange.layerCount = 6;
 
                 Rhi::OneShotCommand command(m_context);
-                Rhi::TransitionImageLayout(command.Handle(), cubeImage->m_image,
+                Rhi::TransitionImageLayout(command.Handle(), cubeImage.m_image,
                     VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                     VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
                     VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
                     mipRange);
-                ResourceUtils::GenerateImageMipmaps(command.Handle(), *cubeImage);
+                ResourceUtils::GenerateImageMipmaps(command.Handle(), cubeImage);
             }
 
-            // 4. Assemble the sampler-facing cubemap texture
+            // The dispatch is synchronous, so the storage view is disposable.
+            vkDestroyImageView(m_context.Device(), storageView.m_imageView, nullptr);
+
             Core::Log::Info("[Resource] Create skybox cubemap: ", kCubemapFaceSize, "x",
                 kCubemapFaceSize, "x6, ", mipLevels, " mips");
-            return m_resourceMgr.CreateTexture(cubeImage,
-                MakeCubeViewDesc(true), MakeClampSampler(SamplerDesc::MipMode::Linear));
+            return { std::move(cubeImage), MakeCubeViewDesc(true), MakeClampSampler(SamplerDesc::MipMode::Linear) };
         }
 
-        TextureResource EnvironmentBaker::BakeIrradiance(const TextureResource& skybox)
+        BakedTexture EnvironmentBaker::BakeIrradiance(const TextureResource& skybox)
         {
             ImageDesc desc{};
             desc.m_extent = { kIrradianceSize, kIrradianceSize, 1 };
@@ -144,11 +142,11 @@ namespace Kita::Pbrv
             desc.m_properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
             desc.m_flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 
-            ImageRhi::Handle image = m_resourceMgr.CreateImage(desc);
+            ImageRhi image = ResourceUtils::CreateImageRhi(m_context, desc, nullptr, 0);
 
-            // One-shot storage view: base mip, all 6 layers
-            ImageViewRhi::Handle storageView =
-                m_resourceMgr.CreateImageView(MakeCubeViewDesc(false), image);
+            // One-shot storage view: base mip, all 6 layers.
+            ImageViewRhi storageView =
+                ResourceUtils::CreateImageViewRhi(m_context, image, MakeCubeViewDesc(false));
 
             VkImageSubresourceRange range{};
             range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -158,12 +156,12 @@ namespace Kita::Pbrv
             range.layerCount = 6;
 
             ComputeConversion::Output output{};
-            output.m_image = image->m_image;
-            output.m_imageView = storageView->m_imageView;
+            output.m_image = image.m_image;
+            output.m_imageView = storageView.m_imageView;
             output.m_range = range;
 
             // Sample the source from the mip matching the irradiance resolution
-            // (low-pass filter kills the sun-peak variance in the convolution)
+            // (low-pass filter kills the sun-peak variance in the convolution).
             ComputeConversion::Input input{};
             input.m_imageView = skybox.GetImageView();
             input.m_sampler = skybox.GetSampler();
@@ -175,13 +173,14 @@ namespace Kita::Pbrv
             m_irradianceConversion->Dispatch(output,
                 { (kIrradianceSize + 7) / 8, (kIrradianceSize + 7) / 8, 6 }, { input }, &push);
 
+            vkDestroyImageView(m_context.Device(), storageView.m_imageView, nullptr);
+
             Core::Log::Info("[Resource] Create irradiance map: ", kIrradianceSize, "x",
                 kIrradianceSize, "x6");
-            return m_resourceMgr.CreateTexture(image,
-                MakeCubeViewDesc(true), MakeClampSampler(SamplerDesc::MipMode::None));
+            return { std::move(image), MakeCubeViewDesc(true), MakeClampSampler(SamplerDesc::MipMode::None) };
         }
 
-        TextureResource EnvironmentBaker::BakePrefilter(const TextureResource& skybox)
+        BakedTexture EnvironmentBaker::BakePrefilter(const TextureResource& skybox)
         {
             const uint32_t mipLevels = ResourceUtils::CalculateMipLevels(kPrefilterBaseSize, kPrefilterBaseSize);
 
@@ -195,19 +194,19 @@ namespace Kita::Pbrv
             desc.m_properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
             desc.m_flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 
-            ImageRhi::Handle image = m_resourceMgr.CreateImage(desc);
+            ImageRhi image = ResourceUtils::CreateImageRhi(m_context, desc, nullptr, 0);
 
             ComputeConversion::Input input{};
             input.m_imageView = skybox.GetImageView();
             input.m_sampler = skybox.GetSampler();
 
-            // Convolve each mip separately: its own storage view and roughness
+            // Convolve each mip separately: its own storage view and roughness.
             for (uint32_t mip = 0; mip < mipLevels; ++mip)
             {
                 const uint32_t mipSize = kPrefilterBaseSize >> mip;
 
-                ImageViewRhi::Handle mipView =
-                    m_resourceMgr.CreateImageView(MakeCubeViewDesc(false, mip), image);
+                ImageViewRhi mipView =
+                    ResourceUtils::CreateImageViewRhi(m_context, image, MakeCubeViewDesc(false, mip));
 
                 VkImageSubresourceRange mipRange{};
                 mipRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -217,8 +216,8 @@ namespace Kita::Pbrv
                 mipRange.layerCount = 6;
 
                 ComputeConversion::Output output{};
-                output.m_image = image->m_image;
-                output.m_imageView = mipView->m_imageView;
+                output.m_image = image.m_image;
+                output.m_imageView = mipView.m_imageView;
                 output.m_range = mipRange;
 
                 Gpu::PrefilterPC push{};
@@ -227,15 +226,17 @@ namespace Kita::Pbrv
 
                 m_prefilterConversion->Dispatch(output,
                     { (mipSize + 7) / 8, (mipSize + 7) / 8, 6 }, { input }, &push);
+
+                // Synchronous dispatch: the per-mip view is disposable.
+                vkDestroyImageView(m_context.Device(), mipView.m_imageView, nullptr);
             }
 
             Core::Log::Info("[Resource] Create prefilter env map: ", kPrefilterBaseSize, "x",
                 kPrefilterBaseSize, "x6, ", mipLevels, " mips");
-            return m_resourceMgr.CreateTexture(image,
-                MakeCubeViewDesc(true), MakeClampSampler(SamplerDesc::MipMode::Linear));
+            return { std::move(image), MakeCubeViewDesc(true), MakeClampSampler(SamplerDesc::MipMode::Linear) };
         }
 
-        TextureResource EnvironmentBaker::BakeBrdfLut()
+        BakedTexture EnvironmentBaker::BakeBrdfLut()
         {
             ImageDesc desc{};
             desc.m_extent = { kBrdfLutSize, kBrdfLutSize, 1 };
@@ -244,16 +245,12 @@ namespace Kita::Pbrv
             desc.m_usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
             desc.m_properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-            ImageRhi::Handle image = m_resourceMgr.CreateImage(desc);
+            ImageRhi image = ResourceUtils::CreateImageRhi(m_context, desc, nullptr, 0);
 
             ImageViewDesc viewDesc{};
             viewDesc.m_type = VK_IMAGE_VIEW_TYPE_2D;
             viewDesc.m_fullRange = true;
-            ImageViewRhi::Handle view = m_resourceMgr.CreateImageView(viewDesc, image);
-            SamplerRhi::Handle sampler =
-                m_resourceMgr.GetOrCreateSampler(MakeClampSampler(SamplerDesc::MipMode::None));
-
-            TextureResource lut{ image, view, sampler };
+            ImageViewRhi view = ResourceUtils::CreateImageViewRhi(m_context, image, viewDesc);
 
             VkImageSubresourceRange range{};
             range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -263,14 +260,16 @@ namespace Kita::Pbrv
             range.layerCount = 1;
 
             ComputeConversion::Output output{};
-            output.m_image = image->m_image;
-            output.m_imageView = view->m_imageView;
+            output.m_image = image.m_image;
+            output.m_imageView = view.m_imageView;
             output.m_range = range;
 
             m_brdfConversion->Dispatch(output,
                 { kBrdfLutSize / 16, kBrdfLutSize / 16, 1 }, {});
 
-            return lut;
+            vkDestroyImageView(m_context.Device(), view.m_imageView, nullptr);
+
+            return { std::move(image), viewDesc, MakeClampSampler(SamplerDesc::MipMode::None) };
         }
     }
 }

@@ -68,12 +68,12 @@ namespace Kita::Pbrv
 
                 // Draw
                 vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                    0, 1, &m_frameSet.m_sets[frameIndex], 0, nullptr);
+                    0, 1, &m_frameSet.GetSet(frameIndex), 0, nullptr);
                 {
                     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                        2, 1, &m_objectState.m_materialSet->m_set, 0, nullptr);
+                        2, 1, &m_objectState.m_materialSet->GetSet(), 0, nullptr);
                     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                        3, 1, &m_objectState.m_objectSet.m_sets[frameIndex], 0, nullptr);
+                        3, 1, &m_objectState.m_objectSet.GetSet(frameIndex), 0, nullptr);
 
                     if (m_objectState.m_mesh)
                     {

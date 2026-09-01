@@ -2,7 +2,6 @@
 
 #include "rhi/context.h"
 #include "rhi/swap_chain.h"
-#include "resource/descriptor_manager.h"
 #include "resource/resource_manager.h"
 #include "render/scene_proxy.h"
 
@@ -12,12 +11,10 @@ namespace Kita::Pbrv
     {
         RenderScene::RenderScene(const Rhi::Context& context,
             const Rhi::SwapChain& swapChain,
-            Resource::DescriptorManager& descriptorMgr,
             Resource::ResourceManager& resourceMgr)
             : m_context(context),
             m_swapChain(swapChain),
-            m_resourceMgr(resourceMgr),
-            m_descriptorMgr(descriptorMgr)
+            m_resourceMgr(resourceMgr)
         {
             Recreate();
 
@@ -83,7 +80,7 @@ namespace Kita::Pbrv
 
         VkDescriptorSetLayout RenderScene::GetEmptyLayout() const
         {
-            return m_descriptorMgr.GetLayout(Resource::DescriptorLayoutType::Empty);
+            return m_resourceMgr.GetDescriptorSetLayout(Resource::DescriptorSetRhi::Type::Empty);
         }
 
         ObjectState RenderScene::CreateObject() const

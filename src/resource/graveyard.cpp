@@ -7,8 +7,9 @@ namespace Kita::Pbrv
 {
     namespace Resource
     {
-        Graveyard::Graveyard(const Rhi::Context& context)
+        Graveyard::Graveyard(const Rhi::Context& context, DescriptorManager& descriptorMgr)
             : m_context(context),
+            m_descriptorMgr(descriptorMgr),
             m_memoryQueue([this](VkDeviceMemory& memory)
                 {
                     vkFreeMemory(m_context.Device(), memory, nullptr);
@@ -28,6 +29,10 @@ namespace Kita::Pbrv
             m_imageViewQueue([this](VkImageView& imageView)
                 {
                     vkDestroyImageView(m_context.Device(), imageView, nullptr);
+                }),
+            m_descriptorSetQueue([this](DescriptorSetEntry& entry)
+                {
+                    m_descriptorMgr.Recycle(entry.m_layout, entry.m_set);
                 })
         {
         }
@@ -36,17 +41,19 @@ namespace Kita::Pbrv
 
         void Graveyard::Flush()
         {
+            size_t descriptorSetCount = m_descriptorSetQueue.Flush();
             size_t imageViewCount = m_imageViewQueue.Flush();
             size_t samplerCount = m_samplerQueue.Flush();
             size_t bufferCount = m_bufferQueue.Flush();
             size_t imageCount = m_imageQueue.Flush();
             size_t memoryCount = m_memoryQueue.Flush();
 
-            bool empty = (imageViewCount == 0 && samplerCount == 0 && bufferCount == 0
-                && imageCount == 0 && memoryCount == 0);
+            bool empty = (descriptorSetCount == 0 && imageViewCount == 0 && samplerCount == 0
+                && bufferCount == 0 && imageCount == 0 && memoryCount == 0);
             if (!empty)
             {
-                KITA_LOG_DEBUG("[Resource] Graveyard flush: ", imageViewCount, " image views, ",
+                KITA_LOG_DEBUG("[Resource] Graveyard flush: ", descriptorSetCount, " descriptor sets, ",
+                    imageViewCount, " image views, ",
                     samplerCount, " samplers, ", bufferCount, " buffers, ",
                     imageCount, " images, ", memoryCount, " memories");
             }
@@ -75,6 +82,11 @@ namespace Kita::Pbrv
         void Graveyard::PushSampler(VkSampler sampler)
         {
             m_samplerQueue.Push(sampler);
+        }
+
+        void Graveyard::PushDescriptorSet(VkDescriptorSet set, DescriptorManager::Type layout)
+        {
+            m_descriptorSetQueue.Push({ set, layout });
         }
     }
 }

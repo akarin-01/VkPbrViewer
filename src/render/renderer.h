@@ -18,7 +18,6 @@ namespace Kita::Pbrv
     namespace Resource
     {
         class AssetManager;
-        class DescriptorManager;
         class ResourceManager;
     }
 
@@ -40,7 +39,6 @@ namespace Kita::Pbrv
             std::unique_ptr<Rhi::SwapChain> m_swapChain;
             std::unique_ptr<Rhi::FrameSync> m_frameSync;
 
-            std::unique_ptr<Resource::DescriptorManager> m_descriptorMgr;
             std::unique_ptr<Resource::ResourceManager> m_resourceMgr;
 
             std::unique_ptr<RenderScene> m_renderScene;

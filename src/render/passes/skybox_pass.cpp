@@ -61,7 +61,7 @@ namespace Kita::Pbrv
 
                 // Draw
                 vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                    0, 1, &m_frameSet.m_sets[frameIndex], 0, nullptr);
+                    0, 1, &m_frameSet.GetSet(frameIndex), 0, nullptr);
                 vkCmdDraw(commandBuffer, 36, 1, 0, 0);
             }
             // End rendering

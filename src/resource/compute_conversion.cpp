@@ -15,7 +15,7 @@ namespace Kita::Pbrv
     {
         ComputeConversion::ComputeConversion(const Rhi::Context& context,
             DescriptorManager& descriptorMgr,
-            DescriptorLayoutType layoutType,
+            DescriptorSetRhi::Type layoutType,
             const std::string& shaderPath, uint32_t pushConstantSize)
             : m_context(context),
             m_descriptorMgr(descriptorMgr),

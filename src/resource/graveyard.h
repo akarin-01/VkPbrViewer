@@ -1,5 +1,6 @@
 #pragma once
 
+#include "resource/descriptor_manager.h"
 #include "rhi/constants.h"
 
 #include <vulkan/vulkan.h>
@@ -83,7 +84,7 @@ namespace Kita::Pbrv
         class Graveyard
         {
         public:
-            explicit Graveyard(const Rhi::Context& context);
+            Graveyard(const Rhi::Context& context, DescriptorManager& descriptorMgr);
             ~Graveyard();
 
             /// Once per app frame, after the frame's waitFence.
@@ -94,9 +95,17 @@ namespace Kita::Pbrv
             void PushImage(VkImage image);
             void PushImageView(VkImageView imageView);
             void PushSampler(VkSampler sampler);
+            void PushDescriptorSet(VkDescriptorSet set, DescriptorManager::Type layout);
 
         private:
+            struct DescriptorSetEntry
+            {
+                VkDescriptorSet m_set{ VK_NULL_HANDLE };
+                DescriptorManager::Type m_layout{ DescriptorManager::Type::Count };
+            };
+
             const Rhi::Context& m_context;
+            DescriptorManager& m_descriptorMgr;
 
             // Declaration order = destruction order (reversed at teardown):
             // memory last, because vkFreeMemory requires that no bound
@@ -107,6 +116,7 @@ namespace Kita::Pbrv
             GraveyardQueue<VkBuffer> m_bufferQueue;
             GraveyardQueue<VkSampler> m_samplerQueue;
             GraveyardQueue<VkImageView> m_imageViewQueue;
+            GraveyardQueue<DescriptorSetEntry> m_descriptorSetQueue;
         };
     }
 }

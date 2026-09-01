@@ -1,5 +1,6 @@
 #pragma once
 
+#include "resource/descriptor_manager.h"
 #include "rhi/constants.h"
 #include "resource/constants.h"
 #include "resource/gpu_layouts.h"
@@ -133,6 +134,17 @@ namespace Kita::Pbrv
             VkSampler m_sampler{ VK_NULL_HANDLE };
         };
 
+        struct DescriptorSetRhi
+        {
+            using Handle = Handle<DescriptorSetRhi>;
+            using Type = DescriptorManager::Type;
+
+            VkDescriptorSet m_set{ VK_NULL_HANDLE };
+            Type m_layout{ Type::Count };
+
+            const VkDescriptorSet& GetSet() const { return m_set; }
+        };
+
         // ------------- L1: Resource (render resources) -------------
 
         struct MeshResource
@@ -207,15 +219,17 @@ namespace Kita::Pbrv
 
         struct PerObjectSet
         {
-            // Set 3: K UBO slots + K descriptor sets, bound once at creation
+            // Set 3: K UBO slots + K descriptor sets, bound once at creation.
             std::array<UboResource, Rhi::kMaxFramesInFlight> m_ubos{};
-            std::array<VkDescriptorSet, Rhi::kMaxFramesInFlight> m_sets{};
+            std::array<DescriptorSetRhi::Handle, Rhi::kMaxFramesInFlight> m_sets{};
             VkDescriptorSetLayout m_layout{ VK_NULL_HANDLE };
 
             void WriteData(uint32_t frameIndex, const Gpu::PerObject& data)
             {
                 m_ubos[frameIndex].Write(&data, sizeof(data));
             }
+
+            const VkDescriptorSet& GetSet(uint32_t frameIndex) const { return m_sets[frameIndex]->GetSet(); }
         };
 
         struct MaterialDesc
@@ -247,39 +261,45 @@ namespace Kita::Pbrv
         {
             using Handle = Handle<PerMaterialSet>;
 
-            // Set 2 (one immutable set; empty slots share the manager's fallbacks)
+            // Set 2 (one immutable set; empty slots share the manager's fallbacks).
             std::array<TextureResource, kMaterialSlotCount> m_textures{};
-            VkDescriptorSet m_set{ VK_NULL_HANDLE };
+            DescriptorSetRhi::Handle m_set{};
             VkDescriptorSetLayout m_layout{ VK_NULL_HANDLE };
+
+            const VkDescriptorSet& GetSet() const { return m_set->GetSet(); }
         };
 
         struct PostProcessSet
         {
-            // Set 1: K UBO slots + K descriptor sets, bound once at creation
+            // Set 1: K UBO slots + K descriptor sets, bound once at creation.
             std::array<UboResource, Rhi::kMaxFramesInFlight> m_ubos{};
-            std::array<VkDescriptorSet, Rhi::kMaxFramesInFlight> m_sets{};
+            std::array<DescriptorSetRhi::Handle, Rhi::kMaxFramesInFlight> m_sets{};
             VkDescriptorSetLayout m_layout{ VK_NULL_HANDLE };
 
             void WriteData(uint32_t frameIndex, const Gpu::PostProcess& data)
             {
                 m_ubos[frameIndex].Write(&data, sizeof(data));
             }
+
+            const VkDescriptorSet& GetSet(uint32_t frameIndex) const { return m_sets[frameIndex]->GetSet(); }
         };
 
         struct PerFrameSet
         {
-            // Set 0: K UBO slots + K descriptor sets; IBL textures fixed at creation
+            // Set 0: K UBO slots + K descriptor sets; IBL textures fixed at creation.
             std::array<UboResource, Rhi::kMaxFramesInFlight> m_ubos{};
             TextureResource m_skybox{};
             TextureResource m_irradiance{};
             TextureResource m_prefilter{};
-            std::array<VkDescriptorSet, Rhi::kMaxFramesInFlight> m_sets{};
+            std::array<DescriptorSetRhi::Handle, Rhi::kMaxFramesInFlight> m_sets{};
             VkDescriptorSetLayout m_layout{ VK_NULL_HANDLE };
 
             void WriteData(uint32_t frameIndex, const Gpu::PerFrame& data)
             {
                 m_ubos[frameIndex].Write(&data, sizeof(data));
             }
+
+            const VkDescriptorSet& GetSet(uint32_t frameIndex) const { return m_sets[frameIndex]->GetSet(); }
         };
     }
 }

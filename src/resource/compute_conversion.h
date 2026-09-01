@@ -1,6 +1,6 @@
 #pragma once
 
-#include "resource/descriptor_manager.h"
+#include "resource/resource_types.h"
 
 #include <memory>
 #include <string>
@@ -45,7 +45,7 @@ namespace Kita::Pbrv
 
             ComputeConversion(const Rhi::Context& context,
                 DescriptorManager& descriptorMgr,
-                DescriptorLayoutType layoutType,
+                DescriptorSetRhi::Type layoutType,
                 const std::string& shaderPath, uint32_t pushConstantSize);
             ~ComputeConversion();
 
@@ -65,7 +65,7 @@ namespace Kita::Pbrv
             DescriptorManager& m_descriptorMgr;
 
             // Count: an unset type hits the manager's assert, never a silent wrong layout
-            DescriptorLayoutType m_layoutType{ DescriptorLayoutType::Count };
+            DescriptorSetRhi::Type m_layoutType{ DescriptorSetRhi::Type::Count };
 
             uint32_t m_pushConstantSize{ 0 };
 
