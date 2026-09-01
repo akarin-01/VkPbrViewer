@@ -37,6 +37,14 @@ namespace Kita::Pbrv
                 return m_descriptorMgr->GetLayout(type);
             }
 
+            // ---- Stats ----
+            size_t GetBufferCount() const { return m_bufferTable.Size(); }
+            size_t GetDescriptorSetCount() const { return m_descriptorSetTable.Size(); }
+            size_t GetImageCount() const { return m_imageCache.Size(); }
+            size_t GetImageViewCount() const { return m_imageViewTable.Size(); }
+            size_t GetMaterialSetCount() const { return m_materialCache.Size(); }
+            size_t GetSamplerCount() const { return m_samplerCache.Size(); }
+
             // ---- Rhi resources ----
             BufferRhi::Handle CreateBuffer(const BufferDesc& desc,
                 const void* data = nullptr, size_t size = 0);

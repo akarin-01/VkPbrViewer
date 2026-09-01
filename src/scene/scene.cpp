@@ -18,8 +18,7 @@ namespace Kita::Pbrv
                 if (m_objects[i].IsDeletePending())
                 {
                     Render::SceneProxy::Get().DeleteObject(m_objects[i].GetId());
-                    std::swap(m_objects[i], m_objects.back());
-                    m_objects.pop_back();
+                    m_objects.erase(m_objects.begin() + i);   // order-preserving removal
                     continue;
                 }
 

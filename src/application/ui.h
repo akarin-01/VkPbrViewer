@@ -5,6 +5,11 @@ namespace Kita::Pbrv
     namespace Resource
     {
         class AssetManager;
+        class ResourceManager;
+    }
+    namespace Render
+    {
+        class RenderScene;
     }
     namespace Scene
     {
@@ -16,7 +21,9 @@ namespace Kita::Pbrv
         class UI
         {
         public:
-            UI(Scene::Scene& scene, Resource::AssetManager& assets);
+            UI(Scene::Scene& scene, Resource::AssetManager& assets,
+                const Resource::ResourceManager& resources,
+                const Render::RenderScene& renderScene);
             ~UI();
 
             void Update(float deltaTime);
@@ -29,6 +36,8 @@ namespace Kita::Pbrv
         private:
             Scene::Scene& m_scene;
             Resource::AssetManager& m_assets;
+            const Resource::ResourceManager& m_resources;
+            const Render::RenderScene& m_renderScene;
         };
     }
 }

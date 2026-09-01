@@ -54,7 +54,8 @@ namespace Kita::Pbrv
             m_scene = std::make_unique<Scene::Scene>();
             InitScene(*m_scene, *m_assetManager);
 
-            m_ui = std::make_unique<UI>(*m_scene, *m_assetManager);
+            m_ui = std::make_unique<UI>(*m_scene, *m_assetManager,
+                m_renderer->GetResourceManager(), m_renderer->GetRenderScene());
         }
 
         App::~App() = default;

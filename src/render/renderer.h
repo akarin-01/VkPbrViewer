@@ -34,6 +34,9 @@ namespace Kita::Pbrv
             void NewFrame() const;
             void DrawFrame();
 
+            const Resource::ResourceManager& GetResourceManager() const { return *m_resourceMgr; }
+            const RenderScene& GetRenderScene() const { return *m_renderScene; }
+
         private:
             std::unique_ptr<Rhi::Context> m_context;
             std::unique_ptr<Rhi::SwapChain> m_swapChain;

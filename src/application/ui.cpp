@@ -4,7 +4,9 @@
 #include "core/log.h"
 #include "resource/asset_manager.h"
 #include "resource/constants.h"
+#include "resource/resource_manager.h"
 #include "scene/scene.h"
+#include "render/render_scene.h"
 #include "application/ui_utils.h"
 
 #include <glm/glm.hpp>
@@ -270,12 +272,34 @@ namespace Kita::Pbrv
                     });
             }
 
-            void DrawStatsPanel(float deltaTime)
+            void DrawStatsPanel(float deltaTime, const Resource::AssetManager& assets,
+                const Resource::ResourceManager& resources,
+                const Render::RenderScene& renderScene)
             {
                 if (ImGui::CollapsingHeader("Stats"))
                 {
-                    ImGui::Text("FPS      : %.1f", 1.0f / deltaTime);
-                    ImGui::Text("Frame ms : %.2f", deltaTime * 1000.0f);
+                    DrawBox("##PerfBox", "Perf", [deltaTime]()
+                        {
+                            ImGui::Text("FPS      : %.1f", 1.0f / deltaTime);
+                            ImGui::Text("Frame ms : %.2f", deltaTime * 1000.0f);
+                        });
+
+                    DrawBox("##AssetsBox", "Assets", [&assets]()
+                        {
+                            ImGui::Text("Meshes  : %zu", assets.GetMeshCount());
+                            ImGui::Text("Textures: %zu", assets.GetTextureCount());
+                        });
+
+                    DrawBox("##ResourcesBox", "Resources", [&resources, &renderScene]()
+                        {
+                            ImGui::Text("Buffers  : %zu", resources.GetBufferCount());
+                            ImGui::Text("Images   : %zu", resources.GetImageCount());
+                            ImGui::Text("Views    : %zu", resources.GetImageViewCount());
+                            ImGui::Text("Samplers : %zu", resources.GetSamplerCount());
+                            ImGui::Text("Sets     : %zu", resources.GetDescriptorSetCount());
+                            ImGui::Text("Materials: %zu", resources.GetMaterialSetCount());
+                            ImGui::Text("Objects  : %zu", renderScene.GetObjects().size());
+                        });
                 }
             }
 
@@ -292,23 +316,25 @@ namespace Kita::Pbrv
 
             void DrawObjectsPanel(Scene::Scene& scene, Resource::AssetManager& assets)
             {
-                if (ImGui::CollapsingHeader("Objects"))
+                // Stable ### id: state survives the dynamic count in the label
+                const std::string objectsTitle =
+                    "Objects (" + std::to_string(scene.GetObjects().size()) + ")###ObjectsHeader";
+                if (ImGui::CollapsingHeader(objectsTitle.c_str()))
                 {
-                    ImGui::Indent();
-
                     for (auto& object : scene.GetObjects())
                     {
                         ImGui::PushID(static_cast<int>(object.GetId()));
 
+                        // Delete sits on the header row
+                        if (ImGui::Button("Delete"))
+                        {
+                            scene.DestroyObject(object.GetId());
+                        }
+                        ImGui::SameLine();
+
                         const std::string title = "Object " + std::to_string(object.GetId());
                         if (ImGui::CollapsingHeader(title.c_str()))
                         {
-                            // Delete the object as the first row
-                            if (ImGui::Button("Delete"))
-                            {
-                                scene.DestroyObject(object.GetId());
-                            }
-
                             DrawTransform(object);
                             DrawMesh(object, assets);
                             DrawMaterial(object.GetMaterial(), assets);
@@ -322,8 +348,6 @@ namespace Kita::Pbrv
                     {
                         scene.CreateObject();
                     }
-
-                    ImGui::Unindent();
                 }
             }
 
@@ -336,9 +360,13 @@ namespace Kita::Pbrv
             }
         }
 
-        UI::UI(Scene::Scene& scene, Resource::AssetManager& assets)
+        UI::UI(Scene::Scene& scene, Resource::AssetManager& assets,
+            const Resource::ResourceManager& resources,
+            const Render::RenderScene& renderScene)
             : m_scene(scene),
-            m_assets(assets)
+            m_assets(assets),
+            m_resources(resources),
+            m_renderScene(renderScene)
         {
         }
 
@@ -363,7 +391,7 @@ namespace Kita::Pbrv
                 DrawEnvironmentPanel(m_scene.GetCamera(), m_scene.GetLight(), m_scene.GetSkybox(), m_assets);
                 DrawObjectsPanel(m_scene, m_assets);
                 DrawPostProcessPanel(m_scene.GetPostProcess());
-                DrawStatsPanel(deltaTime);
+                DrawStatsPanel(deltaTime, m_assets, m_resources, m_renderScene);
             }
             ImGui::End();
         }
