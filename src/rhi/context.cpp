@@ -17,11 +17,11 @@ namespace Kita::Pbrv
     {
         namespace
         {
-    #ifdef NDEBUG
+#ifdef NDEBUG
             const bool enableValidationLayers = false;
-    #else
+#else
             const bool enableValidationLayers = true;
-    #endif
+#endif
 
             const std::vector<const char*> validationLayers =
             {
@@ -198,6 +198,16 @@ namespace Kita::Pbrv
                     { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT },
                     VK_IMAGE_TILING_OPTIMAL,
                     VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+            }
+
+            VkFormat PickShadowMapFormat(VkPhysicalDevice physicalDevice)
+            {
+                return FindSupportedFormat(physicalDevice,
+                    { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D24_UNORM_S8_UINT, VK_FORMAT_D16_UNORM },
+                    VK_IMAGE_TILING_OPTIMAL,
+                    VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
+                    | VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
+                    | VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT);
             }
 
             float PickMaxAnisotropy(VkPhysicalDeviceProperties properties)
@@ -436,6 +446,7 @@ namespace Kita::Pbrv
 
             m_depthFormat = PickDepthFormat(m_physicalDevice);
             m_hdrFormat = VK_FORMAT_R32G32B32A32_SFLOAT;
+            m_shadowMapFormat = PickShadowMapFormat(m_physicalDevice);
             m_maxAnisotropy = PickMaxAnisotropy(properties);
             m_supportedSampleCounts = PickSupportedSampleCounts(properties);
             m_maxSampleCount = PickMaxSampleCount(m_supportedSampleCounts);

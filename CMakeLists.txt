@@ -141,6 +141,7 @@ add_executable(VkPbrViewer
     # render passes
     src/render/passes/lit_pass.cpp
     src/render/passes/post_process_pass.cpp
+    src/render/passes/shadow_pass.cpp
     src/render/passes/skybox_pass.cpp
     src/render/passes/ui_pass.cpp
 
@@ -207,6 +208,8 @@ set(SHADER_SOURCES
     assets/shaders/irradiance_convolution.comp
     assets/shaders/prefilter.comp
     assets/shaders/brdf_integration.comp
+    assets/shaders/shadow.vert
+    assets/shaders/shadow.frag
 )
 set(SHADER_OUTPUTS
     assets/shaders/lit_vert.spv
@@ -219,6 +222,8 @@ set(SHADER_OUTPUTS
     assets/shaders/irradiance_convolution_comp.spv
     assets/shaders/prefilter_comp.spv
     assets/shaders/brdf_integration_comp.spv
+    assets/shaders/shadow_vert.spv
+    assets/shaders/shadow_frag.spv
 )
 
 set(SHADER_INCLUDES

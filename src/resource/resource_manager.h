@@ -70,6 +70,7 @@ namespace Kita::Pbrv
             // ---- Sets ----
             PerObjectSet CreatePerObjectSet();
             PerMaterialSet::Handle GetOrCreatePerMaterialSet(const MaterialDesc& desc);
+            LitSet CreateLitSet(const TextureResource& shadowMap);
             PostProcessSet CreatePostProcessSet(const TextureResource& texture);
             PerFrameSet CreatePerFrameSet(ResourceId equirectId);
 

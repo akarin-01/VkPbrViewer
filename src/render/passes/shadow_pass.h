@@ -1,11 +1,10 @@
 #pragma once
-
 #include "render/render_pass_base.h"
 #include "resource/resource_id.h"
 
 #include <memory>
-#include <unordered_map>
 #include <vector>
+#include <unordered_map>
 
 namespace Kita::Pbrv
 {
@@ -16,22 +15,21 @@ namespace Kita::Pbrv
     namespace Resource
     {
         struct PerFrameSet;
-        struct LitSet;
-        struct TargetResource;
+        struct TextureResource;
     }
 
     namespace Render
     {
-        struct ObjectState;
         class RenderScene;
+        struct ObjectState;
 
-        class LitPass : public RenderPassBase
+        class ShadowPass : public RenderPassBase
         {
         public:
-            LitPass(const Rhi::Context& context,
+            ShadowPass(const Rhi::Context& context,
                 const Rhi::SwapChain& swapChain,
                 const RenderScene& scene);
-            ~LitPass();
+            ~ShadowPass();
 
             void RecreateResources() override;
             void Draw(const Rhi::FrameInfo& frameInfo) const override;
@@ -40,9 +38,8 @@ namespace Kita::Pbrv
             void CreatePipeline(const std::vector<VkDescriptorSetLayout>& layouts);
 
         private:
-            const Resource::TargetResource& m_target;
             const Resource::PerFrameSet& m_frameSet;
-            const Resource::LitSet& m_litSet;
+            const Resource::TextureResource& m_shadowMap;
             const std::unordered_map<Resource::ResourceId, ObjectState>& m_objectMap;
 
             std::unique_ptr<Rhi::GraphicsPipeline> m_pipeline;

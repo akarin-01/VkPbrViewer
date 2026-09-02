@@ -322,6 +322,23 @@ namespace Kita::Pbrv
                 });
         }
 
+        LitSet ResourceManager::CreateLitSet(const TextureResource& shadowMap)
+        {
+            constexpr DescriptorSetRhi::Type kLayoutType = DescriptorSetRhi::Type::Lit;
+
+            LitSet lit{};
+
+            lit.m_set = CreateDescriptorSet(kLayoutType);
+
+            DescriptorWriter writer(m_context.Device());
+            writer.WriteImage(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, shadowMap.GetImageView(), shadowMap.GetSampler())
+                .UpdateSet(lit.GetSet());
+
+            KITA_LOG_DEBUG("[Resource] Create lit set: 1 texture slot");
+            return lit;
+        }
+
         PostProcessSet ResourceManager::CreatePostProcessSet(const TextureResource& texture)
         {
             constexpr DescriptorSetRhi::Type kLayoutType = DescriptorSetRhi::Type::PostProcess;

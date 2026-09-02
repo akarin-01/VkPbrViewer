@@ -21,12 +21,13 @@ namespace Kita::Pbrv
             : RenderPassBase(context, swapChain),
             m_target(scene.GetGlobal().m_target),
             m_frameSet(scene.GetGlobal().m_frameSet),
+            m_litSet(scene.GetGlobal().m_litSet),
             m_objectMap(scene.GetObjects())
         {
             CreatePipeline(
                 {
                     scene.GetDescriptorSetLayout(Resource::DescriptorSetRhi::Type::PerFrame),
-                    scene.GetDescriptorSetLayout(Resource::DescriptorSetRhi::Type::Empty),
+                    scene.GetDescriptorSetLayout(Resource::DescriptorSetRhi::Type::Lit),
                     scene.GetDescriptorSetLayout(Resource::DescriptorSetRhi::Type::PerMaterial),
                     scene.GetDescriptorSetLayout(Resource::DescriptorSetRhi::Type::PerObject),
                 });
@@ -96,6 +97,8 @@ namespace Kita::Pbrv
                 // Draw
                 vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
                     0, 1, &m_frameSet.GetSet(frameIndex), 0, nullptr);
+                vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
+                    1, 1, &m_litSet.GetSet(), 0, nullptr);
 
                 Resource::ResourceId lastMaterialId{ Resource::kInvalidId };
                 Resource::ResourceId lastMeshId{ Resource::kInvalidId };

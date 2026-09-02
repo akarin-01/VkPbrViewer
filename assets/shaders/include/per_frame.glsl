@@ -12,6 +12,7 @@ struct PerFrameCamera
 
 struct PerFrameLight
 {
+    mat4 lightSpace;
     vec4 position;          // xyz - pos, w - 0(directional light)
     vec4 colorIntensity;    // xyz - color, w - intensity
 };

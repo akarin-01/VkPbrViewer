@@ -66,6 +66,7 @@ namespace Kita::Pbrv
                 PerMaterial,
                 PerObject,
                 PostProcess,
+                Lit,
                 ComputeWrite,
                 ComputeSample,
                 Count

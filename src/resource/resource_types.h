@@ -97,6 +97,8 @@ namespace Kita::Pbrv
             VkSamplerAddressMode m_addressModeV{ VK_SAMPLER_ADDRESS_MODE_REPEAT };
             VkSamplerAddressMode m_addressModeW{ VK_SAMPLER_ADDRESS_MODE_REPEAT };
             bool m_anisotropy{ false };
+            bool m_compare{ false };
+            VkCompareOp m_compareOp{ VK_COMPARE_OP_NEVER };
 
             bool operator==(const SamplerDesc& other) const
             {
@@ -106,7 +108,9 @@ namespace Kita::Pbrv
                     && m_addressModeU == other.m_addressModeU
                     && m_addressModeV == other.m_addressModeV
                     && m_addressModeW == other.m_addressModeW
-                    && m_anisotropy == other.m_anisotropy;
+                    && m_anisotropy == other.m_anisotropy
+                    && m_compare == other.m_compare
+                    && m_compareOp == other.m_compareOp;
             }
 
             struct Hash
@@ -122,6 +126,8 @@ namespace Kita::Pbrv
                     mix(static_cast<uint64_t>(d.m_addressModeV));
                     mix(static_cast<uint64_t>(d.m_addressModeW));
                     mix(d.m_anisotropy ? 1u : 0u);
+                    mix(d.m_compare ? 1u : 0u);
+                    mix(static_cast<uint64_t>(d.m_compareOp));
                     return h;
                 }
             };
@@ -182,6 +188,7 @@ namespace Kita::Pbrv
             VkImageView GetImageView() const { return m_imageView->m_imageView; }
             VkSampler GetSampler() const { return m_sampler->m_sampler; }
             VkFormat GetFormat() const { return m_image->m_format; }
+            VkExtent3D GetExtent() const { return m_image->m_extent; }
             bool IsEmpty() const { return !m_image; }
         };
 
@@ -262,6 +269,13 @@ namespace Kita::Pbrv
 
             // Set 2 (one immutable set; empty slots share the manager's fallbacks).
             std::array<TextureResource, kMaterialSlotCount> m_textures{};
+            DescriptorSetRhi::Handle m_set{};
+
+            const VkDescriptorSet& GetSet() const { return m_set->GetSet(); }
+        };
+
+        struct LitSet
+        {
             DescriptorSetRhi::Handle m_set{};
 
             const VkDescriptorSet& GetSet() const { return m_set->GetSet(); }

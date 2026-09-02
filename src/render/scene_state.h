@@ -16,9 +16,11 @@ namespace Kita::Pbrv
         struct GlobalState
         {
             Resource::TargetResource m_target{};
+            Resource::TextureResource m_shadowMap{};
 
             Resource::PerFrameSet m_frameSet{};
             Resource::PostProcessSet m_postProcessSet{};
+            Resource::LitSet m_litSet{};
         };
 
         /// One render-scene entity: material set (set 2) + per-object set

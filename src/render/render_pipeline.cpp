@@ -2,6 +2,7 @@
 
 #include "rhi/swap_chain.h"
 #include "rhi/utils.h"
+#include "render/passes/shadow_pass.h"
 #include "render/passes/lit_pass.h"
 #include "render/passes/post_process_pass.h"
 #include "render/passes/skybox_pass.h"
@@ -20,7 +21,8 @@ namespace Kita::Pbrv
             const Rhi::SwapChain& swapChain,
             RenderScene& scene)
             : m_swapChain(swapChain),
-            m_target(scene.GetGlobal().m_target)
+            m_target(scene.GetGlobal().m_target),
+            m_shadowMap(scene.GetGlobal().m_shadowMap)
         {
             CreateRenderPasses(window, context, swapChain, scene);
         }
@@ -29,6 +31,7 @@ namespace Kita::Pbrv
 
         void RenderPipeline::RecreateResources()
         {
+            m_shadowPass->RecreateResources();
             m_litPass->RecreateResources();
             m_skyboxPass->RecreateResources();
             m_postProcessPass->RecreateResources();
@@ -40,8 +43,13 @@ namespace Kita::Pbrv
             auto& commandBuffer = frameInfo.m_commandBuffer;
             auto& imageIndex = frameInfo.m_imageIndex;
 
-            // Swap chain image: UNDEFINED -> COLOR_ATTACHMENT_OPTIMAL
-            TransitionSwapchainToWriteLayout(commandBuffer, imageIndex);
+            // Shadow map to write
+            TransitionShadowMapToWriteLayout(commandBuffer);
+
+            m_shadowPass->Draw(frameInfo);
+
+            // Shadow map to read
+            TransitionShadowMapToReadLayout(commandBuffer);
 
             // Target to write
             TransitionTargetToWriteLayout(commandBuffer);
@@ -51,6 +59,9 @@ namespace Kita::Pbrv
 
             // Target to read
             TransitionTargetToReadLayout(commandBuffer);
+
+            // Swap chain image: UNDEFINED -> COLOR_ATTACHMENT_OPTIMAL
+            TransitionSwapchainToWriteLayout(commandBuffer, imageIndex);
 
             m_postProcessPass->Draw(frameInfo);
 
@@ -153,6 +164,8 @@ namespace Kita::Pbrv
             const Rhi::SwapChain& swapChain,
             const RenderScene& scene)
         {
+            m_shadowPass = std::make_unique<ShadowPass>(
+                context, swapChain, scene);
             m_litPass = std::make_unique<LitPass>(
                 context, swapChain, scene);
             m_skyboxPass = std::make_unique<SkyboxPass>(
@@ -161,6 +174,39 @@ namespace Kita::Pbrv
                 context, swapChain, scene);
             m_uiPass = std::make_unique<UIPass>(
                 context, swapChain, window);
+        }
+
+        void RenderPipeline::TransitionShadowMapToWriteLayout(VkCommandBuffer commandBuffer) const
+        {
+            VkImageSubresourceRange depthRange{};
+            depthRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+            depthRange.baseMipLevel = 0;
+            depthRange.levelCount = 1;
+            depthRange.baseArrayLayer = 0;
+            depthRange.layerCount = 1;
+
+            Rhi::TransitionImageLayout(commandBuffer, m_shadowMap.GetImage(),
+                VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
+                VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT, VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+                depthRange);
+        }
+
+        void RenderPipeline::TransitionShadowMapToReadLayout(VkCommandBuffer commandBuffer) const
+        {
+            VkImageSubresourceRange depthRange{};
+            depthRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+            depthRange.baseMipLevel = 0;
+            depthRange.levelCount = 1;
+            depthRange.baseArrayLayer = 0;
+            depthRange.layerCount = 1;
+
+            Rhi::TransitionImageLayout(commandBuffer,
+                m_shadowMap.GetImage(),
+                VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT, VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+                VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT,
+                depthRange);
         }
     }
 }

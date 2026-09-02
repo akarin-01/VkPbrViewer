@@ -17,13 +17,14 @@ namespace Kita::Pbrv
             {
                 switch (type)
                 {
-                case DescriptorManager::Type::Empty:        return "Empty";
-                case DescriptorManager::Type::PerFrame:        return "PerFrame";
-                case DescriptorManager::Type::PerMaterial:     return "PerMaterial";
-                case DescriptorManager::Type::PerObject:       return "PerObject";
-                case DescriptorManager::Type::PostProcess:     return "PostProcess";
-                case DescriptorManager::Type::ComputeWrite:    return "ComputeWrite";
-                case DescriptorManager::Type::ComputeSample:   return "ComputeSample";
+                case DescriptorManager::Type::Empty:            return "Empty";
+                case DescriptorManager::Type::PerFrame:         return "PerFrame";
+                case DescriptorManager::Type::PerMaterial:      return "PerMaterial";
+                case DescriptorManager::Type::PerObject:        return "PerObject";
+                case DescriptorManager::Type::Lit:              return "Lit";
+                case DescriptorManager::Type::PostProcess:      return "PostProcess";
+                case DescriptorManager::Type::ComputeWrite:     return "ComputeWrite";
+                case DescriptorManager::Type::ComputeSample:    return "ComputeSample";
                 default: return "Unknown";
                 }
             }
@@ -185,6 +186,9 @@ namespace Kita::Pbrv
                     { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
                     { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
                 });
+
+            CreateSetPool(Type::Lit, context,
+                { {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT} });
 
             CreateSetPool(Type::ComputeWrite, context,
                 { { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT } });

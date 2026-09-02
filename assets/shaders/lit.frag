@@ -5,6 +5,9 @@
 #include "include/per_material.glsl"
 #include "include/per_object.glsl"
 #include "include/ggx.glsl"
+#include "include/shader_sets.glsl"
+
+layout(set = SET_PER_PASS, binding = 0) uniform sampler2DShadow texShadowMap;
 
 layout(location = 0) in vec3 fragPos;
 layout(location = 1) in vec3 fragNormal;
@@ -12,6 +15,8 @@ layout(location = 2) in vec2 fragTexCoord;
 layout(location = 3) in vec4 fragTangent;
 
 layout(location = 0) out vec4 outColor;
+
+const float SHADOW_BIAS = 0.002;
 
 // F: Schlick Fresnel
 vec3 FresnelSchlick(float cosTheta, vec3 f0)
@@ -39,6 +44,21 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
     float NdotV = max(dot(N, V), 0.0);
     float NdotL = max(dot(N, L), 0.0);
     return GeometrySchlickGGX(NdotV, roughness) * GeometrySchlickGGX(NdotL, roughness);
+}
+
+float ShadowCalculation(vec4 shadowCoord)
+{
+    vec3 shadowNdc = shadowCoord.xyz / shadowCoord.w;
+    shadowNdc.xy = shadowNdc.xy * 0.5 + 0.5;        // [-1, 1] -> [0, 1]  
+    shadowNdc.z -= SHADOW_BIAS;
+
+    if (shadowNdc.x < 0.0 || shadowNdc.x > 1.0
+        || shadowNdc.y < 0.0 || shadowNdc.y > 1.0)
+    {
+        return 1.0;
+    } 
+
+    return texture(texShadowMap, shadowNdc);
 }
 
 void main()
@@ -80,6 +100,10 @@ void main()
     vec3 kd = (vec3(1.0) - f) * (1.0 - metallic);
     vec3 diffuse = kd * albedo.rgb / PI;
 
+    // Shadow
+    vec4 shadowCoord = frame.light.lightSpace * vec4(fragPos, 1.0);
+    float visibility = ShadowCalculation(shadowCoord);
+
     // IBL ambient: split-sum specular + irradiance diffuse
     vec3 R = reflect(-vDir, nDir);
     float mip = roughness * (textureQueryLevels(texPrefilter) - 1.0);
@@ -91,7 +115,7 @@ void main()
     vec3 kdIBL = (vec3(1.0) - fresnelIBL) * (1.0 - metallic);
     vec3 diffuseIBL = kdIBL * albedo.rgb / PI * texture(texIrradiance, nDir).rgb;
 
-    vec3 result = (diffuse + specular) * NdotL * radiance;
+    vec3 result = (diffuse + specular) * NdotL * radiance * visibility;
     result += (diffuseIBL + specularIBL) * ao;
     result += emissive;
     outColor = vec4(result, albedo.a);

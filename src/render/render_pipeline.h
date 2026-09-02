@@ -19,6 +19,7 @@ namespace Kita::Pbrv
     namespace Resource
     {
         struct TargetResource;
+        struct TextureResource;
     }
 
     namespace Render
@@ -44,6 +45,8 @@ namespace Kita::Pbrv
                 const Rhi::SwapChain& swapChain,
                 const RenderScene& scene);
 
+            void TransitionShadowMapToWriteLayout(VkCommandBuffer commandBuffer) const;
+            void TransitionShadowMapToReadLayout(VkCommandBuffer commandBuffer) const;
             void TransitionTargetToWriteLayout(VkCommandBuffer commandBuffer) const;
             void TransitionTargetToReadLayout(VkCommandBuffer commandBuffer) const;
             void TransitionSwapchainToWriteLayout(VkCommandBuffer commandBuffer, uint32_t imageIndex) const;
@@ -52,7 +55,9 @@ namespace Kita::Pbrv
         private:
             const Rhi::SwapChain& m_swapChain;
             Resource::TargetResource& m_target;
+            Resource::TextureResource& m_shadowMap;
 
+            std::unique_ptr<RenderPassBase> m_shadowPass;
             std::unique_ptr<RenderPassBase> m_litPass;
             std::unique_ptr<RenderPassBase> m_skyboxPass;
             std::unique_ptr<RenderPassBase> m_postProcessPass;

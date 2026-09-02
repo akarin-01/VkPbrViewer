@@ -58,10 +58,10 @@ namespace Kita::Pbrv
             rasterizer.lineWidth = 1.0f;
             rasterizer.cullMode = config.m_cullMode;
             rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-            rasterizer.depthBiasEnable = VK_FALSE;
-            rasterizer.depthBiasConstantFactor = 0.0f;
-            rasterizer.depthBiasClamp = 0.0f;
-            rasterizer.depthBiasSlopeFactor = 0.0f;
+            rasterizer.depthBiasEnable = config.m_depthBiasEnable;
+            rasterizer.depthBiasConstantFactor = config.m_depthBiasConstantFactor;
+            rasterizer.depthBiasClamp = config.m_depthBiasClamp;
+            rasterizer.depthBiasSlopeFactor = config.m_depthBiasSlopeFactor;
 
             // Multisampling
             VkPipelineMultisampleStateCreateInfo multisampling{};
@@ -87,22 +87,27 @@ namespace Kita::Pbrv
             depthStencil.back = {};
 
             // Color blending
-            VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-            colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-            colorBlendAttachment.blendEnable = VK_FALSE;
-            colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
-            colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
-            colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-            colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-            colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-            colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+            std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments(
+                config.m_colorAttachmentFormats.size()
+            );
+            for (auto& colorBlendAttachment : colorBlendAttachments)
+            {
+                colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+                colorBlendAttachment.blendEnable = VK_FALSE;
+                colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+                colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+                colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+                colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+                colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+                colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+            }
 
             VkPipelineColorBlendStateCreateInfo colorBlending{};
             colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
             colorBlending.logicOpEnable = VK_FALSE;
             colorBlending.logicOp = VK_LOGIC_OP_COPY;
-            colorBlending.attachmentCount = 1;
-            colorBlending.pAttachments = &colorBlendAttachment;
+            colorBlending.attachmentCount = static_cast<uint32_t>(colorBlendAttachments.size());
+            colorBlending.pAttachments = colorBlendAttachments.empty() ? nullptr : colorBlendAttachments.data();
             colorBlending.blendConstants[0] = 0.0f;
             colorBlending.blendConstants[1] = 0.0f;
             colorBlending.blendConstants[2] = 0.0f;
@@ -207,6 +212,15 @@ namespace Kita::Pbrv
         GraphicsPipelineBuilder& GraphicsPipelineBuilder::SetRasterizationSamples(VkSampleCountFlagBits samples)
         {
             m_config.m_rasterizationSamples = samples;
+            return *this;
+        }
+
+        GraphicsPipelineBuilder& GraphicsPipelineBuilder::SetDepthBias(bool enable, float constantFactor, float clamp, float slopeFactor)
+        {
+            m_config.m_depthBiasEnable = enable;
+            m_config.m_depthBiasConstantFactor = constantFactor;
+            m_config.m_depthBiasClamp = clamp;
+            m_config.m_depthBiasSlopeFactor = slopeFactor;
             return *this;
         }
 

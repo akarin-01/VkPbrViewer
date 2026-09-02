@@ -311,8 +311,8 @@ namespace Kita::Pbrv
 
                 samplerInfo.unnormalizedCoordinates = VK_FALSE;
                 samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-                samplerInfo.compareEnable = VK_FALSE;
-                samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+                samplerInfo.compareEnable = desc.m_compare ? VK_TRUE : VK_FALSE;
+                samplerInfo.compareOp = desc.m_compareOp;
 
                 // Anisotropy
                 if (desc.m_anisotropy)

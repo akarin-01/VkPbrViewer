@@ -20,15 +20,14 @@ namespace Kita::Pbrv
         {
             void InitScene(Scene::Scene& scene, Resource::AssetManager& assetMgr)
             {
-                auto& object = scene.CreateObject();
-                object.SetMesh(assetMgr.LoadMesh("assets/models/DamagedHelmet.gltf"));
-
-                auto& mat = object.GetMaterial();
-                mat.SetAlbedoTex(assetMgr.LoadTexture("assets/models/Default_albedo.jpg", Resource::TextureAsset::Type::Srgb));
-                mat.SetNormalTex(assetMgr.LoadTexture("assets/models/Default_normal.jpg", Resource::TextureAsset::Type::Normal));
-                mat.SetMRTex(assetMgr.LoadTexture("assets/models/Default_metalRoughness.jpg", Resource::TextureAsset::Type::MetallicRoughness));
-                mat.SetAOTex(assetMgr.LoadTexture("assets/models/Default_AO.jpg", Resource::TextureAsset::Type::Linear));
-                mat.SetEmissiveTex(assetMgr.LoadTexture("assets/models/Default_Emissive.jpg", Resource::TextureAsset::Type::Srgb));
+                scene.CreateObject()
+                    .SetMesh(assetMgr.LoadMesh("assets/models/DamagedHelmet/DamagedHelmet.gltf"))
+                    .GetMaterial()
+                    .SetAlbedoTex(assetMgr.LoadTexture("assets/models/DamagedHelmet/Default_albedo.jpg", Resource::TextureAsset::Type::Srgb))
+                    .SetNormalTex(assetMgr.LoadTexture("assets/models/DamagedHelmet/Default_normal.jpg", Resource::TextureAsset::Type::Normal))
+                    .SetMRTex(assetMgr.LoadTexture("assets/models/DamagedHelmet/Default_metalRoughness.jpg", Resource::TextureAsset::Type::MetallicRoughness))
+                    .SetAOTex(assetMgr.LoadTexture("assets/models/DamagedHelmet/Default_AO.jpg", Resource::TextureAsset::Type::Linear))
+                    .SetEmissiveTex(assetMgr.LoadTexture("assets/models/DamagedHelmet/Default_Emissive.jpg", Resource::TextureAsset::Type::Srgb));
 
                 auto& skybox = scene.GetSkybox();
                 skybox.SetSkybox(assetMgr.LoadTexture("assets/hdr/qwantani_moon_noon_puresky_4k.hdr", Resource::TextureAsset::Type::Hdr));

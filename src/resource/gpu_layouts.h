@@ -29,6 +29,7 @@ namespace Kita::Pbrv
 
                 struct Light
                 {
+                    alignas(16) glm::mat4 m_lightSpace{ 1.0f };
                     alignas(16) glm::vec4 m_position{ 0.0f, 0.0f, 0.0f, 0.0f };         // xyz - pos, w - 0(directional light)
                     alignas(16) glm::vec4 m_colorIntensity{ 0.0f };                     // xyz - rgb, w - intensity
                 };
@@ -36,7 +37,7 @@ namespace Kita::Pbrv
                 Camera m_camera{};
                 Light m_light{};
             };
-            STD140_ASSERT(PerFrame, 176);
+            STD140_ASSERT(PerFrame, 240);
 
             /// Mirror of the PerObject block in per_object.glsl (set 3, binding 0)
             struct PerObject

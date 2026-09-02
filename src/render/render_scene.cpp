@@ -18,7 +18,32 @@ namespace Kita::Pbrv
         {
             Recreate();
 
+            constexpr uint32_t kShadowMapSize = 2048;
+
+            Resource::ImageDesc imageDesc{};
+            imageDesc.m_extent = { kShadowMapSize, kShadowMapSize, 1 };
+            imageDesc.m_format = m_context.ShadowMapFormat();
+            imageDesc.m_aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+            imageDesc.m_usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+            imageDesc.m_properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+            Resource::ImageViewDesc imageViewDesc{};
+            imageViewDesc.m_type = VK_IMAGE_VIEW_TYPE_2D;
+            imageViewDesc.m_fullRange = true;
+
+            Resource::SamplerDesc samplerDesc{};
+            samplerDesc.m_magFilter = VK_FILTER_LINEAR;
+            samplerDesc.m_minFilter = VK_FILTER_LINEAR;
+            samplerDesc.m_mipMode = Resource::SamplerDesc::MipMode::None;
+            samplerDesc.m_addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+            samplerDesc.m_addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+            samplerDesc.m_addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+            samplerDesc.m_compare = true;
+            samplerDesc.m_compareOp = VK_COMPARE_OP_LESS;
+
+            m_global.m_shadowMap = m_resourceMgr.CreateTexture(imageDesc, imageViewDesc, samplerDesc);
             m_global.m_frameSet = m_resourceMgr.CreatePerFrameSet(Resource::kInvalidId);
+            m_global.m_litSet = m_resourceMgr.CreateLitSet(m_global.m_shadowMap);
         }
 
         RenderScene::~RenderScene() = default;
