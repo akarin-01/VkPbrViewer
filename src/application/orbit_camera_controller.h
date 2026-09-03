@@ -29,15 +29,20 @@ namespace Kita::Pbrv
             OrbitCameraController& SetZoomSpeed(float speed);
 
         private:
+            void Rotate();
+            void Pan();
+            void Zoom();
+
+        private:
             const Core::Input& m_input;
             Scene::Camera& m_camera;
 
             glm::vec3 m_target{ 0.0f };
             float m_distance{ 3.0f };
 
-            float m_rotateSpeed{ 240.0f };
-            float m_panSpeed{ 1.8f };
-            float m_zoomSpeed{ 0.08f };
+            float m_rotateSpeed{ 0.08f };
+            float m_panSpeed{ 0.001f };
+            float m_zoomSpeed{ 0.1f };
         };
     }
 }

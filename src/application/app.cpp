@@ -6,6 +6,7 @@
 #include "resource/asset_manager.h"
 #include "render/renderer.h"
 #include "scene/scene.h"
+#include "application/fps_camera_controller.h"
 #include "application/orbit_camera_controller.h"
 #include "application/ui.h"
 
@@ -61,7 +62,8 @@ namespace Kita::Pbrv
 
         void App::Run()
         {
-            Application::OrbitCameraController cameraController(*m_input, m_scene->GetCamera());
+            // Application::OrbitCameraController cameraController(*m_input, m_scene->GetCamera());
+            Application::FpsCameraController cameraController(*m_input, m_scene->GetCamera());
 
             while (!m_window->ShouldClose())
             {
@@ -79,7 +81,18 @@ namespace Kita::Pbrv
 
                 m_renderer->NewFrame();
 
-                if (!m_ui->IsMouseHovered())
+                const bool uiHovered = m_ui->IsMouseHovered();
+
+                if (!uiHovered && m_input->IsMouseButtonDown(Core::MouseButton::Right))
+                {
+                    m_input->SetCursorMode(Core::CursorMode::Disabled);
+                }
+                else
+                {
+                    m_input->SetCursorMode(Core::CursorMode::Normal);
+                }
+
+                if (!uiHovered)
                 {
                     cameraController.Update(deltaTime);
                 }

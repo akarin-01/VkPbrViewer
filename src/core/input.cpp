@@ -12,7 +12,7 @@ namespace Kita::Pbrv
         {
             constexpr int kKeyMap[static_cast<size_t>(Key::Count)] =
             {
-                GLFW_KEY_W, GLFW_KEY_S, GLFW_KEY_A, GLFW_KEY_D,
+                GLFW_KEY_W, GLFW_KEY_S, GLFW_KEY_A, GLFW_KEY_D, GLFW_KEY_Q, GLFW_KEY_E,
                 GLFW_KEY_ESCAPE
             };
 
@@ -21,6 +21,12 @@ namespace Kita::Pbrv
                 GLFW_MOUSE_BUTTON_LEFT,
                 GLFW_MOUSE_BUTTON_MIDDLE,
                 GLFW_MOUSE_BUTTON_RIGHT,
+            };
+
+            constexpr int kCursorModeMap[static_cast<size_t>(CursorMode::Count)] =
+            {
+                GLFW_CURSOR_NORMAL,
+                GLFW_CURSOR_DISABLED,
             };
         }
 
@@ -45,6 +51,11 @@ namespace Kita::Pbrv
             bool IsMouseButtonDown(MouseButton button) const
             {
                 return glfwGetMouseButton(m_window, kMouseButtonMap[static_cast<size_t>(button)]) == GLFW_PRESS;
+            }
+
+            void SetCursorMode(CursorMode mode)
+            {
+                glfwSetInputMode(m_window, GLFW_CURSOR, kCursorModeMap[static_cast<size_t>(mode)]);
             }
 
             glm::vec2 GetCursorPosition() const
@@ -87,6 +98,11 @@ namespace Kita::Pbrv
             m_cursorPos = cursorPos;
 
             m_scrollDelta = m_backend->ConsumeScrollDelta();
+        }
+
+        void Input::SetCursorMode(CursorMode mode)
+        {
+            m_backend->SetCursorMode(mode);
         }
 
         void Input::UpdateKeyStates()

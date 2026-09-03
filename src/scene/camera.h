@@ -19,7 +19,10 @@ namespace Kita::Pbrv
             void Update() const;
 
             Camera& SetPosition(const glm::vec3& position);
-            Camera& Move(const glm::vec3& local);    // translate along local right/up/front
+            /// Moves camera by local offset along its right/up/front axes.
+            Camera& MoveLocal(const glm::vec3& offset);
+            /// Moves camera by world-space offset (absolute X/Y/Z).
+            Camera& MoveWorld(const glm::vec3& offset);
 
             Camera& SetYaw(float yaw);
             Camera& RotateYaw(float delta);

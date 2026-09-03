@@ -10,7 +10,7 @@ namespace Kita::Pbrv
     {
         enum class Key
         {
-            W, S, A, D,
+            W, S, A, D, Q, E,
             Escape,
             Count,
         };
@@ -20,6 +20,13 @@ namespace Kita::Pbrv
             Left,
             Middle,
             Right,
+            Count,
+        };
+
+        enum class CursorMode
+        {
+            Normal,
+            Disabled,
             Count,
         };
 
@@ -42,13 +49,19 @@ namespace Kita::Pbrv
             bool IsMouseButtonPressed(MouseButton button) const { return m_mouseButtonPressedThisFrame[static_cast<size_t>(button)]; }
             bool IsMouseButtonReleased(MouseButton button) const { return m_mouseButtonReleasedThisFrame[static_cast<size_t>(button)]; }
 
+            void SetCursorMode(CursorMode mode);
+
+            /// Current cursor position in window coordinates (pixels, origin top-left, y-down).
             glm::vec2 GetCursorPosition() const { return m_cursorPos; }
+            /// Cursor movement since the last frame, measured in pixels per frame.
             glm::vec2 GetCursorDelta() const { return m_cursorDelta; }
+            /// Scroll wheel offset accumulated since the last frame (positive = scroll up).
             float GetScrollDelta() const { return m_scrollDelta; }
 
         private:
             void UpdateKeyStates();
             void UpdateMouseButtonStates();
+
         private:
             std::unique_ptr<InputBackend> m_backend;
 

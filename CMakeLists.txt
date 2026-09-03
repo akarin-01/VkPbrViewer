@@ -156,6 +156,7 @@ add_executable(VkPbrViewer
 
     # application
     src/application/app.cpp
+    src/application/fps_camera_controller.cpp
     src/application/orbit_camera_controller.cpp
     src/application/ui.cpp
     src/application/ui_utils.cpp

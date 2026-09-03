@@ -31,9 +31,15 @@ namespace Kita::Pbrv
             return *this;
         }
 
-        Camera& Camera::Move(const glm::vec3& local)
+        Camera& Camera::MoveLocal(const glm::vec3& offset)
         {
-            m_position += GetRight() * local.x + GetUp() * local.y + GetFront() * local.z;
+            m_position += GetRight() * offset.x + GetUp() * offset.y + GetFront() * offset.z;
+            return *this;
+        }
+
+        Camera& Camera::MoveWorld(const glm::vec3& offset)
+        {
+            m_position += offset;
             return *this;
         }
 

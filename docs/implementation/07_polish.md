@@ -4,7 +4,7 @@
 
 - [ ] 【错误处理】统一错误通道：明确各错误场景的处置方式（约定见文末专题），异常信息包含文件路径与失败原因
 - [x] 【验证层回调】`VK_EXT_debug_utils`：注册 debug messenger，校验信息通过 `Log` 模块输出
-- [ ] 【自由相机】相机从 Orbit 改为 FPS 风格自由飞行：按住鼠标右键时激活，WASD 前后左右平移、Q/E 上下平移、鼠标移动旋转视角
+- [x] 【自由相机】相机从 Orbit 改为 FPS 风格自由飞行：按住鼠标右键时激活，WASD 前后左右平移、Q/E 上下平移、鼠标移动旋转视角
 - [x] 【MSAA】多采样抗锯齿：Dynamic Rendering 下通过 `VkRenderingAttachmentInfo::resolveMode` + `pResolveImageView` + 多采样临时 Color Image 实现（RenderContext 已提供 `SampleCount()` / `MaxSampleCount()`）
 - [ ] 【glTF 材质】加载 glTF 模型时顺便读取材质参数与贴图：factor 映射（baseColor → albedo、metallic/roughness → 标量）；metallicRoughness 贴图直接复用现有 MR 槽位（G = roughness、B = metallic，与 shader 通道一致）；三来源贴图加载（外部 URI / data URI / GLB bufferView，`stbi_load_from_memory` 内存解码）
 - [x] 【阴影】方向光 Shadow Map：
