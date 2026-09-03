@@ -2,6 +2,7 @@
 
 #include "rhi/frame_info.h"
 #include "resource/cache_table.h"
+#include "resource/id_vector.h"
 #include "render/scene_state.h"
 
 #include <unordered_map>
@@ -44,10 +45,10 @@ namespace Kita::Pbrv
             const FrameState& GetFrame() const { return m_frame; }
             const PostProcessState& GetPostProcess() const { return m_postProcess; }
             const LitState& GetLit() const { return m_lit; }
-            const std::vector<RenderObject>& GetObjects() const { return m_objects; }
+            const std::vector<RenderObject>& GetObjects() const { return m_objects.Items(); }
 
             size_t GetMaterialCount() const { return m_materialCache.Size(); }
-            size_t GetObjectCount() const { return m_objects.size(); }
+            size_t GetObjectCount() const { return m_objects.Size(); }
 
             VkDescriptorSetLayout GetDescriptorSetLayout(Resource::DescriptorSetRhi::Type type) const;
 
@@ -66,9 +67,6 @@ namespace Kita::Pbrv
             void UpdateRenderObjects(uint32_t frameIndex, const SceneProxy& proxy);
 
             RenderObject CreateRenderObject(Resource::ResourceId id);
-            size_t FindOrAddRenderObject(Resource::ResourceId id);
-            void RemoveRenderObject(Resource::ResourceId id);
-            size_t FindRenderObject(Resource::ResourceId id);
 
         private:
             const Rhi::Context& m_context;
@@ -83,8 +81,7 @@ namespace Kita::Pbrv
             FrameState m_frame{};
             PostProcessState m_postProcess{};
             LitState m_lit{};
-            std::vector<RenderObject> m_objects;
-            std::unordered_map<Resource::ResourceId, size_t> m_objectIndex;
+            Resource::IdVector<RenderObject> m_objects;
         };
     }
 }

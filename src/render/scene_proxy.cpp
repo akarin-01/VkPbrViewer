@@ -94,19 +94,6 @@ namespace Kita::Pbrv
         }
 
         SceneProxy::SceneProxy() = default;
-
-        SceneProxy::ObjectInput& SceneProxy::FindOrAddObjectInput(Resource::ResourceId id)
-        {
-            for (auto& objectInput : m_objectInputs)
-            {
-                if (objectInput.m_id == id)
-                {
-                    return objectInput;
-                }
-            }
-
-            return m_objectInputs.emplace_back(ObjectInput{ id });
-        }
         SceneProxy::~SceneProxy() = default;
 
         void SceneProxy::WriteCameraData(const glm::vec3& position, const glm::vec3& front,
@@ -129,7 +116,7 @@ namespace Kita::Pbrv
 
         void SceneProxy::WriteObjectData(Resource::ResourceId id, const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale)
         {
-            auto& objectInput = FindOrAddObjectInput(id);
+            auto& objectInput = m_objectInputs.FindOrAdd(id);
             objectInput.m_position = position;
             objectInput.m_rotation = rotation;
             objectInput.m_scale = scale;
@@ -139,7 +126,7 @@ namespace Kita::Pbrv
             const glm::vec4& albedo, float metallic, float roughness, float ao,
             const glm::vec3& emissive, float emissiveIntensity)
         {
-            auto& objectInput = FindOrAddObjectInput(id);
+            auto& objectInput = m_objectInputs.FindOrAdd(id);
             objectInput.m_albedo = albedo;
             objectInput.m_metallic = metallic;
             objectInput.m_roughness = roughness;
@@ -160,12 +147,14 @@ namespace Kita::Pbrv
 
         void SceneProxy::UpdateMesh(Resource::ResourceId id, Resource::ResourceId meshId)
         {
-            m_meshRecords.emplace_back(MeshRecord{ id, meshId });
+            auto& objectRecord = m_objectRecords.FindOrAdd(id);
+            objectRecord.m_meshId = meshId;
         }
 
         void SceneProxy::UpdateMaterial(Resource::ResourceId id, const std::array<Resource::ResourceId, Resource::kMaterialSlotCount>& textureIds)
         {
-            m_materialRecords.emplace_back(MaterialRecord{ id, textureIds });
+            auto& objectRecord = m_objectRecords.FindOrAdd(id);
+            objectRecord.m_textureIds = textureIds;
         }
 
         void SceneProxy::DeleteObject(Resource::ResourceId id)
@@ -198,12 +187,12 @@ namespace Kita::Pbrv
                 glm::vec4(std::exp2(m_postProcessInput.m_ev), 0.0f, 0.0f, 0.0f);
 
             // Object
-            m_objectDatas.resize(m_objectInputs.size());
-            for (size_t i = 0; i < m_objectInputs.size(); ++i)
+            m_objectDatas.resize(m_objectInputs.Size());
+            for (size_t i = 0; i < m_objectInputs.Size(); ++i)
             {
                 auto& objectData = m_objectDatas[i];
                 auto& object = objectData.m_object;
-                auto& objectInput = m_objectInputs[i];
+                auto& objectInput = m_objectInputs.Items()[i];
 
                 objectData.m_id = objectInput.m_id;
 
@@ -220,7 +209,7 @@ namespace Kita::Pbrv
             // Raw inputs are fully converted: drop them for the next frame
             m_cameraInput = {};
             m_lightInput = {};
-            m_objectInputs.clear();
+            m_objectInputs.Clear();
             m_postProcessInput = {};
         }
 
@@ -231,8 +220,7 @@ namespace Kita::Pbrv
             m_postProcessData = {};
             m_objectDatas.clear();
             m_environment = {};
-            m_meshRecords.clear();
-            m_materialRecords.clear();
+            m_objectRecords.Clear();
             m_deletedObjects.clear();
         }
     }

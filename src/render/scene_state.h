@@ -148,6 +148,8 @@ namespace Kita::Pbrv
 
             Resource::MeshResource::Handle m_mesh{};
 
+            Resource::ResourceId GetId() const { return m_id; }
+
             const VkDescriptorSet& GetMaterialSet() const { return m_material->GetSet(); }
             Resource::ResourceId GetMaterialId() const { return m_material.GetId(); }
 

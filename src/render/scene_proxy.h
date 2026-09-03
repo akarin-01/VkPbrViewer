@@ -3,6 +3,7 @@
 #include "resource/constants.h"
 #include "resource/gpu_layouts.h"
 #include "resource/resource_id.h"
+#include "resource/id_vector.h"
 
 #include <array>
 #include <glm/glm.hpp>
@@ -18,18 +19,16 @@ namespace Kita::Pbrv
             Resource::ResourceId m_equirectId{ Resource::kInvalidId };
         };
 
-        /// A mesh change: set when the object's mesh handle differs
-        struct MeshRecord
+        /// Optional mesh/material changes for one object in the current frame.
+        struct ObjectRecord
         {
-            Resource::ResourceId m_id{ Resource::kInvalidId };
-            Resource::ResourceId m_meshId{ Resource::kInvalidId };   // kInvalidId = remove mesh
-        };
+            explicit ObjectRecord(Resource::ResourceId id) : m_id(id) {}
 
-        /// A material texture change: full id array, set on any slot change
-        struct MaterialRecord
-        {
-            Resource::ResourceId m_id{ Resource::kInvalidId };
-            std::array<Resource::ResourceId, Resource::kMaterialSlotCount> m_textureIds{};
+            Resource::ResourceId m_id{};
+            std::optional<Resource::ResourceId> m_meshId{};
+            std::optional<std::array<Resource::ResourceId, Resource::kMaterialSlotCount>> m_textureIds{};
+
+            Resource::ResourceId GetId() const { return m_id; }
         };
 
         struct ObjectData
@@ -40,7 +39,7 @@ namespace Kita::Pbrv
 
         /// Local static singleton. Scene entities write raw inputs and change
         /// records; BuildSceneProxy converts the inputs into GPU data, which
-        /// RenderScene consumes together with the records, then Reset() clears
+        /// RenderScene consumes together with the records, then Reset() clears them.
         class SceneProxy
         {
         public:
@@ -76,8 +75,7 @@ namespace Kita::Pbrv
             const Resource::Gpu::PostProcess& GetPostProcessData() const { return m_postProcessData; }
             const std::vector<ObjectData>& GetObjectDatas() const { return m_objectDatas; }
             const std::optional<EnvironmentRecord>& GetEnvironmentRecord() const { return m_environment; }
-            const std::vector<MeshRecord>& GetMeshRecords() const { return m_meshRecords; }
-            const std::vector<MaterialRecord>& GetMaterialRecords() const { return m_materialRecords; }
+            const std::vector<ObjectRecord>& GetObjectRecords() const { return m_objectRecords.Items(); }
             const std::vector<Resource::ResourceId>& GetDeletedObjects() const { return m_deletedObjects; }
 
         private:
@@ -100,6 +98,8 @@ namespace Kita::Pbrv
 
             struct ObjectInput
             {
+                explicit ObjectInput(Resource::ResourceId id) : m_id(id) {}
+
                 Resource::ResourceId m_id{ Resource::kInvalidId };
 
                 glm::vec3 m_position{ 0.0f };
@@ -111,6 +111,8 @@ namespace Kita::Pbrv
                 float m_ao{ 0.0f };
                 glm::vec3 m_emissive{ 0.0f };
                 float m_emissiveIntensity{ 0.0f };
+
+                Resource::ResourceId GetId() const { return m_id; }
             };
 
             struct PostProcessInput
@@ -120,8 +122,6 @@ namespace Kita::Pbrv
 
             SceneProxy();
 
-            ObjectInput& FindOrAddObjectInput(Resource::ResourceId id);
-
         private:
 
             // ------------------ Scene input ------------------------
@@ -129,7 +129,7 @@ namespace Kita::Pbrv
             CameraInput m_cameraInput{};
             LightInput m_lightInput{};
             PostProcessInput m_postProcessInput{};
-            std::vector<ObjectInput> m_objectInputs{};
+            Resource::IdVector<ObjectInput> m_objectInputs{};
 
             // ------------------ Render output -----------------------
 
@@ -138,8 +138,7 @@ namespace Kita::Pbrv
             std::vector<ObjectData> m_objectDatas{};
 
             std::optional<EnvironmentRecord> m_environment{};
-            std::vector<MeshRecord> m_meshRecords{};
-            std::vector<MaterialRecord> m_materialRecords{};
+            Resource::IdVector<ObjectRecord> m_objectRecords{};
             std::vector<Resource::ResourceId> m_deletedObjects{};
         };
     }

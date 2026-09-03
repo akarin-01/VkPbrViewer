@@ -319,7 +319,7 @@ namespace Kita::Pbrv
 
         RenderObject RenderScene::CreateRenderObject(Resource::ResourceId id)
         {
-            RenderObject object{};
+            RenderObject object{ id };
 
             MaterialDesc matDesc
             {
@@ -330,7 +330,6 @@ namespace Kita::Pbrv
                 Resource::kInvalidId
             };
 
-            object.m_id = id;
             object.m_material = GetOrCreateMaterialState(matDesc);
             object.m_object = CreateObjectState();
             object.m_mesh = m_resourceMgr.GetOrCreateMesh(Resource::kInvalidId);
@@ -338,88 +337,40 @@ namespace Kita::Pbrv
             return object;
         }
 
-        size_t RenderScene::FindOrAddRenderObject(Resource::ResourceId id)
-        {
-            auto it = m_objectIndex.find(id);
-            if (it != m_objectIndex.end())
-            {
-                return it->second;
-            }
-
-            const size_t index = m_objects.size();
-            m_objectIndex.emplace(id, index);
-            m_objects.push_back(std::move(CreateRenderObject(id)));
-            return index;
-        }
-
-        void RenderScene::RemoveRenderObject(Resource::ResourceId id)
-        {
-            auto it = m_objectIndex.find(id);
-            if (it == m_objectIndex.end())
-            {
-                return;
-            }
-
-            const size_t index = it->second;
-            m_objectIndex.erase(it);
-
-            // Swap to back
-            if (index != m_objects.size() - 1)
-            {
-                std::swap(m_objects[index], m_objects.back());
-                m_objectIndex[m_objects[index].m_id] = index;
-            }
-            m_objects.pop_back();
-        }
-
-        size_t RenderScene::FindRenderObject(Resource::ResourceId id)
-        {
-            auto it = m_objectIndex.find(id);
-            if (it != m_objectIndex.end())
-            {
-                return it->second;
-            }
-            return m_objects.size();
-        }
-
         void RenderScene::UpdateRenderObjects(uint32_t frameIndex, const SceneProxy& proxy)
         {
             auto& deleteObjects = proxy.GetDeletedObjects();
             for (auto& id : deleteObjects)
             {
-                RemoveRenderObject(id);
+                m_objects.Remove(id);
             }
 
-            auto& meshRecords = proxy.GetMeshRecords();
-            for (auto& meshRecord : meshRecords)
+            auto& objectRecords = proxy.GetObjectRecords();
+            for (auto& record : objectRecords)
             {
-                size_t index = FindOrAddRenderObject(meshRecord.m_id);
-                auto& object = m_objects[index];
-                object.m_mesh = m_resourceMgr.GetOrCreateMesh(meshRecord.m_meshId);
-            }
-
-            auto& materialRecords = proxy.GetMaterialRecords();
-            for (auto& materialRecord : materialRecords)
-            {
-                MaterialDesc desc{};
-                desc.m_textureIds = materialRecord.m_textureIds;
-
-                size_t index = FindOrAddRenderObject(materialRecord.m_id);
-                auto& object = m_objects[index];
-                object.m_material = GetOrCreateMaterialState(desc);
+                auto& object = m_objects.FindOrAdd(record.GetId(),
+                    [this](Resource::ResourceId id) { return CreateRenderObject(id); });
+                if (record.m_meshId.has_value())
+                {
+                    object.m_mesh = m_resourceMgr.GetOrCreateMesh(record.m_meshId.value());
+                }
+                if (record.m_textureIds.has_value())
+                {
+                    MaterialDesc desc{};
+                    desc.m_textureIds = record.m_textureIds.value();
+                    object.m_material = GetOrCreateMaterialState(desc);
+                }
             }
 
             auto& objectDatas = proxy.GetObjectDatas();
             for (auto& objectData : objectDatas)
             {
-                size_t index = FindRenderObject(objectData.m_id);
-                if (index >= m_objects.size())
-                {
-                    continue;   // records create new states above; skip anything else
-                }
+                auto object = m_objects.Find(objectData.m_id);
 
-                auto& object = m_objects[index];
-                object.m_object.WriteData(frameIndex, objectData.m_object);
+                if (object)
+                {
+                    object->m_object.WriteData(frameIndex, objectData.m_object);
+                }
             }
         }
     }
