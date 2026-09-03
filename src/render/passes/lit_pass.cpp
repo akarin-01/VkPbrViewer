@@ -19,10 +19,10 @@ namespace Kita::Pbrv
             const Rhi::SwapChain& swapChain,
             const RenderScene& scene)
             : RenderPassBase(context, swapChain),
-            m_target(scene.GetGlobal().m_target),
-            m_frameSet(scene.GetGlobal().m_frameSet),
-            m_litSet(scene.GetGlobal().m_litSet),
-            m_objectMap(scene.GetObjects())
+            m_target(scene.GetTarget()),
+            m_frame(scene.GetFrame()),
+            m_lit(scene.GetLit()),
+            m_objects(scene.GetObjects())
         {
             CreatePipeline(
                 {
@@ -73,22 +73,20 @@ namespace Kita::Pbrv
                 Rhi::RenderingScope scope(commandBuffer, extent, { colorDesc }, &depthDesc);
 
                 // Sort by material, then by mesh: minimal bind switches
-                std::vector<const Render::ObjectState*> sortedObjects;
-                sortedObjects.reserve(m_objectMap.size());
-                for (auto& [id, objectState] : m_objectMap)
+                std::vector<const Render::RenderObject*> sortedObjects;
+                sortedObjects.reserve(m_objects.size());
+                for (auto& object : m_objects)
                 {
-                    sortedObjects.push_back(&objectState);
+                    sortedObjects.push_back(&object);
                 }
                 std::sort(sortedObjects.begin(), sortedObjects.end(),
-                    [](const Render::ObjectState* a, const Render::ObjectState* b)
+                    [](const Render::RenderObject* a, const Render::RenderObject* b)
                     {
-                        const Resource::ResourceId aMaterial = a->m_materialSet.GetId();
-                        const Resource::ResourceId bMaterial = b->m_materialSet.GetId();
-                        if (aMaterial != bMaterial)
+                        if (a->GetMaterialId() != b->GetMaterialId())
                         {
-                            return aMaterial < bMaterial;
+                            return a->GetMaterialId() < b->GetMaterialId();
                         }
-                        return a->m_mesh.GetId() < b->m_mesh.GetId();
+                        return a->GetMeshId() < b->GetMeshId();
                     });
 
                 // Bind pipeline
@@ -96,42 +94,40 @@ namespace Kita::Pbrv
 
                 // Draw
                 vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                    0, 1, &m_frameSet.GetSet(frameIndex), 0, nullptr);
+                    0, 1, &m_frame.GetSet(frameIndex), 0, nullptr);
                 vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                    1, 1, &m_litSet.GetSet(), 0, nullptr);
+                    1, 1, &m_lit.GetSet(), 0, nullptr);
 
                 Resource::ResourceId lastMaterialId{ Resource::kInvalidId };
                 Resource::ResourceId lastMeshId{ Resource::kInvalidId };
-                for (const auto* objectState : sortedObjects)
+                for (const auto* object : sortedObjects)
                 {
-                    if (!objectState->m_mesh)
+                    if (!object->HasMesh())
                     {
                         continue;
                     }
 
-                    const Resource::ResourceId materialId = objectState->m_materialSet.GetId();
-                    if (materialId != lastMaterialId)
+                    if (object->GetMaterialId() != lastMaterialId)
                     {
-                        lastMaterialId = materialId;
+                        lastMaterialId = object->GetMaterialId();
 
                         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                            2, 1, &objectState->m_materialSet->GetSet(), 0, nullptr);
+                            2, 1, &object->GetMaterialSet(), 0, nullptr);
                     }
-                    const Resource::ResourceId meshId = objectState->m_mesh.GetId();
-                    if (meshId != lastMeshId)
+                    if (object->GetMeshId() != lastMeshId)
                     {
-                        lastMeshId = meshId;
+                        lastMeshId = object->GetMeshId();
 
-                        VkBuffer buffers[]{ objectState->m_mesh->GetVertexBuffer() };
+                        VkBuffer buffers[]{ object->GetVertexBuffer() };
                         VkDeviceSize offsets[]{ 0 };
                         vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
-                        vkCmdBindIndexBuffer(commandBuffer, objectState->m_mesh->GetIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+                        vkCmdBindIndexBuffer(commandBuffer, object->GetIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
                     }
 
                     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                        3, 1, &objectState->m_objectSet.GetSet(frameIndex), 0, nullptr);
+                        3, 1, &object->GetObjectSet(frameIndex), 0, nullptr);
 
-                    vkCmdDrawIndexed(commandBuffer, objectState->m_mesh->GetIndexCount(), 1, 0, 0, 0);
+                    vkCmdDrawIndexed(commandBuffer, object->GetIndexCount(), 1, 0, 0, 0);
                 }
             }
             // End rendering

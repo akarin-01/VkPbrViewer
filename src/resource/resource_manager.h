@@ -42,7 +42,6 @@ namespace Kita::Pbrv
             size_t GetDescriptorSetCount() const { return m_descriptorSetTable.Size(); }
             size_t GetImageCount() const { return m_imageCache.Size(); }
             size_t GetImageViewCount() const { return m_imageViewTable.Size(); }
-            size_t GetMaterialSetCount() const { return m_materialCache.Size(); }
             size_t GetSamplerCount() const { return m_samplerCache.Size(); }
 
             // ---- Rhi resources ----
@@ -57,6 +56,7 @@ namespace Kita::Pbrv
             DescriptorSetRhi::Handle CreateDescriptorSet(DescriptorSetRhi::Type type);
 
             // ---- Render resources ----
+            UboResource CreateUbo(const BufferDesc& desc);
             TextureResource CreateTexture(ResourceId textureId,
                 const ImageViewDesc& imageViewDesc, const SamplerDesc& samplerDesc);
             TextureResource CreateTexture(const ImageDesc& imageDesc,
@@ -65,14 +65,11 @@ namespace Kita::Pbrv
             TextureResource CreateTexture(ImageRhi::Handle image,
                 const ImageViewDesc& imageViewDesc, const SamplerDesc& samplerDesc);
             MeshResource::Handle GetOrCreateMesh(ResourceId meshId);
-            TargetResource CreateTarget(const TargetDesc& desc);
 
-            // ---- Sets ----
-            PerObjectSet CreatePerObjectSet();
-            PerMaterialSet::Handle GetOrCreatePerMaterialSet(const MaterialDesc& desc);
-            LitSet CreateLitSet(const TextureResource& shadowMap);
-            PostProcessSet CreatePostProcessSet(const TextureResource& texture);
-            PerFrameSet CreatePerFrameSet(ResourceId equirectId);
+            const TextureResource& GetBrdfLut() const { return m_brdfLut; }
+            std::array<TextureResource, 3> CreateEnvironments(ResourceId equirectId);
+            TextureResource CreateFallback(MaterialSlot slot,
+                const ImageViewDesc& imageViewDesc, const SamplerDesc& samplerDesc);
 
             void FlushGraveyard();
 
@@ -81,12 +78,9 @@ namespace Kita::Pbrv
             std::array<ImageRhi::Handle, kMaterialSlotCount> CreateMaterialFallbacks();
             ImageRhi::Handle CreateCubemapFallback();
 
-            UboResource CreateUbo(const BufferDesc& desc);
             MeshResource CreateMesh(const MeshAsset& asset);
             TextureResource CreateEquirect(const TextureAsset& asset);
             TextureResource CreateTexture(BakedTexture baked);
-
-            PerMaterialSet CreatePerMaterialSet(const MaterialDesc& desc);
 
         private:
             const Rhi::Context& m_context;
@@ -106,9 +100,6 @@ namespace Kita::Pbrv
 
             // ------------- L1: Resource (render resources) -------------
             CacheTable<MeshResource, ResourceId> m_meshCache;
-
-            // ------------- L2: Set (descriptor sets) -------------
-            CacheTable<PerMaterialSet, MaterialDesc, MaterialDesc::Hash> m_materialCache;
 
             // Fallback images per material slot (1x1), shared by empty slots.
             // Declared last: they release into the tables first on teardown.

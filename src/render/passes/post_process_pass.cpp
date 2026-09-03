@@ -16,7 +16,7 @@ namespace Kita::Pbrv
             const Rhi::SwapChain& swapChain,
             const RenderScene& scene)
             : RenderPassBase(context, swapChain),
-            m_postProcessSet(scene.GetGlobal().m_postProcessSet)
+            m_postProcess(scene.GetPostProcess())
         {
             CreatePipeline(
                 {
@@ -60,7 +60,7 @@ namespace Kita::Pbrv
 
                 // Draw
                 vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                    1, 1, &m_postProcessSet.GetSet(frameIndex), 0, nullptr);
+                    1, 1, &m_postProcess.GetSet(frameIndex), 0, nullptr);
 
                 vkCmdDraw(commandBuffer, 3, 1, 0, 0);
             }

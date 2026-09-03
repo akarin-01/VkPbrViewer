@@ -4,24 +4,19 @@
 
 #include <memory>
 #include <vector>
-#include <unordered_map>
-
 namespace Kita::Pbrv
 {
     namespace Rhi
     {
         class GraphicsPipeline;
     }
-    namespace Resource
-    {
-        struct PerFrameSet;
-        struct TextureResource;
-    }
 
     namespace Render
     {
         class RenderScene;
-        struct ObjectState;
+        struct ShadowTextures;
+        struct FrameState;
+        struct RenderObject;
 
         class ShadowPass : public RenderPassBase
         {
@@ -38,9 +33,10 @@ namespace Kita::Pbrv
             void CreatePipeline(const std::vector<VkDescriptorSetLayout>& layouts);
 
         private:
-            const Resource::PerFrameSet& m_frameSet;
-            const Resource::TextureResource& m_shadowMap;
-            const std::unordered_map<Resource::ResourceId, ObjectState>& m_objectMap;
+            const ShadowTextures& m_shadow;
+
+            const FrameState& m_frame;
+            const std::vector<RenderObject>& m_objects;
 
             std::unique_ptr<Rhi::GraphicsPipeline> m_pipeline;
         };

@@ -297,8 +297,8 @@ namespace Kita::Pbrv
                             ImGui::Text("Views    : %zu", resources.GetImageViewCount());
                             ImGui::Text("Samplers : %zu", resources.GetSamplerCount());
                             ImGui::Text("Sets     : %zu", resources.GetDescriptorSetCount());
-                            ImGui::Text("Materials: %zu", resources.GetMaterialSetCount());
-                            ImGui::Text("Objects  : %zu", renderScene.GetObjects().size());
+                            ImGui::Text("Materials: %zu", renderScene.GetMaterialCount());
+                            ImGui::Text("Objects  : %zu", renderScene.GetObjectCount());
                         });
                 }
             }

@@ -21,8 +21,8 @@ namespace Kita::Pbrv
             const Rhi::SwapChain& swapChain,
             RenderScene& scene)
             : m_swapChain(swapChain),
-            m_target(scene.GetGlobal().m_target),
-            m_shadowMap(scene.GetGlobal().m_shadowMap)
+            m_shadow(scene.GetShadow()),
+            m_target(scene.GetTarget())
         {
             CreateRenderPasses(window, context, swapChain, scene);
         }
@@ -185,7 +185,7 @@ namespace Kita::Pbrv
             depthRange.baseArrayLayer = 0;
             depthRange.layerCount = 1;
 
-            Rhi::TransitionImageLayout(commandBuffer, m_shadowMap.GetImage(),
+            Rhi::TransitionImageLayout(commandBuffer, m_shadow.GetImage(),
                 VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                 VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
                 VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT, VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
@@ -202,7 +202,7 @@ namespace Kita::Pbrv
             depthRange.layerCount = 1;
 
             Rhi::TransitionImageLayout(commandBuffer,
-                m_shadowMap.GetImage(),
+                m_shadow.GetImage(),
                 VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                 VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT, VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
                 VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT,

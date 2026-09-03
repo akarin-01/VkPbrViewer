@@ -7,7 +7,6 @@
 #include "resource/asset_manager.h"
 #include "resource/asset_types.h"
 #include "resource/descriptor_manager.h"
-#include "resource/descriptor_writer.h"
 #include "resource/environment_baker.h"
 #include "resource/graveyard.h"
 #include "resource/gpu_layouts.h"
@@ -113,12 +112,6 @@ namespace Kita::Pbrv
                     Core::Log::Info("[Resource] Release mesh resource: vb ",
                         mesh.m_vertexBuffer->m_size, " + ib ", mesh.m_indexBuffer->m_size, " bytes");
                 }),
-            m_materialCache("per material set", [](PerMaterialSet&&)
-                {
-                    KITA_LOG_DEBUG("[Resource] Release per material set");
-                    // Texture handles release with the entry; each pushes into
-                    // its own graveyard queue through the tables above
-                }),
             m_environmentBaker(std::make_unique<EnvironmentBaker>(m_context, *m_descriptorMgr))
         {
             m_fallbacks = CreateMaterialFallbacks();
@@ -196,6 +189,11 @@ namespace Kita::Pbrv
             return m_descriptorSetTable.Create(std::move(set));
         }
 
+        UboResource ResourceManager::CreateUbo(const BufferDesc& desc)
+        {
+            return UboResource{ CreateBuffer(desc) };
+        }
+
         TextureResource ResourceManager::CreateTexture(ResourceId textureId, const ImageViewDesc& imageViewDesc, const SamplerDesc& samplerDesc)
         {
             const ImageRhi::Handle image = GetOrCreateImage(textureId);
@@ -243,159 +241,18 @@ namespace Kita::Pbrv
                 });
         }
 
-        TargetResource ResourceManager::CreateTarget(const TargetDesc& desc)
+        std::array<TextureResource, 3> ResourceManager::CreateEnvironments(ResourceId equirectId)
         {
-            // Color (MSAA) + resolve + depth. Color and resolve share the
-            // format: vkCmdResolveImage requires identical src/dst formats
-            ImageDesc colorDesc{};
-            colorDesc.m_extent = { desc.m_extent.width, desc.m_extent.height, 1 };
-            colorDesc.m_format = desc.m_colorFormat;
-            colorDesc.m_aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            colorDesc.m_usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-            colorDesc.m_samples = desc.m_msaaSamples;
-            colorDesc.m_properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-
-            ImageDesc resolveDesc = colorDesc;
-            resolveDesc.m_samples = VK_SAMPLE_COUNT_1_BIT;
-            resolveDesc.m_usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
-
-            ImageDesc depthDesc{};
-            depthDesc.m_extent = { desc.m_extent.width, desc.m_extent.height, 1 };
-            depthDesc.m_format = desc.m_depthFormat;
-            depthDesc.m_aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-            depthDesc.m_usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-            depthDesc.m_samples = desc.m_msaaSamples;   // MSAA depth matches color
-            depthDesc.m_properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-
-            ImageViewDesc viewDesc{};
-            viewDesc.m_type = VK_IMAGE_VIEW_TYPE_2D;
-            viewDesc.m_fullRange = true;
-
-            TargetResource target{};
-            target.m_colorTexture = CreateTexture(colorDesc, viewDesc, desc.m_samplerDesc);
-            target.m_resolveTexture = CreateTexture(resolveDesc, viewDesc, desc.m_samplerDesc);
-            target.m_depthTexture = CreateTexture(depthDesc, viewDesc, desc.m_samplerDesc);
-
-            Core::Log::Info("[Resource] Create target: ", desc.m_extent.width, "x", desc.m_extent.height,
-                ", samples ", desc.m_msaaSamples);
-            return target;
-        }
-
-        PerObjectSet ResourceManager::CreatePerObjectSet()
-        {
-            constexpr DescriptorSetRhi::Type kLayoutType = DescriptorSetRhi::Type::PerObject;
-
-            PerObjectSet perObject{};
-
-            Resource::BufferDesc desc{};
-            desc.m_size = sizeof(Gpu::PerObject);
-            desc.m_usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-            desc.m_properties =
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-            desc.m_mapped = true;
-
-            for (size_t i = 0; i < perObject.m_ubos.size(); ++i)
-            {
-                perObject.m_ubos[i] = CreateUbo(desc);
-            }
-
-            for (size_t i = 0; i < perObject.m_sets.size(); ++i)
-            {
-                perObject.m_sets[i] = CreateDescriptorSet(kLayoutType);
-
-                DescriptorWriter writer(m_context.Device());
-                writer.WriteBuffer(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                    perObject.m_ubos[i].GetBuffer(), 0, sizeof(Gpu::PerObject))
-                    .UpdateSet(perObject.m_sets[i]->GetSet());
-            }
-
-            KITA_LOG_DEBUG("[Resource] Create per-object set: ", perObject.m_ubos.size(), " ubo slots, ",
-                sizeof(Gpu::PerObject), " bytes, ", perObject.m_sets.size(), " sets");
-            return perObject;
-        }
-
-        PerMaterialSet::Handle ResourceManager::GetOrCreatePerMaterialSet(const MaterialDesc& desc)
-        {
-            return m_materialCache.GetOrCreate(desc, [this](const MaterialDesc& d) -> std::optional<PerMaterialSet>
-                {
-                    return CreatePerMaterialSet(d);
-                });
-        }
-
-        LitSet ResourceManager::CreateLitSet(const TextureResource& shadowMap)
-        {
-            constexpr DescriptorSetRhi::Type kLayoutType = DescriptorSetRhi::Type::Lit;
-
-            LitSet lit{};
-
-            lit.m_set = CreateDescriptorSet(kLayoutType);
-
-            DescriptorWriter writer(m_context.Device());
-            writer.WriteImage(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, shadowMap.GetImageView(), shadowMap.GetSampler())
-                .UpdateSet(lit.GetSet());
-
-            KITA_LOG_DEBUG("[Resource] Create lit set: 1 texture slot");
-            return lit;
-        }
-
-        PostProcessSet ResourceManager::CreatePostProcessSet(const TextureResource& texture)
-        {
-            constexpr DescriptorSetRhi::Type kLayoutType = DescriptorSetRhi::Type::PostProcess;
-
-            PostProcessSet postProcess{};
-
-            Resource::BufferDesc desc{};
-            desc.m_size = sizeof(Gpu::PostProcess);
-            desc.m_usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-            desc.m_properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-            desc.m_mapped = true;
-
-            for (size_t i = 0; i < postProcess.m_ubos.size(); ++i)
-            {
-                postProcess.m_ubos[i] = CreateUbo(desc);
-            }
-
-            for (size_t i = 0; i < postProcess.m_sets.size(); ++i)
-            {
-                postProcess.m_sets[i] = CreateDescriptorSet(kLayoutType);
-
-                DescriptorWriter writer(m_context.Device());
-                writer.WriteBuffer(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                    postProcess.m_ubos[i].GetBuffer(), 0, sizeof(Gpu::PostProcess))
-                    .WriteImage(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, texture.GetImageView(), texture.GetSampler())
-                    .UpdateSet(postProcess.m_sets[i]->GetSet());
-            }
-
-            KITA_LOG_DEBUG("[Resource] Create post process set: ", postProcess.m_ubos.size(), " ubo slots, ",
-                sizeof(Gpu::PostProcess), " bytes, ", postProcess.m_sets.size(), " sets, 1 texture slot");
-            return postProcess;
-        }
-
-        PerFrameSet ResourceManager::CreatePerFrameSet(ResourceId equirectId)
-        {
-            constexpr DescriptorSetRhi::Type kLayoutType = DescriptorSetRhi::Type::PerFrame;
-
-            PerFrameSet perFrame{};
-
-            Resource::BufferDesc desc{};
-            desc.m_size = sizeof(Gpu::PerFrame);
-            desc.m_usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-            desc.m_properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-            desc.m_mapped = true;
-
-            for (size_t i = 0; i < perFrame.m_ubos.size(); ++i)
-            {
-                perFrame.m_ubos[i] = CreateUbo(desc);
-            }
+            TextureResource skybox{};
+            TextureResource irradiance{};
+            TextureResource prefilter{};
 
             const TextureAsset* asset = m_assetMgr.GetTexture(equirectId);
             if (asset)
             {
-                perFrame.m_skybox = CreateTexture(m_environmentBaker->BakeSkybox(CreateEquirect(*asset)));
-                perFrame.m_irradiance = CreateTexture(m_environmentBaker->BakeIrradiance(perFrame.m_skybox));
-                perFrame.m_prefilter = CreateTexture(m_environmentBaker->BakePrefilter(perFrame.m_skybox));
+                skybox = CreateTexture(m_environmentBaker->BakeSkybox(CreateEquirect(*asset)));
+                irradiance = CreateTexture(m_environmentBaker->BakeIrradiance(skybox));
+                prefilter = CreateTexture(m_environmentBaker->BakePrefilter(skybox));
             }
             else
             {
@@ -411,32 +268,17 @@ namespace Kita::Pbrv
                 samplerDesc.m_addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
                 samplerDesc.m_addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 
-                perFrame.m_skybox = CreateTexture(m_cubemapFallback, imageViewDesc, samplerDesc);
-                perFrame.m_irradiance = CreateTexture(m_cubemapFallback, imageViewDesc, samplerDesc);
-                perFrame.m_prefilter = CreateTexture(m_cubemapFallback, imageViewDesc, samplerDesc);
+                skybox = CreateTexture(m_cubemapFallback, imageViewDesc, samplerDesc);
+                irradiance = CreateTexture(m_cubemapFallback, imageViewDesc, samplerDesc);
+                prefilter = CreateTexture(m_cubemapFallback, imageViewDesc, samplerDesc);
             }
 
-            for (size_t i = 0; i < perFrame.m_sets.size(); ++i)
-            {
-                perFrame.m_sets[i] = CreateDescriptorSet(kLayoutType);
+            return { std::move(skybox), std::move(irradiance), std::move(prefilter) };
+        }
 
-                DescriptorWriter writer(m_context.Device());
-                writer.WriteBuffer(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                    perFrame.m_ubos[i].GetBuffer(), 0, sizeof(Gpu::PerFrame))
-                    .WriteImage(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, m_brdfLut.GetImageView(), m_brdfLut.GetSampler())
-                    .WriteImage(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, perFrame.m_skybox.GetImageView(), perFrame.m_skybox.GetSampler())
-                    .WriteImage(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, perFrame.m_irradiance.GetImageView(), perFrame.m_irradiance.GetSampler())
-                    .WriteImage(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, perFrame.m_prefilter.GetImageView(), perFrame.m_prefilter.GetSampler())
-                    .UpdateSet(perFrame.m_sets[i]->GetSet());
-            }
-
-            KITA_LOG_DEBUG("[Resource] Create per frame set: ", perFrame.m_ubos.size(), " ubo slots, ",
-                sizeof(Gpu::PerFrame), " bytes, ", perFrame.m_sets.size(), " sets, 4 texture slots");
-            return perFrame;
+        TextureResource ResourceManager::CreateFallback(MaterialSlot slot, const ImageViewDesc& imageViewDesc, const SamplerDesc& samplerDesc)
+        {
+            return CreateTexture(m_fallbacks[static_cast<size_t>(slot)], imageViewDesc, samplerDesc);
         }
 
         void ResourceManager::FlushGraveyard()
@@ -456,11 +298,6 @@ namespace Kita::Pbrv
             KITA_LOG_DEBUG("[Resource] Create image: ", desc.m_extent.width, "x",
                 desc.m_extent.height, ", ", desc.m_mipLevels, " mips");
             return ResourceUtils::CreateImageRhi(m_context, desc, asset.m_bytes.data(), asset.m_bytes.size());
-        }
-
-        UboResource ResourceManager::CreateUbo(const BufferDesc& desc)
-        {
-            return UboResource{ CreateBuffer(desc) };
         }
 
         MeshResource ResourceManager::CreateMesh(const MeshAsset& asset)
@@ -568,44 +405,6 @@ namespace Kita::Pbrv
 
             std::array<uint32_t, 24> blackData{};   // 6 layers * 1 texel * RGBA32F zeros
             return CreateImage(desc, blackData.data(), blackData.size() * sizeof(uint32_t));
-        }
-
-        PerMaterialSet ResourceManager::CreatePerMaterialSet(const MaterialDesc& desc)
-        {
-            // Material sampling policy, spelled out at the only assembly point
-            ImageViewDesc imageViewDesc{};
-            imageViewDesc.m_type = VK_IMAGE_VIEW_TYPE_2D;
-            imageViewDesc.m_fullRange = true;
-
-            SamplerDesc samplerDesc{};
-            samplerDesc.m_magFilter = VK_FILTER_LINEAR;
-            samplerDesc.m_minFilter = VK_FILTER_LINEAR;
-            samplerDesc.m_mipMode = SamplerDesc::MipMode::Linear;
-            samplerDesc.m_addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            samplerDesc.m_addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            samplerDesc.m_addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-
-            PerMaterialSet material{};
-            material.m_set = CreateDescriptorSet(DescriptorSetRhi::Type::PerMaterial);
-
-            for (uint32_t i = 0; i < Resource::kMaterialSlotCount; ++i)
-            {
-                const TextureResource tex = CreateTexture(desc.m_textureIds[i], imageViewDesc, samplerDesc);
-                material.m_textures[i] = tex.IsEmpty() ? CreateTexture(m_fallbacks[i], imageViewDesc, samplerDesc) : tex;
-            }
-
-            DescriptorWriter writer(m_context.Device());
-            for (uint32_t i = 0; i < Resource::kMaterialSlotCount; ++i)
-            {
-                writer.WriteImage(i, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                    material.m_textures[i].GetImageView(), material.m_textures[i].GetSampler());
-            }
-            writer.UpdateSet(material.m_set->GetSet());
-
-            KITA_LOG_DEBUG("[Resource] Create per-material set: ", Resource::kMaterialSlotCount,
-                " texture slots, 1 set");
-            return material;
         }
     }
 }

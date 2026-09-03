@@ -11,15 +11,12 @@ namespace Kita::Pbrv
     {
         class GraphicsPipeline;
     }
-    namespace Resource
-    {
-        struct PerFrameSet;
-        struct TargetResource;
-    }
 
     namespace Render
     {
         class RenderScene;
+        struct TargetTextures;
+        struct FrameState;
 
         class SkyboxPass : public RenderPassBase
         {
@@ -36,8 +33,9 @@ namespace Kita::Pbrv
             void CreatePipeline(const std::vector<VkDescriptorSetLayout>& layouts);
 
         private:
-            const Resource::TargetResource& m_target;
-            const Resource::PerFrameSet& m_frameSet;
+            const TargetTextures& m_target;
+
+            const FrameState& m_frame;
 
             std::unique_ptr<Rhi::GraphicsPipeline> m_pipeline;
         };

@@ -16,16 +16,13 @@ namespace Kita::Pbrv
         class Context;
         class SwapChain;
     }
-    namespace Resource
-    {
-        struct TargetResource;
-        struct TextureResource;
-    }
 
     namespace Render
     {
         class RenderPassBase;
         class RenderScene;
+        struct ShadowTextures;
+        struct TargetTextures;
 
         class RenderPipeline
         {
@@ -54,8 +51,9 @@ namespace Kita::Pbrv
 
         private:
             const Rhi::SwapChain& m_swapChain;
-            Resource::TargetResource& m_target;
-            Resource::TextureResource& m_shadowMap;
+
+            ShadowTextures& m_shadow;
+            TargetTextures& m_target;
 
             std::unique_ptr<RenderPassBase> m_shadowPass;
             std::unique_ptr<RenderPassBase> m_litPass;

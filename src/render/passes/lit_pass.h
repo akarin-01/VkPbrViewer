@@ -4,7 +4,6 @@
 #include "resource/resource_id.h"
 
 #include <memory>
-#include <unordered_map>
 #include <vector>
 
 namespace Kita::Pbrv
@@ -13,17 +12,14 @@ namespace Kita::Pbrv
     {
         class GraphicsPipeline;
     }
-    namespace Resource
-    {
-        struct PerFrameSet;
-        struct LitSet;
-        struct TargetResource;
-    }
 
     namespace Render
     {
-        struct ObjectState;
         class RenderScene;
+        struct TargetTextures;
+        struct FrameState;
+        struct LitState;
+        struct RenderObject;
 
         class LitPass : public RenderPassBase
         {
@@ -40,10 +36,11 @@ namespace Kita::Pbrv
             void CreatePipeline(const std::vector<VkDescriptorSetLayout>& layouts);
 
         private:
-            const Resource::TargetResource& m_target;
-            const Resource::PerFrameSet& m_frameSet;
-            const Resource::LitSet& m_litSet;
-            const std::unordered_map<Resource::ResourceId, ObjectState>& m_objectMap;
+            const TargetTextures& m_target;
+
+            const FrameState& m_frame;
+            const LitState& m_lit;
+            const std::vector<RenderObject>& m_objects;
 
             std::unique_ptr<Rhi::GraphicsPipeline> m_pipeline;
         };

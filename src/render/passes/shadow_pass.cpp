@@ -23,9 +23,9 @@ namespace Kita::Pbrv
             const Rhi::SwapChain& swapChain,
             const RenderScene& scene)
             : RenderPassBase(context, swapChain),
-            m_frameSet(scene.GetGlobal().m_frameSet),
-            m_shadowMap(scene.GetGlobal().m_shadowMap),
-            m_objectMap(scene.GetObjects())
+            m_shadow(scene.GetShadow()),
+            m_frame(scene.GetFrame()),
+            m_objects(scene.GetObjects())
         {
             CreatePipeline(
                 {
@@ -58,12 +58,12 @@ namespace Kita::Pbrv
                 VkClearValue clearValue{};
                 clearValue = { 1.0f, 0 };
                 VkExtent2D extent{
-                    m_shadowMap.GetExtent().width,
-                    m_shadowMap.GetExtent().height
+                    m_shadow.GetExtent().width,
+                    m_shadow.GetExtent().height
                 };
 
                 Rhi::RenderingAttachmentDesc depthDesc{};
-                depthDesc.m_imageView = m_shadowMap.GetImageView();
+                depthDesc.m_imageView = m_shadow.GetImageView();
                 depthDesc.m_imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
                 depthDesc.m_loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
                 depthDesc.m_storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -76,23 +76,23 @@ namespace Kita::Pbrv
 
                 // Draw
                 vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                    0, 1, &m_frameSet.GetSet(frameIndex), 0, nullptr);
+                    0, 1, &m_frame.GetSet(frameIndex), 0, nullptr);
 
-                for (auto& [id, object] : m_objectMap)
+                for (auto& object : m_objects)
                 {
-                    if (!object.m_mesh)
+                    if (!object.HasMesh())
                     {
                         continue;
                     }
 
                     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->Layout(),
-                        3, 1, &object.m_objectSet.GetSet(frameIndex), 0, nullptr);
+                        3, 1, &object.GetObjectSet(frameIndex), 0, nullptr);
 
-                    VkBuffer buffers[]{ object.m_mesh->GetVertexBuffer() };
+                    VkBuffer buffers[]{ object.GetVertexBuffer() };
                     VkDeviceSize offsets[]{ 0 };
                     vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
-                    vkCmdBindIndexBuffer(commandBuffer, object.m_mesh->GetIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
-                    vkCmdDrawIndexed(commandBuffer, object.m_mesh->GetIndexCount(), 1, 0, 0, 0);
+                    vkCmdBindIndexBuffer(commandBuffer, object.GetIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+                    vkCmdDrawIndexed(commandBuffer, object.GetIndexCount(), 1, 0, 0, 0);
                 }
             }
             // End rendering

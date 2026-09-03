@@ -12,26 +12,32 @@
 - 直接封装 Vulkan 的 L0 资源统一 `Rhi` 后缀：BufferRhi / ImageRhi / ImageViewRhi / SamplerRhi / DescriptorSetRhi；业务与上层资源不加（Scene、ResourceManager、MeshResource、UboResource…）。
 - resource 层基础设施无后缀：CacheTable、Graveyard、DescriptorWriter。
 
-## 资源模型（等级 L0/L1/L2 × 共享/非共享）
+## 资源与状态模型（L0/L1 + render state）
 
-- L0 = Vk 句柄封装，统一走句柄 + 延迟销毁；L1 = 渲染资源组合（MeshResource/UboResource/TextureResource）；L2 = 与 shader Set 一一对应的宿主容器（PerFrameSet/PerPassSet/PerMaterialSet/PerObjectSet ↔ `shader_sets.glsl` 的 SET_PER_*）。
+- L0 = Vk 句柄封装，统一走句柄 + 延迟销毁。
+- L1 = 渲染资源组合（MeshResource / UboResource / TextureResource）。
+- render 层不再使用 resource 层的 L2 Set 类型；与 shader descriptor set 对应的宿主容器由 `RenderScene` 维护，命名规则：
+  - descriptor set 状态：`XxxState`（`FrameState` / `LitState` / `PostProcessState` / `MaterialState` / `ObjectState`）；
+  - 纯纹理/attachment 集合：`XxxTextures`（`TargetTextures` / `ShadowTextures`）。
 - 共享资源用 RAII 句柄 `Handle<T>`（条目索引 + RefTable 指针；拷贝/赋值引用 +1、析构 -1、移动转移所有权），归零后拆解为裸 Vk 句柄进 Graveyard，K 帧后销毁；非共享资源用值。
-- 每层封装：资源只暴露语义方法（`UboResource::Write/GetBuffer`、`PerObjectSet::WriteData/GetSet`），禁止 `a.xx.yy` 穿透句柄链访问（render state 纯容器除外）。
+- 每层封装：Resource 与 render state 都不是可穿透的纯容器；外部只使用语义方法（`UboResource::Write/GetBuffer`、`FrameState::GetSet`、`RenderObject::GetMaterialSet`、`TargetTextures::GetColorImageView`）。禁止 `a.xx.yy` 穿透到内部成员/句柄链；state 的字段是 RenderScene 等 owner 的装配细节。
 
 ## 所有权与关键机制
 
 - DescriptorManager 归 ResourceManager 所有；ResourceManager 单向依赖 EnvironmentBaker / ComputeConversion。
 - descriptor layout 是**唯一真源**：layout 按内容去重、pool 按 layout 分组持有、池满自动扩容；Set 内不存 layout，经 `ResourceManager::GetDescriptorSetLayout(Type)` 查询，pass 建 pipeline 收 `vector<VkDescriptorSetLayout>`。
 - DescriptorSetRhi 销毁：句柄归零 → graveyard 延迟 K 帧 → `DescriptorManager::Recycle` → 池内 free list 复用（reuse-only，不调 vkFreeDescriptorSets）。
-- GPU 材质 = 纯贴图集 + descriptor set（不含参数），MaterialDesc（全组贴图 id）哈希去重，PerMaterialSet 按 desc 共享。
+- GPU 材质 = 纯贴图集 + descriptor set（不含参数），`MaterialDesc`（全组贴图 id）哈希去重，`MaterialState` 按 desc 在 RenderScene 的 `CacheTable` 中共享。
+- `TargetTextures` / `ShadowTextures` 是 RenderScene 拥有的纹理所有权；`LitState` / `PostProcessState` 等只引用它们，不复制持有。
+- 重建引用同一纹理的 set state 时，应先创建新纹理，再用新纹理重建 set state，最后替换旧纹理，避免 descriptor set 引用已被释放的 image view。
 
 ## 数据流
 
-- scene 实体（Camera/Light/Object/Skybox/PostProcess）各自 `Update()` 自写数据到 SceneProxy（局部 static 单例）；变更走脏标记：`WriteMesh` / `WriteMaterialTextures`（空 id = 删除）；删除走 Scen 的 DestroyObject → 标记 → Update 清扫。
+- scene 实体（Camera/Light/Object/Skybox/PostProcess）各自 `Update()` 自写数据到 SceneProxy（局部 static 单例）；变更走脏标记：`WriteMesh` / `WriteMaterialTextures`（空 id = 删除）；删除走 Scene 的 DestroyObject → 标记 → Update 清扫。
 - RenderScene.Update() ← BuildSceneProxy(aspect)（转换后清 scene 输入区）；消费顺序：删除 → mesh/material 记录（find-or-create）→ UBO 写入；`Reset()` 清输出区。
-- 对账：`std::unordered_map<ResourceId, ObjectState>` 按 id 键控；`GetDeletedObjects()` 驱动 erase。
-- LitPass：每帧收集状态 → 按材质/网格两级排序 → 换绑跳过 → 绘制。
-- 每物体 ObjectData = kMaxFramesInFlight 个 UBO + K 个描述集（PerObjectSet）：`mat4 model` + 材质参数（albedo / metallic-roughness-ao / emissive+intensity）。
+- 对账：RenderScene 内部用 `unordered_map<ResourceId, size_t>` 定位，对外只暴露 `vector<RenderObject>`；`GetDeletedObjects()` 驱动 remove。
+- LitPass：每帧收集 `RenderObject` → 按材质/网格两级排序 → 换绑跳过 → 绘制。
+- 每个场景对象 = `RenderObject`：`id + MeshResource::Handle + MaterialState::Handle + ObjectState`；`ObjectState` = kMaxFramesInFlight 个 UBO + K 个描述集（`mat4 model` + 材质参数）。
 - Camera 为纯视图状态（position + yaw/pitch，轴/矩阵按需派生）；orbit 逻辑在 application 层 OrbitCameraController；Object 持 id + active + deletePending + 脏标记。
 
 ## 错误处理约定
