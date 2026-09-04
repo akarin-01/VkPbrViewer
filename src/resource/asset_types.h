@@ -207,6 +207,7 @@ namespace Kita::Pbrv
 
         struct ModelInstance
         {
+            std::string m_name;
             MeshView::Handle m_mesh;
             std::array<TextureView::Handle, kMaterialSlotCount> m_textures;
             MaterialParams m_material;

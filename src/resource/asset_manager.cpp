@@ -59,9 +59,14 @@ namespace Kita::Pbrv
             TextureAsset::Handle asset = m_textureAssetCache.GetOrCreate(key,
                 [this](const TextureKey& texKey) -> std::optional<TextureAsset>
                 {
-                    TextureAsset texture = AssetUtils::LoadTexture(texKey.m_path, texKey.m_type);
-                    Core::Log::Info("[Resource] Create texture asset: ", texture.m_name, ", ",
-                        texture.m_width, "x", texture.m_height);
+                    auto texture = AssetUtils::LoadTexture(texKey.m_path, texKey.m_type);
+                    if (!texture)
+                    {
+                        return std::nullopt;
+                    }
+
+                    Core::Log::Info("[Resource] Create texture asset: ", texture->m_name, ", ",
+                        texture->m_width, "x", texture->m_height);
 
                     return texture;
                 });
@@ -93,6 +98,7 @@ namespace Kita::Pbrv
                 const ModelAsset::Part& part = model->m_parts[i];
 
                 ModelInstance instance;
+                instance.m_name = part.m_name;
                 instance.m_mesh = GetOrCreateMeshView(model, path, i);
                 instance.m_material = part.m_material;
                 instance.m_transform = part.m_transform;

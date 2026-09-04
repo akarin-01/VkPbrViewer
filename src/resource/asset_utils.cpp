@@ -10,7 +10,14 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/matrix_decompose.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 #include <filesystem>
+#include <optional>
 #include <stdexcept>
 
 namespace Kita::Pbrv
@@ -176,6 +183,88 @@ namespace Kita::Pbrv
 
                     vertices[i].tangent = glm::vec4(t, w);
                 }
+            }
+
+            glm::mat4 MakeNodeLocalMatrix(const tinygltf::Node& node)
+            {
+                if (node.matrix.size() >= 16)
+                {
+                    return glm::make_mat4(node.matrix.data());
+                }
+
+                const glm::vec3 translation = node.translation.size() == 3
+                    ? glm::vec3(
+                        static_cast<float>(node.translation[0]),
+                        static_cast<float>(node.translation[1]),
+                        static_cast<float>(node.translation[2]))
+                    : glm::vec3(0.0f);
+
+                const glm::quat rotation = node.rotation.size() == 4
+                    ? glm::quat(
+                        static_cast<float>(node.rotation[3]),
+                        static_cast<float>(node.rotation[0]),
+                        static_cast<float>(node.rotation[1]),
+                        static_cast<float>(node.rotation[2]))
+                    : glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+
+                const glm::vec3 scale = node.scale.size() == 3
+                    ? glm::vec3(
+                        static_cast<float>(node.scale[0]),
+                        static_cast<float>(node.scale[1]),
+                        static_cast<float>(node.scale[2]))
+                    : glm::vec3(1.0f);
+
+                return glm::translate(glm::mat4(1.0f), translation)
+                    * glm::mat4_cast(rotation)
+                    * glm::scale(glm::mat4(1.0f), scale);
+            }
+
+            bool FindFirstMeshWorld(const tinygltf::Model& model, int nodeIndex,
+                int targetMeshIndex, const glm::mat4& parentWorld, glm::mat4& outWorld)
+            {
+                if (nodeIndex < 0 || nodeIndex >= static_cast<int>(model.nodes.size()))
+                {
+                    return false;
+                }
+
+                const tinygltf::Node& node = model.nodes[nodeIndex];
+                const glm::mat4 world = parentWorld * MakeNodeLocalMatrix(node);
+
+                if (node.mesh == targetMeshIndex)
+                {
+                    outWorld = world;
+                    return true;
+                }
+
+                for (int child : node.children)
+                {
+                    if (FindFirstMeshWorld(model, child, targetMeshIndex, world, outWorld))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            Transform DecomposeTransform(const glm::mat4& matrix)
+            {
+                Transform transform;
+
+                glm::vec3 scale;
+                glm::quat rotation;
+                glm::vec3 translation;
+                glm::vec3 skew;
+                glm::vec4 perspective;
+
+                if (glm::decompose(matrix, scale, rotation, translation, skew, perspective))
+                {
+                    transform.m_position = translation;
+                    transform.m_rotation = glm::degrees(glm::eulerAngles(rotation));
+                    transform.m_scale = scale;
+                }
+
+                return transform;
             }
 
             MeshAsset BuildMeshFromPrimitive(const tinygltf::Model& model, const tinygltf::Primitive& primitive, const std::string& name)
@@ -371,8 +460,33 @@ namespace Kita::Pbrv
                 ModelAsset asset;
                 asset.m_name = filePath.stem().string();
 
-                for (const auto& mesh : model.meshes)
+                std::vector<Transform> meshTransforms(model.meshes.size());
+                if (!model.scenes.empty())
                 {
+                    const int sceneIndex = model.defaultScene >= 0 ? model.defaultScene : 0;
+                    if (sceneIndex < static_cast<int>(model.scenes.size()))
+                    {
+                        const auto& rootNodes = model.scenes[sceneIndex].nodes;
+                        for (size_t meshIndex = 0; meshIndex < model.meshes.size(); ++meshIndex)
+                        {
+                            for (int root : rootNodes)
+                            {
+                                glm::mat4 worldMatrix(1.0f);
+                                if (FindFirstMeshWorld(model, root, static_cast<int>(meshIndex),
+                                    glm::mat4(1.0f), worldMatrix))
+                                {
+                                    meshTransforms[meshIndex] = DecomposeTransform(worldMatrix);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                for (size_t meshIndex = 0; meshIndex < model.meshes.size(); ++meshIndex)
+                {
+                    const auto& mesh = model.meshes[meshIndex];
+
                     for (const auto& primitive : mesh.primitives)
                     {
                         if (primitive.mode != TINYGLTF_MODE_TRIANGLES)
@@ -384,6 +498,7 @@ namespace Kita::Pbrv
                         ModelAsset::Part part;
                         part.m_name = mesh.name.empty() ? filePath.stem().string() : mesh.name;
                         part.m_mesh = BuildMeshFromPrimitive(model, primitive, part.m_name);
+                        part.m_transform = meshTransforms[meshIndex];
 
                         if (primitive.material >= 0
                             && primitive.material < static_cast<int>(model.materials.size()))
@@ -403,7 +518,7 @@ namespace Kita::Pbrv
                 return asset;
             }
 
-            TextureAsset LoadTexture(const std::string& path, TextureAsset::Type type)
+            std::optional<TextureAsset> AssetUtils::LoadTexture(const std::string& path, TextureAsset::Type type)
             {
                 Core::Log::Info("[Resource] Load texture: ", path);
 
@@ -420,7 +535,8 @@ namespace Kita::Pbrv
                 }
                 if (!data)
                 {
-                    throw std::runtime_error("Failed to load texture '" + path + "'");
+                    Core::Log::Warning("[Resource] Failed to load texture: ", path);
+                    return std::nullopt;
                 }
                 const size_t byteSize = static_cast<size_t>(texWidth)
                     * static_cast<size_t>(texHeight)

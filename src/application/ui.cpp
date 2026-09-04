@@ -333,7 +333,9 @@ namespace Kita::Pbrv
                         }
                         ImGui::SameLine();
 
-                        const std::string title = "Object " + std::to_string(object.GetId());
+                        const std::string title = object.GetName().empty()
+                            ? "Object " + std::to_string(object.GetId())
+                            : object.GetName();
                         if (ImGui::CollapsingHeader(title.c_str()))
                         {
                             DrawTransform(object);
@@ -356,6 +358,7 @@ namespace Kita::Pbrv
                                 {
                                     auto& object = scene.CreateObject();
                                     object.SetMesh(instance.m_mesh);
+                                    object.SetName(instance.m_name);
                                     object.SetTransform(instance.m_transform);
                                     object.GetMaterial().SetParams(instance.m_material);
 

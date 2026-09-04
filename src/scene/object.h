@@ -5,6 +5,7 @@
 #include "scene/material.h"
 
 #include <glm/glm.hpp>
+#include <string>
 
 namespace Kita::Pbrv
 {
@@ -29,6 +30,7 @@ namespace Kita::Pbrv
             bool IsDeletePending() const { return m_deletePending; }
 
             Object& SetMesh(Resource::MeshView::Handle mesh);
+            Object& SetName(std::string name);
 
             Object& SetPosition(const glm::vec3& position);
             Object& SetRotation(const glm::vec3& rotation);
@@ -37,6 +39,7 @@ namespace Kita::Pbrv
 
             const Resource::MeshView::Handle& GetMesh() const { return m_mesh; }
 
+            const std::string& GetName() const { return m_name; }
             glm::vec3 GetPosition() const { return m_transform.m_position; }
             glm::vec3 GetRotation() const { return m_transform.m_rotation; }
             glm::vec3 GetScale() const { return m_transform.m_scale; }
@@ -52,6 +55,8 @@ namespace Kita::Pbrv
 
             Resource::MeshView::Handle m_mesh{};
             bool m_meshDirty{ true };
+
+            std::string m_name{};
 
             Resource::Transform m_transform{};
 

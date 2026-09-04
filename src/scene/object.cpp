@@ -5,6 +5,7 @@
 #include "render/scene_proxy.h"
 
 #include <array>
+#include <utility>
 
 namespace Kita::Pbrv
 {
@@ -46,6 +47,12 @@ namespace Kita::Pbrv
             }
             m_mesh = std::move(mesh);
             m_meshDirty = true;
+            return *this;
+        }
+
+        Object& Object::SetName(std::string name)
+        {
+            m_name = std::move(name);
             return *this;
         }
 
