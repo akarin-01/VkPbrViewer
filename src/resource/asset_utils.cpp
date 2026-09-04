@@ -1,6 +1,7 @@
 #include "asset_utils.h"
 
 #include "core/log.h"
+#include "core/path.h"
 
 #define TINYGLTF_IMPLEMENTATION
 #define TINYGLTF_NO_STB_IMAGE_WRITE
@@ -176,11 +177,173 @@ namespace Kita::Pbrv
                     vertices[i].tangent = glm::vec4(t, w);
                 }
             }
+
+            MeshAsset BuildMeshFromPrimitive(const tinygltf::Model& model, const tinygltf::Primitive& primitive, const std::string& name)
+            {
+                std::vector<Vertex> vertices;
+                std::vector<uint32_t> indices;
+
+                if (primitive.mode != TINYGLTF_MODE_TRIANGLES)
+                {
+                    throw std::runtime_error("Unsupported primitive mode");
+                }
+
+                auto positionIt = primitive.attributes.find("POSITION");
+                if (positionIt == primitive.attributes.end())
+                {
+                    throw std::runtime_error("Primitive has no POSITION attribute");
+                }
+                const tinygltf::Accessor& positionAccessor = model.accessors[positionIt->second];
+
+                auto normalIt = primitive.attributes.find("NORMAL");
+                bool hasNormal = (normalIt != primitive.attributes.end());
+                const tinygltf::Accessor* normalAccessor = hasNormal ? &model.accessors[normalIt->second] : nullptr;
+
+                auto texCoordIt = primitive.attributes.find("TEXCOORD_0");
+                bool hasTexCoord = (texCoordIt != primitive.attributes.end());
+                const tinygltf::Accessor* texCoordAccessor = hasTexCoord ? &model.accessors[texCoordIt->second] : nullptr;
+
+                auto tangentIt = primitive.attributes.find("TANGENT");
+                bool hasTangent = (tangentIt != primitive.attributes.end());
+                const tinygltf::Accessor* tangentAccessor = hasTangent ? &model.accessors[tangentIt->second] : nullptr;
+
+                vertices.resize(positionAccessor.count);
+                for (size_t i = 0; i < positionAccessor.count; ++i)
+                {
+                    Vertex& vertex = vertices[i];
+                    vertex.position = ReadAccessorElement(model, positionAccessor, i);
+                    vertex.normal = hasNormal ?
+                        ReadAccessorElement(model, *normalAccessor, i) :
+                        glm::vec3(0.0f, 1.0f, 0.0f);
+                    vertex.texCoord = hasTexCoord ?
+                        ReadAccessorElement(model, *texCoordAccessor, i) :
+                        glm::vec2(0.0f);
+                    vertex.tangent = hasTangent ?
+                        ReadAccessorElement(model, *tangentAccessor, i) :
+                        glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
+                }
+
+                if (primitive.indices < 0)
+                {
+                    indices.reserve(positionAccessor.count);
+                    for (size_t i = 0; i < positionAccessor.count; ++i)
+                    {
+                        indices.push_back(static_cast<uint32_t>(i));
+                    }
+                }
+                else
+                {
+                    const tinygltf::Accessor& indexAccessor = model.accessors[primitive.indices];
+                    indices.reserve(indexAccessor.count);
+                    for (size_t i = 0; i < indexAccessor.count; ++i)
+                    {
+                        indices.push_back(ReadAccessorIndex(model, indexAccessor, i));
+                    }
+                }
+
+                if (vertices.empty() || indices.empty())
+                {
+                    throw std::runtime_error("Primitive has no valid triangle data");
+                }
+
+                ComputeTangents(vertices, indices);
+
+                MeshAsset mesh;
+                mesh.m_name = name.empty() ? "mesh" : name;
+                mesh.m_vertices = std::move(vertices);
+                mesh.m_indices = std::move(indices);
+                return mesh;
+            }
+
+            TextureKey MakeTextureKey(const tinygltf::Model& model, int textureIndex,
+                const std::filesystem::path& baseDir, TextureAsset::Type type, const std::string& gltfPath)
+            {
+                TextureKey key;
+
+                if (textureIndex < 0 || textureIndex >= static_cast<int>(model.textures.size()))
+                {
+                    return key;
+                }
+
+                const tinygltf::Texture& texture = model.textures[textureIndex];
+                if (texture.source < 0 || texture.source >= static_cast<int>(model.images.size()))
+                {
+                    return key;
+                }
+
+                const tinygltf::Image& image = model.images[texture.source];
+
+                // Internal textures are intentionally not supported yet.
+                if (image.uri.empty() || image.uri.rfind("data:", 0) == 0)
+                {
+                    Core::Log::Warning("[Resource] Skipping non-external texture in '", gltfPath, "'");
+                    return key;
+                }
+
+                key.m_path = Core::Path::Normalize((baseDir / image.uri).string());
+                key.m_type = type;
+                return key;
+            }
+
+            void FillMaterial(const tinygltf::Model& model, ModelAsset::Part& part,
+                const tinygltf::Material& material,
+                const std::filesystem::path& baseDir, const std::string& gltfPath)
+            {
+                const tinygltf::PbrMetallicRoughness& pbr = material.pbrMetallicRoughness;
+
+                if (pbr.baseColorFactor.size() >= 4)
+                {
+                    part.m_material.m_baseColorFactor = glm::vec4(
+                        static_cast<float>(pbr.baseColorFactor[0]),
+                        static_cast<float>(pbr.baseColorFactor[1]),
+                        static_cast<float>(pbr.baseColorFactor[2]),
+                        static_cast<float>(pbr.baseColorFactor[3]));
+                }
+
+                part.m_material.m_metallicFactor = static_cast<float>(pbr.metallicFactor);
+                part.m_material.m_roughnessFactor = static_cast<float>(pbr.roughnessFactor);
+
+                if (pbr.baseColorTexture.index >= 0)
+                {
+                    part.m_textureKeys[static_cast<size_t>(MaterialSlot::Albedo)] =
+                        MakeTextureKey(model, pbr.baseColorTexture.index, baseDir, TextureAsset::Type::Srgb, gltfPath);
+                }
+                if (pbr.metallicRoughnessTexture.index >= 0)
+                {
+                    part.m_textureKeys[static_cast<size_t>(MaterialSlot::MetallicRoughness)] =
+                        MakeTextureKey(model, pbr.metallicRoughnessTexture.index, baseDir,
+                            TextureAsset::Type::MetallicRoughness, gltfPath);
+                }
+
+                if (material.normalTexture.index >= 0)
+                {
+                    part.m_textureKeys[static_cast<size_t>(MaterialSlot::Normal)] =
+                        MakeTextureKey(model, material.normalTexture.index, baseDir, TextureAsset::Type::Normal, gltfPath);
+                }
+                if (material.occlusionTexture.index >= 0)
+                {
+                    part.m_textureKeys[static_cast<size_t>(MaterialSlot::AO)] =
+                        MakeTextureKey(model, material.occlusionTexture.index, baseDir, TextureAsset::Type::Linear, gltfPath);
+                }
+                if (material.emissiveTexture.index >= 0)
+                {
+                    part.m_textureKeys[static_cast<size_t>(MaterialSlot::Emissive)] =
+                        MakeTextureKey(model, material.emissiveTexture.index, baseDir, TextureAsset::Type::Srgb, gltfPath);
+                }
+
+                if (material.emissiveFactor.size() >= 3)
+                {
+                    part.m_material.m_emissiveFactor = glm::vec3(
+                        static_cast<float>(material.emissiveFactor[0]),
+                        static_cast<float>(material.emissiveFactor[1]),
+                        static_cast<float>(material.emissiveFactor[2]));
+                }
+            }
         }
 
         namespace AssetUtils
         {
-            MeshAsset AssetUtils::LoadGltfMesh(const std::string& path)
+            ModelAsset AssetUtils::LoadGltf(const std::string& path)
             {
                 Core::Log::Info("[Resource] Load glTF: ", path);
 
@@ -201,88 +364,43 @@ namespace Kita::Pbrv
                 {
                     throw std::runtime_error("Failed to load glTF '" + path + "': " + err);
                 }
-                if (model.meshes.empty())
+
+                const std::filesystem::path filePath(path);
+                const std::filesystem::path baseDir = filePath.parent_path();
+
+                ModelAsset asset;
+                asset.m_name = filePath.stem().string();
+
+                for (const auto& mesh : model.meshes)
                 {
-                    throw std::runtime_error("glTF '" + path + "' contains no meshes");
-                }
-
-                std::vector<Vertex> vertices;
-                std::vector<uint32_t> indices;
-
-                // Only support 1 mesh
-                for (const auto& primitive : model.meshes[0].primitives)
-                {
-                    if (primitive.mode != TINYGLTF_MODE_TRIANGLES)
+                    for (const auto& primitive : mesh.primitives)
                     {
-                        Core::Log::Warning("[Resource] Unsupported primitive mode, skipped");
-                        continue;
-                    }
-
-                    auto positionIt = primitive.attributes.find("POSITION");
-                    if (positionIt == primitive.attributes.end())
-                    {
-                        throw std::runtime_error("Primitive has no POSITION attribute");
-                    }
-                    const tinygltf::Accessor& positionAccessor = model.accessors[positionIt->second];
-
-                    auto normalIt = primitive.attributes.find("NORMAL");
-                    bool hasNormal = (normalIt != primitive.attributes.end());
-                    const tinygltf::Accessor* normalAccessor = hasNormal ? &model.accessors[normalIt->second] : nullptr;
-
-                    auto texCoordIt = primitive.attributes.find("TEXCOORD_0");
-                    bool hasTexCoord = (texCoordIt != primitive.attributes.end());
-                    const tinygltf::Accessor* texCoordAccessor = hasTexCoord ? &model.accessors[texCoordIt->second] : nullptr;
-
-                    auto tangentIt = primitive.attributes.find("TANGENT");
-                    bool hasTangent = (tangentIt != primitive.attributes.end());
-                    const tinygltf::Accessor* tangentAccessor = hasTangent ? &model.accessors[tangentIt->second] : nullptr;
-
-                    const uint32_t baseVertexIdx = static_cast<uint32_t>(vertices.size());
-                    vertices.resize(vertices.size() + positionAccessor.count);
-                    for (size_t i = 0; i < positionAccessor.count; ++i)
-                    {
-                        Vertex& vertex = vertices[baseVertexIdx + i];
-                        vertex.position = ReadAccessorElement(model, positionAccessor, i);
-                        vertex.normal = hasNormal ?
-                            ReadAccessorElement(model, *normalAccessor, i) :
-                            glm::vec3(0.0f, 1.0f, 0.0f);
-                        vertex.texCoord = hasTexCoord ?
-                            ReadAccessorElement(model, *texCoordAccessor, i) :
-                            glm::vec2(0.0f);
-                        vertex.tangent = hasTangent ?
-                            ReadAccessorElement(model, *tangentAccessor, i) :
-                            glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
-                    }
-
-                    if (primitive.indices < 0)
-                    {
-                        indices.reserve(indices.size() + positionAccessor.count);
-                        for (size_t i = 0; i < positionAccessor.count; ++i)
+                        if (primitive.mode != TINYGLTF_MODE_TRIANGLES)
                         {
-                            indices.emplace_back(baseVertexIdx + static_cast<uint32_t>(i));
+                            Core::Log::Warning("[Resource] Unsupported primitive mode, skipped");
+                            continue;
                         }
-                    }
-                    else
-                    {
-                        const tinygltf::Accessor& indexAccessor = model.accessors[primitive.indices];
-                        indices.reserve(indices.size() + indexAccessor.count);
-                        for (size_t i = 0; i < indexAccessor.count; ++i)
+
+                        ModelAsset::Part part;
+                        part.m_name = mesh.name.empty() ? filePath.stem().string() : mesh.name;
+                        part.m_mesh = BuildMeshFromPrimitive(model, primitive, part.m_name);
+
+                        if (primitive.material >= 0
+                            && primitive.material < static_cast<int>(model.materials.size()))
                         {
-                            indices.emplace_back(baseVertexIdx + ReadAccessorIndex(model, indexAccessor, i));
+                            FillMaterial(model, part, model.materials[primitive.material], baseDir, path);
                         }
+
+                        asset.m_parts.push_back(std::move(part));
                     }
                 }
 
-                if (vertices.empty() || indices.empty())
+                if (asset.m_parts.empty())
                 {
                     throw std::runtime_error("glTF '" + path + "' contains no valid triangle primitives");
                 }
 
-                ComputeTangents(vertices, indices);
-
-                std::string name = std::filesystem::path(path).stem().string();
-
-                return { name, std::move(vertices), std::move(indices) };
+                return asset;
             }
 
             TextureAsset LoadTexture(const std::string& path, TextureAsset::Type type)

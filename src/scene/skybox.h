@@ -15,12 +15,12 @@ namespace Kita::Pbrv
             /// Writes the environment record when the skybox changes
             void Update();
 
-            Skybox& SetSkybox(Resource::TextureAsset::Handle skybox);
+            Skybox& SetSkybox(Resource::TextureView::Handle skybox);
 
-            Resource::TextureAsset::Handle GetSkybox() const { return m_skybox; }
+            Resource::TextureView::Handle GetSkybox() const { return m_skybox; }
 
         private:
-            Resource::TextureAsset::Handle m_skybox{};
+            Resource::TextureView::Handle m_skybox{};
             bool m_skyboxDirty{ true };
         };
     }

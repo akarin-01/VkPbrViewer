@@ -30,9 +30,9 @@ namespace Kita::Pbrv
 
                 if (tex.IsValid())
                 {
-                    ImGui::TextUnformatted(tex->m_name.c_str());
+                    ImGui::TextUnformatted(tex->GetName().c_str());
                     ImGui::SameLine();
-                    ImGui::Text("(%ux%u)", tex->m_width, tex->m_height);
+                    ImGui::Text("(%ux%u)", tex->GetWidth(), tex->GetHeight());
                 }
                 else
                 {
@@ -111,9 +111,9 @@ namespace Kita::Pbrv
                         const auto& tex = skybox.GetSkybox();
                         if (tex.IsValid())
                         {
-                            ImGui::TextUnformatted(tex->m_name.c_str());
+                            ImGui::TextUnformatted(tex->GetName().c_str());
                             ImGui::SameLine();
-                            ImGui::Text("(%ux%u)", tex->m_width, tex->m_height);
+                            ImGui::Text("(%ux%u)", tex->GetWidth(), tex->GetHeight());
                         }
                         else
                         {
@@ -138,7 +138,7 @@ namespace Kita::Pbrv
                         ImGui::SameLine();
                         if (ImGui::Button("Delete##Skybox"))
                         {
-                            skybox.SetSkybox(Resource::TextureAsset::Handle{});
+                            skybox.SetSkybox(Resource::TextureView::Handle{});
                         }
                     });
             }
@@ -174,7 +174,7 @@ namespace Kita::Pbrv
                         const auto& mesh = object.GetMesh();
                         if (mesh.IsValid())
                         {
-                            ImGui::TextUnformatted(mesh->m_name.c_str());
+                            ImGui::TextUnformatted(mesh->GetName().c_str());
                             ImGui::SameLine();
                             ImGui::Text("(%zu verts, %zu idx)", mesh->GetVertexCount(), mesh->GetIndexCount());
                         }
@@ -201,7 +201,7 @@ namespace Kita::Pbrv
                         ImGui::SameLine();
                         if (ImGui::Button("Delete##Mesh"))
                         {
-                            object.SetMesh(Resource::MeshAsset::Handle{});
+                            object.SetMesh(Resource::MeshView::Handle{});
                         }
                     });
             }
@@ -287,6 +287,7 @@ namespace Kita::Pbrv
                     DrawBox("##AssetsBox", "Assets", [&assets]()
                         {
                             ImGui::Text("Meshes  : %zu", assets.GetMeshCount());
+                            ImGui::Text("Models  : %zu", assets.GetModelCount());
                             ImGui::Text("Textures: %zu", assets.GetTextureCount());
                         });
 
@@ -343,10 +344,37 @@ namespace Kita::Pbrv
                         ImGui::PopID();
                     }
 
-                    // Create a new object below the list
-                    if (ImGui::Button("Create Object"))
+                    if (ImGui::Button("Import Objects"))
                     {
-                        scene.CreateObject();
+                        auto path = OpenFileDialog("Model Files\0*.glb;*.gltf\0All Files\0*.*\0");
+                        if (path)
+                        {
+                            try
+                            {
+                                auto result = assets.LoadModel(path.value());
+                                for (const auto& instance : result.m_instances)
+                                {
+                                    auto& object = scene.CreateObject();
+                                    object.SetMesh(instance.m_mesh);
+                                    object.SetTransform(instance.m_transform);
+                                    object.GetMaterial().SetParams(instance.m_material);
+
+                                    for (uint32_t slot = 0; slot < Resource::kMaterialSlotCount; ++slot)
+                                    {
+                                        const auto& texture = instance.m_textures[slot];
+                                        if (texture.IsValid())
+                                        {
+                                            object.GetMaterial().SetTexture(
+                                                static_cast<Resource::MaterialSlot>(slot), texture);
+                                        }
+                                    }
+                                }
+                            }
+                            catch (const std::exception& e)
+                            {
+                                Core::Log::Error("[UI] ", e.what());
+                            }
+                        }
                     }
                 }
             }

@@ -28,7 +28,7 @@ namespace Kita::Pbrv
                     .SetNormalTex(assetMgr.LoadTexture("assets/models/DamagedHelmet/Default_normal.jpg", Resource::TextureAsset::Type::Normal))
                     .SetMRTex(assetMgr.LoadTexture("assets/models/DamagedHelmet/Default_metalRoughness.jpg", Resource::TextureAsset::Type::MetallicRoughness))
                     .SetAOTex(assetMgr.LoadTexture("assets/models/DamagedHelmet/Default_AO.jpg", Resource::TextureAsset::Type::Linear))
-                    .SetEmissiveTex(assetMgr.LoadTexture("assets/models/DamagedHelmet/Default_Emissive.jpg", Resource::TextureAsset::Type::Srgb));
+                    .SetEmissiveTex(assetMgr.LoadTexture("assets/models/DamagedHelmet/Default_emissive.jpg", Resource::TextureAsset::Type::Srgb));
 
                 auto& skybox = scene.GetSkybox();
                 skybox.SetSkybox(assetMgr.LoadTexture("assets/hdr/qwantani_moon_noon_puresky_4k.hdr", Resource::TextureAsset::Type::Hdr));

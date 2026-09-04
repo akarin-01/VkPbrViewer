@@ -27,7 +27,7 @@
   - 该路径允许支持多 mesh、多 primitive、多 material。
   - 当前贴图来源仍只支持外部 URI。
 - 单 Object 替换（Replace Mesh / Replace Texture）：
-  - `Replace Mesh` 只允许加载“单 primitive glTF/GLB”。
+  - `Replace Mesh` 只允许加载“单 primitive glTF/GLB”，默认使用 part index 0。
   - `Replace Texture` 只允许加载“外部贴图文件”。
   - 手动替换不支持从 glTF 内部选择某个 primitive 或内部贴图。
 - Replace Mesh 降级规则：
@@ -47,56 +47,110 @@
 - 外部贴图在解析时转换为绝对路径，并以 `TextureKey`（绝对路径 + `TextureAsset::Type`）缓存。
 - 外部贴图可以独立加载，不与 glTF 生命周期强绑定。
 
+#### Asset / View 分层
+
+- **实际数据类**：
+  - `ModelAsset`：glTF 文件级数据，包含多个 `Part`
+  - `MeshAsset`：实际几何数据
+  - `TextureAsset`：实际解码后的图片数据
+- **外部访问器（本身是 handle，有 id）**：
+  - `MeshView`：指向 `ModelAsset` 中某个 `Part`
+  - `TextureView`：指向某个 `TextureAsset`
+- Scene 层持有的是 view handle，不直接穿透访问 asset 内部字段。
+- View / Asset 都应提供便捷访问方法；禁止外部调用时出现 `a.xx.yy` 式穿透。
+
 #### AssetManager 公共 API
 
 ```cpp
-MeshView LoadMesh(const std::string& path);
-TextureView LoadTexture(const std::string& path, TextureAsset::Type type);
+MeshView::Handle LoadMesh(const std::string& path, uint32_t partIndex = 0);
+TextureView::Handle LoadTexture(const std::string& path, TextureAsset::Type type);
 ModelLoadResult LoadModel(const std::string& path);
 ```
 
-- `LoadMesh`：只加载 mesh，返回第一个可绘制部分的 `MeshView`。
-- `LoadTexture`：只加载一张独立外部贴图，返回 `TextureView`。
-- `LoadModel`：一键加载模型，返回多个可创建 `Scene::Object` 的实例。
+- `LoadMesh`：返回 `MeshView::Handle`，默认 part index 0。
+- `LoadTexture`：返回 `TextureView::Handle`。
+- `LoadModel`：返回多个可创建 `Scene::Object` 的 `ModelInstance`。
 
 #### 公共类型
 
-- `MeshView`
-  - 直接持有 `Handle<GltfAsset> m_asset` 与 `uint32_t m_objectIndex`，不使用 pimpl。
-  - 对外只暴露 mesh 访问，例如 `GetMesh()`、`IsValid()`、`GetId()`。
-  - 不暴露 `GltfObject`。
-- `TextureView`
-  - 持有 `TextureAsset::Handle m_texture`。
+- `MeshView::Handle`
+  - 外部持有的 mesh 访问器
+  - 有独立 `ResourceId`
+  - 同一个 `(path, partIndex)` 共享同一个 view
+- `TextureView::Handle`
+  - 外部持有的贴图访问器
+  - 有独立 `ResourceId`
+  - 同一个 `TextureKey` 共享同一个 view
 - `MaterialParams`
-  - 通用材质参数结构体，不含 glTF 前缀，Scene 层可直接使用。
+  - 通用材质参数结构体，Scene 层可直接使用。
 - `Transform`
-  - 通用变换结构体，不含 glTF 前缀，Scene 层可直接使用。
+  - 通用变换结构体，Scene 层可直接使用。
 - `ModelInstance`
-  - `MeshView m_mesh`
-  - `std::array<TextureView, kMaterialSlotCount> m_textures`
+  - `MeshView::Handle m_mesh`
+  - `std::array<TextureView::Handle, kMaterialSlotCount> m_textures`
   - `MaterialParams m_material`
   - `Transform m_transform`
 - `ModelLoadResult`
   - `std::vector<ModelInstance> m_instances`
 
-#### 内部结构（不对外暴露）
+#### 缓存键
 
-- `GltfAsset` 持有 `std::vector<GltfObject>`。
-- 每个 `GltfObject` 持有：
-  - `MeshAsset m_mesh`
-  - `MaterialParams m_material`
-  - `std::array<TextureKey, kMaterialSlotCount> m_textureKeys`
-  - `Transform m_transform`
-- `GltfAsset` / `GltfObject` 作为内部实现，不进入 Scene 层公共 API。
-- `AssetUtils` 负责实际 glTF 解析，返回可被 `GltfAsset` 缓存的数据。
+```cpp
+struct MeshKey
+{
+    std::string m_path;
+    uint32_t m_partIndex{ 0 };
+};
 
-#### 生命周期与缓存
+struct TextureKey
+{
+    std::string m_path;
+    TextureAsset::Type m_type;
+};
+```
 
-- `GltfAsset` 是 Resource 层内部缓存单位，路径缓存，自动引用计数释放。
-- `MeshView` 持有 `GltfAsset::Handle`，因此 Object 使用 mesh 时 `GltfAsset` 不会提前释放。
-- `TextureAsset` 继续使用现有 `m_textureCache` 按 `TextureKey` 缓存。
-- `LoadModel` 与 `LoadMesh` 共用同一个 `GltfAsset` 缓存，避免同一 glTF 文件重复解析。
-- `LoadTexture` 独立使用 `m_textureCache`，与 glTF 文件缓存解耦。
+#### 内部缓存结构
+
+```cpp
+CacheTable<ModelAsset, std::string>                  m_modelCache;
+CacheTable<MeshView, MeshKey, MeshKey::Hash>          m_meshViewCache;
+CacheTable<TextureAsset, TextureKey, TextureKey::Hash> m_textureAssetCache;
+CacheTable<TextureView, TextureKey, TextureKey::Hash> m_textureViewCache;
+```
+
+- `m_modelCache`：实际 glTF 数据缓存
+- `m_meshViewCache`：MeshView 句柄缓存
+- `m_textureAssetCache`：实际贴图数据缓存
+- `m_textureViewCache`：TextureView 句柄缓存
+
+#### 生命周期
+
+- `Scene::Object` 持有 `MeshView::Handle`
+  - MeshView 存活
+  - MeshView 持有 `ModelAsset::Handle`
+  - ModelAsset 存活
+- `Scene::Material` 持有 `TextureView::Handle`
+  - TextureView 存活
+  - TextureView 持有 `TextureAsset::Handle`
+  - TextureAsset 存活
+- 没有外部引用时，view 和数据都会按引用计数自动释放。
+- **有效性不变量**：一个有效 view 必然持有有效且存活的 asset handle；AssetManager 只会从有效 asset 创建 view。默认构造 / 空路径返回的 view 无效，且不持有任何 asset。
+
+#### 访问规则
+
+- 外部通过 `MeshView::Handle` 使用便捷方法：
+  - `GetName()`
+  - `GetVertexCount()`
+  - `GetVertexData()`
+  - `GetIndexCount()`
+  - `GetIndexData()`
+- 外部通过 `TextureView::Handle` 使用便捷方法：
+  - `GetName()`
+  - `GetWidth()`
+  - `GetHeight()`
+  - `GetType()`
+  - `GetByteCount()`
+- 禁止从外部穿透访问 `view->m_model->...` 或 `view->m_texture->...` 等内部字段。
 
 ### 错误处理约定（后续阶段一律参考）
 

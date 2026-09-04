@@ -12,41 +12,47 @@ namespace Kita::Pbrv
 
         Material& Material::SetAlbedo(const glm::vec4& albedo)
         {
-            m_albedo = albedo;
+            m_params.m_baseColorFactor = albedo;
             return *this;
         }
 
         Material& Material::SetMetallic(float metallic)
         {
-            m_metallic = metallic;
+            m_params.m_metallicFactor = metallic;
             return *this;
         }
 
         Material& Material::SetRoughness(float roughness)
         {
-            m_roughness = roughness;
+            m_params.m_roughnessFactor = roughness;
             return *this;
         }
 
         Material& Material::SetAO(float ao)
         {
-            m_ao = ao;
+            m_params.m_ao = ao;
             return *this;
         }
 
         Material& Material::SetEmissive(glm::vec3 emissive)
         {
-            m_emissive = emissive;
+            m_params.m_emissiveFactor = emissive;
             return *this;
         }
 
         Material& Material::SetEmissiveIntensity(float intensity)
         {
-            m_emissiveIntensity = intensity;
+            m_params.m_emissiveIntensity = intensity;
             return *this;
         }
 
-        Material& Material::SetAlbedoTex(Resource::TextureAsset::Handle texture)
+        Material& Material::SetParams(const Resource::MaterialParams& params)
+        {
+            m_params = params;
+            return *this;
+        }
+
+        Material& Material::SetAlbedoTex(Resource::TextureView::Handle texture)
         {
             if (texture.GetId() == m_albedoTex.GetId())
             {
@@ -57,7 +63,7 @@ namespace Kita::Pbrv
             return *this;
         }
 
-        Material& Material::SetNormalTex(Resource::TextureAsset::Handle texture)
+        Material& Material::SetNormalTex(Resource::TextureView::Handle texture)
         {
             if (texture.GetId() == m_normalTex.GetId())
             {
@@ -68,7 +74,7 @@ namespace Kita::Pbrv
             return *this;
         }
 
-        Material& Material::SetMRTex(Resource::TextureAsset::Handle texture)
+        Material& Material::SetMRTex(Resource::TextureView::Handle texture)
         {
             if (texture.GetId() == m_mrTex.GetId())
             {
@@ -79,7 +85,7 @@ namespace Kita::Pbrv
             return *this;
         }
 
-        Material& Material::SetAOTex(Resource::TextureAsset::Handle texture)
+        Material& Material::SetAOTex(Resource::TextureView::Handle texture)
         {
             if (texture.GetId() == m_aoTex.GetId())
             {
@@ -90,7 +96,7 @@ namespace Kita::Pbrv
             return *this;
         }
 
-        Material& Material::SetEmissiveTex(Resource::TextureAsset::Handle texture)
+        Material& Material::SetEmissiveTex(Resource::TextureView::Handle texture)
         {
             if (texture.GetId() == m_emissiveTex.GetId())
             {
@@ -101,7 +107,7 @@ namespace Kita::Pbrv
             return *this;
         }
 
-        Material& Material::SetTexture(Resource::MaterialSlot slot, Resource::TextureAsset::Handle texture)
+        Material& Material::SetTexture(Resource::MaterialSlot slot, Resource::TextureView::Handle texture)
         {
             switch (slot)
             {

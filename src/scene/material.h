@@ -23,27 +23,32 @@ namespace Kita::Pbrv
             Material& SetEmissive(glm::vec3 emissive);
             Material& SetEmissiveIntensity(float intensity);
 
-            Material& SetAlbedoTex(Resource::TextureAsset::Handle texture);
-            Material& SetNormalTex(Resource::TextureAsset::Handle texture);
-            Material& SetMRTex(Resource::TextureAsset::Handle texture);
-            Material& SetAOTex(Resource::TextureAsset::Handle texture);
-            Material& SetEmissiveTex(Resource::TextureAsset::Handle texture);
-            Material& SetTexture(Resource::MaterialSlot slot, Resource::TextureAsset::Handle texture);
+            Material& SetParams(const Resource::MaterialParams& params);
 
-            glm::vec4 GetAlbedo() const { return m_albedo; }
-            float GetMetallic() const { return m_metallic; }
-            float GetRoughness() const { return m_roughness; }
-            float GetAO() const { return m_ao; }
-            glm::vec3 GetEmissive() const { return m_emissive; }
-            float GetEmissiveIntensity() const { return m_emissiveIntensity; }
+            Material& SetAlbedoTex(Resource::TextureView::Handle texture);
+            Material& SetNormalTex(Resource::TextureView::Handle texture);
+            Material& SetMRTex(Resource::TextureView::Handle texture);
+            Material& SetAOTex(Resource::TextureView::Handle texture);
+            Material& SetEmissiveTex(Resource::TextureView::Handle texture);
+            Material& SetTexture(Resource::MaterialSlot slot, Resource::TextureView::Handle texture);
 
-            Resource::TextureAsset::Handle GetAlbedoTex() const { return m_albedoTex; }
-            Resource::TextureAsset::Handle GetNormalTex() const { return m_normalTex; }
-            Resource::TextureAsset::Handle GetMRTex() const { return m_mrTex; }
-            Resource::TextureAsset::Handle GetAOTex() const { return m_aoTex; }
-            Resource::TextureAsset::Handle GetEmissiveTex() const { return m_emissiveTex; }
+            glm::vec4 GetAlbedo() const { return m_params.m_baseColorFactor; }
+            float GetMetallic() const { return m_params.m_metallicFactor; }
+            float GetRoughness() const { return m_params.m_roughnessFactor; }
+            float GetAO() const { return m_params.m_ao; }
+            glm::vec3 GetEmissive() const { return m_params.m_emissiveFactor; }
+            float GetEmissiveIntensity() const { return m_params.m_emissiveIntensity; }
 
-            Resource::TextureAsset::Handle GetTexture(Resource::MaterialSlot slot) const
+            const Resource::MaterialParams& GetParams() const { return m_params; }
+            Resource::MaterialParams& GetParams() { return m_params; }
+
+            Resource::TextureView::Handle GetAlbedoTex() const { return m_albedoTex; }
+            Resource::TextureView::Handle GetNormalTex() const { return m_normalTex; }
+            Resource::TextureView::Handle GetMRTex() const { return m_mrTex; }
+            Resource::TextureView::Handle GetAOTex() const { return m_aoTex; }
+            Resource::TextureView::Handle GetEmissiveTex() const { return m_emissiveTex; }
+
+            Resource::TextureView::Handle GetTexture(Resource::MaterialSlot slot) const
             {
                 switch (slot)
                 {
@@ -57,7 +62,7 @@ namespace Kita::Pbrv
                 }
             }
 
-            /// Returns true when any texture handle changed since the last consume
+            /// Returns true when any texture view changed since the last consume
             bool ConsumeTexturesDirty()
             {
                 const bool dirty = m_texturesDirty;
@@ -66,18 +71,20 @@ namespace Kita::Pbrv
             }
 
         private:
-            glm::vec4 m_albedo{ 1.0f, 1.0f, 1.0f, 1.0f };
-            float m_metallic{ 1.0f };
-            float m_roughness{ 1.0f };
-            float m_ao{ 1.0f };
-            glm::vec3 m_emissive{ 1.0f, 1.0f, 1.0f };
-            float m_emissiveIntensity{ 1.0f };
+            Resource::MaterialParams m_params{
+                glm::vec4(1.0f),
+                1.0f,
+                1.0f,
+                1.0f,
+                glm::vec3(1.0f),
+                1.0f
+            };
 
-            Resource::TextureAsset::Handle m_albedoTex;
-            Resource::TextureAsset::Handle m_normalTex;
-            Resource::TextureAsset::Handle m_mrTex;
-            Resource::TextureAsset::Handle m_aoTex;
-            Resource::TextureAsset::Handle m_emissiveTex;
+            Resource::TextureView::Handle m_albedoTex;
+            Resource::TextureView::Handle m_normalTex;
+            Resource::TextureView::Handle m_mrTex;
+            Resource::TextureView::Handle m_aoTex;
+            Resource::TextureView::Handle m_emissiveTex;
 
             bool m_texturesDirty{ true };
         };

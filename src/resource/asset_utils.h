@@ -10,10 +10,9 @@ namespace Kita::Pbrv
     {
         namespace AssetUtils
         {
-            /// Loads a glTF mesh; throws on failure (missing file, parse error,
-            /// no valid triangle data). A successful return is guaranteed
-            /// non-empty and buildable into a MeshResource.
-            MeshAsset LoadGltfMesh(const std::string& path);
+            /// Loads a glTF/GLB into actual model data. Throws on failure.
+            /// Each glTF primitive becomes one ModelAsset::Part.
+            ModelAsset LoadGltf(const std::string& path);
 
             /// Loads an image; throws on failure (missing file, decode error).
             /// A successful return is guaranteed to have valid dimensions

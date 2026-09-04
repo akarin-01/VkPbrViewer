@@ -15,7 +15,7 @@ namespace Kita::Pbrv
             }
         }
 
-        Skybox& Skybox::SetSkybox(Resource::TextureAsset::Handle skybox)
+        Skybox& Skybox::SetSkybox(Resource::TextureView::Handle skybox)
         {
             if (skybox.GetId() == m_skybox.GetId())
             {

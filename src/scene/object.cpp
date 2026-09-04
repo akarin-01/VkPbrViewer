@@ -18,7 +18,7 @@ namespace Kita::Pbrv
             if (m_meshDirty)
             {
                 m_meshDirty = false;
-                proxy.UpdateMesh(m_id, m_mesh.GetId());   // empty handle -> kInvalidId = remove mesh
+                proxy.UpdateMesh(m_id, m_mesh.GetId());   // invalid view -> kInvalidId = remove mesh
             }
             if (m_material.ConsumeTexturesDirty())
             {
@@ -32,13 +32,13 @@ namespace Kita::Pbrv
             }
 
             // Per-frame data
-            proxy.WriteObjectData(m_id, m_position, m_rotation, m_scale);
+            proxy.WriteObjectData(m_id, m_transform.m_position, m_transform.m_rotation, m_transform.m_scale);
             proxy.WriteObjectMaterial(m_id, m_material.GetAlbedo(), m_material.GetMetallic(),
                 m_material.GetRoughness(), m_material.GetAO(), m_material.GetEmissive(),
                 m_material.GetEmissiveIntensity());
         }
 
-        Object& Object::SetMesh(Resource::MeshAsset::Handle mesh)
+        Object& Object::SetMesh(Resource::MeshView::Handle mesh)
         {
             if (mesh.GetId() == m_mesh.GetId())
             {
@@ -51,21 +51,27 @@ namespace Kita::Pbrv
 
         Object& Object::SetPosition(const glm::vec3& position)
         {
-            m_position = position;
+            m_transform.m_position = position;
             return *this;
         }
 
         Object& Object::SetRotation(const glm::vec3& rotation)
         {
-            m_rotation.x = Core::WrapDegrees(rotation.x);
-            m_rotation.y = Core::WrapDegrees(rotation.y);
-            m_rotation.z = Core::WrapDegrees(rotation.z);
+            m_transform.m_rotation.x = Core::WrapDegrees(rotation.x);
+            m_transform.m_rotation.y = Core::WrapDegrees(rotation.y);
+            m_transform.m_rotation.z = Core::WrapDegrees(rotation.z);
             return *this;
         }
 
         Object& Object::SetScale(const glm::vec3& scale)
         {
-            m_scale = scale;
+            m_transform.m_scale = scale;
+            return *this;
+        }
+
+        Object& Object::SetTransform(const Resource::Transform& transform)
+        {
+            m_transform = transform;
             return *this;
         }
     }

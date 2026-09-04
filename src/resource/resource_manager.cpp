@@ -142,13 +142,13 @@ namespace Kita::Pbrv
         {
             return m_imageCache.GetOrCreate(textureId, [this](ResourceId textureKey) -> std::optional<ImageRhi>
                 {
-                    auto asset = m_assetMgr.GetTexture(textureKey);
-                    if (!asset)
+                    auto textureView = m_assetMgr.GetTexture(textureKey);
+                    if (!textureView)
                     {
-                        // Invalid texture id, return invalid handle
+                        // Invalid texture view id, return invalid handle
                         return std::nullopt;
                     }
-                    return CreateImage(*asset);
+                    return CreateImage(*textureView);
                 });
         }
 
@@ -199,13 +199,13 @@ namespace Kita::Pbrv
             const ImageRhi::Handle image = GetOrCreateImage(textureId);
             if (!image)
             {
-                // Invalid texture id: empty texture, matching GetOrCreate* convention
+                // Invalid texture view id: empty texture, matching GetOrCreate* convention
                 return TextureResource{};
             }
 
             const TextureResource texture = CreateTexture(image, imageViewDesc, samplerDesc);
 
-            Core::Log::Info("[Resource] Create texture resource: texture asset(", textureId, ")");
+            Core::Log::Info("[Resource] Create texture resource: texture view(", textureId, ")");
             return texture;
         }
 
@@ -231,13 +231,13 @@ namespace Kita::Pbrv
         {
             return m_meshCache.GetOrCreate(meshId, [this](ResourceId meshKey) -> std::optional<MeshResource>
                 {
-                    auto asset = m_assetMgr.GetMesh(meshKey);
-                    if (!asset)
+                    auto meshView = m_assetMgr.GetMesh(meshKey);
+                    if (!meshView)
                     {
-                        // Invalid mesh id, return invalid handle
+                        // Invalid mesh view id, return invalid handle
                         return std::nullopt;
                     }
-                    return CreateMesh(*asset);
+                    return CreateMesh(*meshView);
                 });
         }
 
@@ -247,10 +247,10 @@ namespace Kita::Pbrv
             TextureResource irradiance{};
             TextureResource prefilter{};
 
-            const TextureAsset* asset = m_assetMgr.GetTexture(equirectId);
-            if (asset)
+            const TextureView* textureView = m_assetMgr.GetTexture(equirectId);
+            if (textureView)
             {
-                skybox = CreateTexture(m_environmentBaker->BakeSkybox(CreateEquirect(*asset)));
+                skybox = CreateTexture(m_environmentBaker->BakeSkybox(CreateEquirect(*textureView)));
                 irradiance = CreateTexture(m_environmentBaker->BakeIrradiance(skybox));
                 prefilter = CreateTexture(m_environmentBaker->BakePrefilter(skybox));
             }
@@ -286,58 +286,58 @@ namespace Kita::Pbrv
             m_graveyard->Flush();
         }
 
-        ImageRhi ResourceManager::CreateImage(const TextureAsset& asset)
+        ImageRhi ResourceManager::CreateImage(const TextureView& textureView)
         {
             ImageDesc desc{};
-            desc.m_extent = { asset.m_width, asset.m_height, 1 };
-            desc.m_format = ToImageFormat(asset.m_type);
+            desc.m_extent = { textureView.GetWidth(), textureView.GetHeight(), 1 };
+            desc.m_format = ToImageFormat(textureView.GetType());
             desc.m_aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            desc.m_mipLevels = ResourceUtils::CalculateMipLevels(asset.m_width, asset.m_height);
+            desc.m_mipLevels = ResourceUtils::CalculateMipLevels(textureView.GetWidth(), textureView.GetHeight());
             desc.m_usage = VK_IMAGE_USAGE_SAMPLED_BIT;
 
             KITA_LOG_DEBUG("[Resource] Create image: ", desc.m_extent.width, "x",
                 desc.m_extent.height, ", ", desc.m_mipLevels, " mips");
-            return ResourceUtils::CreateImageRhi(m_context, desc, asset.m_bytes.data(), asset.m_bytes.size());
+            return ResourceUtils::CreateImageRhi(m_context, desc, textureView.GetData(), textureView.GetByteCount());
         }
 
-        MeshResource ResourceManager::CreateMesh(const MeshAsset& asset)
+        MeshResource ResourceManager::CreateMesh(const MeshView& meshView)
         {
             MeshResource mesh{};
 
             // Vertex
             {
                 BufferDesc desc{};
-                desc.m_size = asset.GetVertexDataSize();
+                desc.m_size = meshView.GetVertexDataSize();
                 desc.m_usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
                 desc.m_properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
                 desc.m_mapped = false;
 
-                mesh.m_vertexBuffer = CreateBuffer(desc, asset.GetVertexData(), asset.GetVertexDataSize());
+                mesh.m_vertexBuffer = CreateBuffer(desc, meshView.GetVertexData(), meshView.GetVertexDataSize());
             }
 
             // Index
             {
                 BufferDesc desc{};
-                desc.m_size = asset.GetIndexDataSize();
+                desc.m_size = meshView.GetIndexDataSize();
                 desc.m_usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
                 desc.m_properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
                 desc.m_mapped = false;
 
-                mesh.m_indexBuffer = CreateBuffer(desc, asset.GetIndexData(), asset.GetIndexDataSize());
+                mesh.m_indexBuffer = CreateBuffer(desc, meshView.GetIndexData(), meshView.GetIndexDataSize());
             }
 
-            mesh.m_indexCount = static_cast<uint32_t>(asset.GetIndexCount());
+            mesh.m_indexCount = static_cast<uint32_t>(meshView.GetIndexCount());
 
-            Core::Log::Info("[Resource] Create mesh resource: ", asset.m_name, ", vb ",
-                asset.GetVertexDataSize(), " bytes, ib ", asset.GetIndexDataSize(), " bytes");
+            Core::Log::Info("[Resource] Create mesh resource: ", meshView.GetName(), ", vb ",
+                meshView.GetVertexDataSize(), " bytes, ib ", meshView.GetIndexDataSize(), " bytes");
 
             return mesh;
         }
 
-        TextureResource ResourceManager::CreateEquirect(const TextureAsset& asset)
+        TextureResource ResourceManager::CreateEquirect(const TextureView& textureView)
         {
             ImageDesc desc{};
-            desc.m_extent = { asset.m_width, asset.m_height, 1 };
+            desc.m_extent = { textureView.GetWidth(), textureView.GetHeight(), 1 };
             desc.m_format = VK_FORMAT_R32G32B32A32_SFLOAT;
             desc.m_aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             desc.m_usage = VK_IMAGE_USAGE_SAMPLED_BIT;
@@ -351,7 +351,7 @@ namespace Kita::Pbrv
             samplerDesc.m_addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
             samplerDesc.m_addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 
-            return CreateTexture(desc, {}, samplerDesc, asset.m_bytes.data(), asset.m_bytes.size());
+            return CreateTexture(desc, {}, samplerDesc, textureView.GetData(), textureView.GetByteCount());
         }
 
         TextureResource ResourceManager::CreateTexture(BakedTexture baked)

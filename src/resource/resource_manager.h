@@ -22,8 +22,8 @@ namespace Kita::Pbrv
         class DescriptorManager;
         class EnvironmentBaker;
         class Graveyard;
-        struct MeshAsset;
-        struct TextureAsset;
+        class MeshView;
+        class TextureView;
 
         class ResourceManager
         {
@@ -74,12 +74,12 @@ namespace Kita::Pbrv
             void FlushGraveyard();
 
         private:
-            ImageRhi CreateImage(const TextureAsset& asset);
+            ImageRhi CreateImage(const TextureView& textureView);
             std::array<ImageRhi::Handle, kMaterialSlotCount> CreateMaterialFallbacks();
             ImageRhi::Handle CreateCubemapFallback();
 
-            MeshResource CreateMesh(const MeshAsset& asset);
-            TextureResource CreateEquirect(const TextureAsset& asset);
+            MeshResource CreateMesh(const MeshView& meshView);
+            TextureResource CreateEquirect(const TextureView& textureView);
             TextureResource CreateTexture(BakedTexture baked);
 
         private:

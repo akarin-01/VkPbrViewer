@@ -28,15 +28,20 @@ namespace Kita::Pbrv
             void MarkDelete() { m_deletePending = true; }
             bool IsDeletePending() const { return m_deletePending; }
 
-            Object& SetMesh(Resource::MeshAsset::Handle mesh);
+            Object& SetMesh(Resource::MeshView::Handle mesh);
+
             Object& SetPosition(const glm::vec3& position);
             Object& SetRotation(const glm::vec3& rotation);
             Object& SetScale(const glm::vec3& scale);
+            Object& SetTransform(const Resource::Transform& transform);
 
-            Resource::MeshAsset::Handle GetMesh() const { return m_mesh; }
-            glm::vec3 GetPosition() const { return m_position; }
-            glm::vec3 GetRotation() const { return m_rotation; }
-            glm::vec3 GetScale() const { return m_scale; }
+            const Resource::MeshView::Handle& GetMesh() const { return m_mesh; }
+
+            glm::vec3 GetPosition() const { return m_transform.m_position; }
+            glm::vec3 GetRotation() const { return m_transform.m_rotation; }
+            glm::vec3 GetScale() const { return m_transform.m_scale; }
+            const Resource::Transform& GetTransform() const { return m_transform; }
+            Resource::Transform& GetTransform() { return m_transform; }
 
             const Material& GetMaterial() const { return m_material; }
             Material& GetMaterial() { return const_cast<Material&>(static_cast<const Object*>(this)->GetMaterial()); }
@@ -45,12 +50,10 @@ namespace Kita::Pbrv
             Resource::ResourceId m_id{ Resource::kInvalidId };
             bool m_deletePending{ false };
 
-            Resource::MeshAsset::Handle m_mesh{};
+            Resource::MeshView::Handle m_mesh{};
             bool m_meshDirty{ true };
 
-            glm::vec3 m_position{ 0.0f };
-            glm::vec3 m_rotation{ 0.0f };
-            glm::vec3 m_scale{ 1.0f };
+            Resource::Transform m_transform{};
 
             Material m_material{};
         };
