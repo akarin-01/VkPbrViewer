@@ -71,14 +71,7 @@ namespace Kita::Pbrv
             }
 
         private:
-            Resource::MaterialParams m_params{
-                glm::vec4(1.0f),
-                1.0f,
-                1.0f,
-                1.0f,
-                glm::vec3(1.0f),
-                1.0f
-            };
+            Resource::MaterialParams m_params{};
 
             Resource::TextureView::Handle m_albedoTex;
             Resource::TextureView::Handle m_normalTex;

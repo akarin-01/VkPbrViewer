@@ -365,7 +365,6 @@ namespace Kita::Pbrv
         std::array<ImageRhi::Handle, kMaterialSlotCount> ResourceManager::CreateMaterialFallbacks()
         {
             constexpr uint8_t white[] = { 255, 255, 255, 255 };
-            constexpr uint8_t black[] = { 0, 0, 0, 255 };
             constexpr uint8_t flat[] = { 128, 128, 255, 255 };
 
             const auto makeFallback = [this](VkFormat format, const uint8_t* bytes, size_t size)
@@ -388,7 +387,7 @@ namespace Kita::Pbrv
             fallbacks[static_cast<size_t>(Resource::MaterialSlot::AO)] =
                 makeFallback(VK_FORMAT_R8_UNORM, white, 1);         // no occlusion
             fallbacks[static_cast<size_t>(Resource::MaterialSlot::Emissive)] =
-                makeFallback(VK_FORMAT_R8G8B8A8_SRGB, black, 4);    // no emission
+                makeFallback(VK_FORMAT_R8G8B8A8_SRGB, white, 4);    // identity; emissiveFactor controls color
             return fallbacks;
         }
 
