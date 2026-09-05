@@ -69,6 +69,8 @@ build/Release/VkPbrViewer.exe
 | [docs/layers/](docs/layers/)                     | 逐层文档：core / rhi / resource / render / scene / application |
 | [docs/dev-history/](docs/dev-history/)           | 开发与协作文档：架构约定（agent 唯一真源）、需求、项目构思、分阶段实现记录 |
 
+> 本仓库文档由 AI 生成，内容以实际代码为准。
+
 ## 已知限制
 
 - 必须从项目根目录启动（资源路径相对根目录）
