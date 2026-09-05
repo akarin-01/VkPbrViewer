@@ -32,8 +32,9 @@ namespace Kita::Pbrv
 
         MeshView::Handle AssetManager::LoadMesh(const std::string& path, uint32_t partIndex)
         {
+            // Unreachable today; kept so LoadMesh stays total
             ModelAsset::Handle model = GetOrCreateModel(path);
-            if (!model || model->m_parts.empty())
+            if (!model)
             {
                 return {};
             }

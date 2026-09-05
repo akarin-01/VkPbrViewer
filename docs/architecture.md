@@ -4,7 +4,7 @@
 
 ## 分层与依赖
 
-- 层级职责：core（工具：Window/Input/Time/Log/Path/Math）← rhi（Vulkan 封装：Context/SwapChain/Pipeline、RenderingScope/OneShotCommand）← resource（ResourceManager + DescriptorManager 所有权、句柄系统、EnvironmentBaker/ComputeConversion）← render（SceneProxy/RenderScene/RenderPipeline）；scene（场景实体，只经 SceneProxy 与 render 通信）、application（渲染循环、UI 面板、OrbitCameraController）。
+- 层级职责：core（工具：Window/Input/Time/Log/Path/Math）← rhi（Vulkan 封装：Context/SwapChain/Pipeline、RenderingScope/OneShotCommand）← resource（ResourceManager + DescriptorManager 所有权、句柄系统、EnvironmentBaker/ComputeConversion）← render（SceneProxy/RenderScene/RenderPipeline）；scene（场景实体，只经 SceneProxy 与 render 通信；对 resource 只开放其 asset 部分：asset_types / asset_manager / resource_id / constants，不得触碰 GPU 资源侧）、application（渲染循环、UI 面板、OrbitCameraController）。
 - 依赖方向（显式约束）：`core ← rhi ← resource ← render`；`scene → render` 仅通过 SceneProxy 接口头；render 层不得 include 任何 scene 层类型。
 
 ## 命名约定
@@ -19,7 +19,7 @@
 - render 层不再使用 resource 层的 L2 Set 类型；与 shader descriptor set 对应的宿主容器由 `RenderScene` 维护，命名规则：
   - descriptor set 状态：`XxxState`（`FrameState` / `LitState` / `PostProcessState` / `MaterialState` / `ObjectState`）；
   - 纯纹理/attachment 集合：`XxxTextures`（`TargetTextures` / `ShadowTextures`）。
-- 共享资源用 RAII 句柄 `Handle<T>`（条目索引 + RefTable 指针；拷贝/赋值引用 +1、析构 -1、移动转移所有权），归零后拆解为裸 Vk 句柄进 Graveyard，K 帧后销毁；非共享资源用值。
+- 共享资源用 RAII 句柄 `Handle<T>`（条目索引 + RefTable 指针；拷贝/赋值引用 +1、析构 -1、移动转移所有权），归零后拆解为裸 Vk 句柄进 Graveyard，K 帧后销毁；非共享资源用值。句柄不变量（对一切 `Handle<T>` 成立）：valid ⇒ entry 存活且数据有效——数据有效性由铸造方在创建路径保证（非法数据被拒绝，如空模型抛异常），消费方只需检查句柄有效性。
 - 每层封装：Resource 与 render state 都不是可穿透的纯容器；外部只使用语义方法（`UboResource::Write/GetBuffer`、`FrameState::GetSet`、`RenderObject::GetMaterialSet`、`TargetTextures::GetColorImageView`）。禁止 `a.xx.yy` 穿透到内部成员/句柄链；state 的字段是 RenderScene 等 owner 的装配细节。
 
 ## 所有权与关键机制
@@ -30,10 +30,14 @@
 - GPU 材质 = 纯贴图集 + descriptor set（不含参数），`MaterialDesc`（全组贴图 id）哈希去重，`MaterialState` 按 desc 在 RenderScene 的 `CacheTable` 中共享。
 - `TargetTextures` / `ShadowTextures` 是 RenderScene 拥有的纹理所有权；`LitState` / `PostProcessState` 等只引用它们，不复制持有。
 - 重建引用同一纹理的 set state 时，应先创建新纹理，再用新纹理重建 set state，最后替换旧纹理，避免 descriptor set 引用已被释放的 image view。
+- Asset/View 两层访问：Asset（ModelAsset/TextureAsset/MeshAsset）是 asset 模块内部实现，对外只暴露 View（MeshView/TextureView）与 key；上层经 View 的语义方法访问，不直接解引用 Asset。
+- Asset 生命周期唯一归属 scene（Object/Material/Skybox 持 View::Handle）；resource 层对 asset 只做调用内借用（`GetMesh`/`GetTexture` 返回裸指针，单次调用内用完即弃），绝不持有 asset Handle。entry 归零即擦除，stale id 查得 nullptr → 降级 fallback，不会悬空。
+- CPU 资产数据（顶点/像素 bytes）随 View 引用常驻内存：UI 直接读 View 展示 asset 信息，GPU 上传不触发二次文件 IO；全部 View 释放后内存随之回收，再次请求从磁盘重新解码。
 
 ## 数据流
 
 - scene 实体（Camera/Light/Object/Skybox/PostProcess）各自 `Update()` 自写数据到 SceneProxy（局部 static 单例）；变更走脏标记：`WriteMesh` / `WriteMaterialTextures`（空 id = 删除）；删除走 Scene 的 DestroyObject → 标记 → Update 清扫。
+- 模型导入统一走 `Scene::Utils::SpawnModel(scene, assets, path)`（加载 + 逐 part 装配 Object），app 初始化与 UI 导入共用；UI 加载失败（异常或 invalid handle）→ Log::Error 并保持原资源不变。
 - RenderScene.Update() ← BuildSceneProxy(aspect)（转换后清 scene 输入区）；消费顺序：删除 → mesh/material 记录（find-or-create）→ UBO 写入；`Reset()` 清输出区。
 - 对账：RenderScene 内部用 `unordered_map<ResourceId, size_t>` 定位，对外只暴露 `vector<RenderObject>`；`GetDeletedObjects()` 驱动 remove。
 - LitPass：每帧收集 `RenderObject` → 按材质/网格两级排序 → 换绑跳过 → 绘制。

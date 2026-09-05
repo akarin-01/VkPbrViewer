@@ -12,7 +12,8 @@ namespace Kita::Pbrv
         namespace AssetUtils
         {
             /// Loads a glTF/GLB into actual model data. Throws on failure.
-            /// Each glTF primitive becomes one ModelAsset::Part.
+            /// Each glTF primitive becomes one ModelAsset::Part; the result
+            /// always holds at least one part (a partless model throws).
             ModelAsset LoadGltf(const std::string& path);
 
             /// Loads an image. Returns nullopt on missing/decode failure.

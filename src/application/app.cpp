@@ -9,6 +9,7 @@
 #include "application/fps_camera_controller.h"
 #include "application/orbit_camera_controller.h"
 #include "application/ui.h"
+#include "scene/utils.h"
 
 #include <filesystem>
 #include <stdexcept>
@@ -21,26 +22,8 @@ namespace Kita::Pbrv
         {
             void InitScene(Scene::Scene& scene, Resource::AssetManager& assetMgr)
             {
-                auto result = assetMgr.LoadModel("assets/models/DamagedHelmet/DamagedHelmet.gltf");
-
-                for (const auto& instance : result.m_instances)
-                {
-                    auto& object = scene.CreateObject();
-                    object.SetName(instance.m_name);
-                    object.SetMesh(instance.m_mesh);
-                    object.SetTransform(instance.m_transform);
-                    object.GetMaterial().SetParams(instance.m_material);
-
-                    for (uint32_t slot = 0; slot < Resource::kMaterialSlotCount; ++slot)
-                    {
-                        const auto& texture = instance.m_textures[slot];
-                        if (texture.IsValid())
-                        {
-                            object.GetMaterial().SetTexture(
-                                static_cast<Resource::MaterialSlot>(slot), texture);
-                        }
-                    }
-                }
+                Scene::Utils::SpawnModel(scene, assetMgr,
+                    "assets/models/DamagedHelmet/DamagedHelmet.gltf");
 
                 auto& skybox = scene.GetSkybox();
                 skybox.SetSkybox(assetMgr.LoadTexture("assets/hdr/qwantani_moon_noon_puresky_4k.hdr", Resource::TextureAsset::Type::Hdr));

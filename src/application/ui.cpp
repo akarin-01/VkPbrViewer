@@ -5,6 +5,7 @@
 #include "resource/asset_manager.h"
 #include "resource/constants.h"
 #include "resource/resource_manager.h"
+#include "scene/utils.h"
 #include "scene/scene.h"
 #include "render/render_scene.h"
 #include "application/ui_utils.h"
@@ -47,7 +48,15 @@ namespace Kita::Pbrv
                     {
                         try
                         {
-                            mat.SetTexture(slot, assets.LoadTexture(path.value(), type));
+                            auto loaded = assets.LoadTexture(path.value(), type);
+                            if (loaded.IsValid())
+                            {
+                                mat.SetTexture(slot, std::move(loaded));
+                            }
+                            else
+                            {
+                                Core::Log::Error("[UI] Failed to load texture: ", path.value());
+                            }
                         }
                         catch (const std::exception& e)
                         {
@@ -127,7 +136,15 @@ namespace Kita::Pbrv
                             {
                                 try
                                 {
-                                    skybox.SetSkybox(assets.LoadTexture(path.value(), Resource::TextureAsset::Type::Hdr));
+                                    auto loaded = assets.LoadTexture(path.value(), Resource::TextureAsset::Type::Hdr);
+                                    if (loaded.IsValid())
+                                    {
+                                        skybox.SetSkybox(std::move(loaded));
+                                    }
+                                    else
+                                    {
+                                        Core::Log::Error("[UI] Failed to load skybox: ", path.value());
+                                    }
                                 }
                                 catch (const std::exception& e)
                                 {
@@ -190,7 +207,15 @@ namespace Kita::Pbrv
                             {
                                 try
                                 {
-                                    object.SetMesh(assets.LoadMesh(path.value()));
+                                    auto loaded = assets.LoadMesh(path.value());
+                                    if (loaded.IsValid())
+                                    {
+                                        object.SetMesh(std::move(loaded));
+                                    }
+                                    else
+                                    {
+                                        Core::Log::Error("[UI] Failed to load mesh: ", path.value());
+                                    }
                                 }
                                 catch (const std::exception& e)
                                 {
@@ -353,25 +378,7 @@ namespace Kita::Pbrv
                         {
                             try
                             {
-                                auto result = assets.LoadModel(path.value());
-                                for (const auto& instance : result.m_instances)
-                                {
-                                    auto& object = scene.CreateObject();
-                                    object.SetMesh(instance.m_mesh);
-                                    object.SetName(instance.m_name);
-                                    object.SetTransform(instance.m_transform);
-                                    object.GetMaterial().SetParams(instance.m_material);
-
-                                    for (uint32_t slot = 0; slot < Resource::kMaterialSlotCount; ++slot)
-                                    {
-                                        const auto& texture = instance.m_textures[slot];
-                                        if (texture.IsValid())
-                                        {
-                                            object.GetMaterial().SetTexture(
-                                                static_cast<Resource::MaterialSlot>(slot), texture);
-                                        }
-                                    }
-                                }
+                                Scene::Utils::SpawnModel(scene, assets, path.value());
                             }
                             catch (const std::exception& e)
                             {
