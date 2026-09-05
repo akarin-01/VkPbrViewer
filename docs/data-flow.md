@@ -1,6 +1,6 @@
 # 数据流
 
-本文回答"数据怎么流动"。必须遵守的规则与不变量（分层、依赖、命名、句柄）以 [architecture.md](architecture.md) 为准，本文只做讲解；各层内部结构见 [layers/](layers/)（撰写中）。文件路径均相对 `src/`。
+本文回答"数据怎么流动"。必须遵守的规则与不变量（分层、依赖、命名、句柄）以 [dev-history/architecture.md](dev-history/architecture.md) 为准，本文只做讲解；各层内部结构见 [layers/](layers/)（撰写中）。文件路径均相对 `src/`。
 
 ## 总览
 
@@ -93,7 +93,7 @@ frames in flight = 2：CPU 最多领先 GPU 一帧。一切 per-frame 资源（�
 
 两个触发点：`BeginFrame` acquire 失败（提前返回，本帧只剩 graveyard flush）；`EndFrame` present 返回 suboptimal / error。两条路都汇到同一处：
 
-- `RenderScene::Recreate()`：**先**创建新 TargetTextures 和依赖它的新 PostProcessState，**再**一起提交替换——保证任何存活的描述集都不引用已释放的 image view（architecture.md 重建规则的落地实例）；
+- `RenderScene::Recreate()`：**先**创建新 TargetTextures 和依赖它的新 PostProcessState，**再**一起提交替换——保证任何存活的描述集都不引用已释放的 image view（架构约定中重建规则的落地实例）；
 - `RenderPipeline::RecreateResources()`：各 pass 重建自身依赖；
 - `FlushGraveyard` 每帧照跑：重建入队的旧目标纹理依靠它销毁。
 

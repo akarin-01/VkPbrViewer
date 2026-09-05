@@ -1,54 +1,88 @@
-# 架构约定（跨会话唯一真源，改架构前先读）
+# 架构
 
-> 设计过程与细节见 [dev-history/implementation/08_restructuring.md](dev-history/implementation/08_restructuring.md)；本节只保留**必须遵守的规则**。
+> 面向读者的架构说明：系统怎么组织、为什么这么设计。数据怎么流动见 [data-flow.md](data-flow.md)；每一层内部的文件与机制见 [layers/](layers/)（撰写中）；开发时必须遵守的规范条目（命名、不变量、错误处理约定）见 [dev-history/architecture.md](dev-history/architecture.md)。
 
-## 分层与依赖
+## 设计出发点
 
-- 层级职责：core（工具：Window/Input/Time/Log/Path/Math）← rhi（Vulkan 封装：Context/SwapChain/Pipeline、RenderingScope/OneShotCommand）← resource（ResourceManager + DescriptorManager 所有权、句柄系统、EnvironmentBaker/ComputeConversion）← render（SceneProxy/RenderScene/RenderPipeline）；scene（场景实体，只经 SceneProxy 与 render 通信；对 resource 只开放其 asset 部分：asset_types / asset_manager / resource_id / constants，不得触碰 GPU 资源侧）、application（渲染循环、UI 面板、OrbitCameraController）。
-- 依赖方向（显式约束）：`core ← rhi ← resource ← render`；`scene → render` 仅通过 SceneProxy 接口头；render 层不得 include 任何 scene 层类型。
+VkPbrViewer 是一个小型查看器，但按引擎的思路组织。三条主线贯穿全部设计：
 
-## 命名约定
+1. **scene 与 render 严格解耦**：场景实体不含任何 Vulkan 类型；渲染层消费的是数据流，而不是场景对象。
+2. **资源生命周期显式化**：CPU 资产与 GPU 资源分层管理；共享走引用计数，销毁走延迟队列，杜绝悬空。
+3. **描述符与状态不重复**：同一份 layout、同一张贴图、同一组材质贴图组合，在全工程内只存在一份。
 
-- 直接封装 Vulkan 的 L0 资源统一 `Rhi` 后缀：BufferRhi / ImageRhi / ImageViewRhi / SamplerRhi / DescriptorSetRhi；业务与上层资源不加（Scene、ResourceManager、MeshResource、UboResource…）。
-- resource 层基础设施无后缀：CacheTable、Graveyard、DescriptorWriter。
+## 分层总览
 
-## 资源与状态模型（L0/L1 + render state）
+```mermaid
+flowchart TB
+    APP["application<br/>组装 · 主循环 · UI · 相机控制器"]
+    SCENE["scene<br/>场景实体（Camera / Light / Object / Skybox / PostProcess）"]
+    RENDER["render<br/>SceneProxy 消费 · GPU 状态持有 · pass 编排"]
+    RESOURCE["resource<br/>CPU 资产 + GPU 资源的所有权与缓存"]
+    RHI["rhi<br/>Vulkan API 薄封装"]
+    CORE["core<br/>Window / Input / Time / Log / Path / Math"]
+    APP --> SCENE
+    APP --> RENDER
+    APP --> RESOURCE
+    SCENE -->|"仅经 SceneProxy 接口头"| RENDER
+    RENDER --> RESOURCE
+    RESOURCE --> RHI
+    RHI --> CORE
+```
 
-- L0 = Vk 句柄封装，统一走句柄 + 延迟销毁。
-- L1 = 渲染资源组合（MeshResource / UboResource / TextureResource）。
-- render 层不再使用 resource 层的 L2 Set 类型；与 shader descriptor set 对应的宿主容器由 `RenderScene` 维护，命名规则：
-  - descriptor set 状态：`XxxState`（`FrameState` / `LitState` / `PostProcessState` / `MaterialState` / `ObjectState`）；
-  - 纯纹理/attachment 集合：`XxxTextures`（`TargetTextures` / `ShadowTextures`）。
-- 共享资源用 RAII 句柄 `Handle<T>`（条目索引 + RefTable 指针；拷贝/赋值引用 +1、析构 -1、移动转移所有权），归零后拆解为裸 Vk 句柄进 Graveyard，K 帧后销毁；非共享资源用值。句柄不变量（对一切 `Handle<T>` 成立）：valid ⇒ entry 存活且数据有效——数据有效性由铸造方在创建路径保证（非法数据被拒绝，如空模型抛异常），消费方只需检查句柄有效性。
-- 每层封装：Resource 与 render state 都不是可穿透的纯容器；外部只使用语义方法（`UboResource::Write/GetBuffer`、`FrameState::GetSet`、`RenderObject::GetMaterialSet`、`TargetTextures::GetColorImageView`）。禁止 `a.xx.yy` 穿透到内部成员/句柄链；state 的字段是 RenderScene 等 owner 的装配细节。
+| 层 | 职责（一句话） | 边界（不允许做的事） |
+| --- | --- | --- |
+| core | 与图形无关的基础设施 | 依赖其他任何层 |
+| rhi | Vulkan API 的薄封装（L0） | 出现材质、相机等业务语义 |
+| resource | CPU 资产与 GPU 资源的所有权、缓存、生命周期 | 了解场景结构 |
+| render | 把数据流装配成 GPU 状态，编排 pass | include 任何 scene 层类型 |
+| scene | 场景实体与业务数据 | 触碰 GPU 资源侧；持有 render 层类型 |
+| application | 程序组装、主循环、UI、相机控制器 | ——（只做编排，不下沉逻辑） |
 
-## 所有权与关键机制
+依赖规则归结为两条硬约束（完整规则与命名约定见 [dev-history/architecture.md](dev-history/architecture.md)）：
 
-- DescriptorManager 归 ResourceManager 所有；ResourceManager 单向依赖 EnvironmentBaker / ComputeConversion。
-- descriptor layout 是**唯一真源**：layout 按内容去重、pool 按 layout 分组持有、池满自动扩容；Set 内不存 layout，经 `ResourceManager::GetDescriptorSetLayout(Type)` 查询，pass 建 pipeline 收 `vector<VkDescriptorSetLayout>`。
-- DescriptorSetRhi 销毁：句柄归零 → graveyard 延迟 K 帧 → `DescriptorManager::Recycle` → 池内 free list 复用（reuse-only，不调 vkFreeDescriptorSets）。
-- GPU 材质 = 纯贴图集 + descriptor set（不含参数），`MaterialDesc`（全组贴图 id）哈希去重，`MaterialState` 按 desc 在 RenderScene 的 `CacheTable` 中共享。
-- `TargetTextures` / `ShadowTextures` 是 RenderScene 拥有的纹理所有权；`LitState` / `PostProcessState` 等只引用它们，不复制持有。
-- 重建引用同一纹理的 set state 时，应先创建新纹理，再用新纹理重建 set state，最后替换旧纹理，避免 descriptor set 引用已被释放的 image view。
-- Asset/View 两层访问：Asset（ModelAsset/TextureAsset/MeshAsset）是 asset 模块内部实现，对外只暴露 View（MeshView/TextureView）与 key；上层经 View 的语义方法访问，不直接解引用 Asset。
-- Asset 生命周期唯一归属 scene（Object/Material/Skybox 持 View::Handle）；resource 层对 asset 只做调用内借用（`GetMesh`/`GetTexture` 返回裸指针，单次调用内用完即弃），绝不持有 asset Handle。entry 归零即擦除，stale id 查得 nullptr → 降级 fallback，不会悬空。
-- CPU 资产数据（顶点/像素 bytes）随 View 引用常驻内存：UI 直接读 View 展示 asset 信息，GPU 上传不触发二次文件 IO；全部 View 释放后内存随之回收，再次请求从磁盘重新解码。
+1. `core ← rhi ← resource ← render` 严格单向；
+2. `scene → render` 仅通过 SceneProxy 接口头（纯数据 + 变更记录）；render 不 include 任何 scene 类型。
 
-## 数据流
+## 关键设计决策
 
-- scene 实体（Camera/Light/Object/Skybox/PostProcess）各自 `Update()` 自写数据到 SceneProxy（局部 static 单例）；变更走脏标记：`UpdateMesh` / `UpdateMaterial`（无效 id = 删除）；删除走 Scene 的 DestroyObject → 标记 → Update 清扫。
-- 模型导入统一走 `Scene::Utils::SpawnModel(scene, assets, path)`（加载 + 逐 part 装配 Object），app 初始化与 UI 导入共用；UI 加载失败（异常或 invalid handle）→ Log::Error 并保持原资源不变。
-- RenderScene.Update() ← BuildSceneProxy(aspect)（转换后清 scene 输入区）；消费顺序：删除 → mesh/material 记录（find-or-create）→ UBO 写入；`Reset()` 清输出区。
-- 对账：RenderScene 内部用 `unordered_map<ResourceId, size_t>` 定位，对外只暴露 `vector<RenderObject>`；`GetDeletedObjects()` 驱动 remove。
-- LitPass：每帧收集 `RenderObject` → 按材质/网格两级排序 → 换绑跳过 → 绘制。
-- 阴影投射体为世界坐标系下围绕原点的固定包围盒（SceneProxy 的 `kShadowBounds*`），光空间 ortho 视锥体每帧拟合该包围盒；盒外物体不投影——已知取舍。
-- 每个场景对象 = `RenderObject`：`id + MeshResource::Handle + MaterialState::Handle + ObjectState`；`ObjectState` = kMaxFramesInFlight 个 UBO + K 个描述集（`mat4 model` + 材质参数）。
-- Camera 为纯视图状态（position + yaw/pitch，轴/矩阵按需派生）；orbit 逻辑在 application 层 OrbitCameraController；Object 持 id + deletePending + 脏标记（mesh / 材质贴图）。
+### 1. scene 与 render 用数据流解耦，而不是对象引用
 
-## 错误处理约定
+scene 实体把数据写进 SceneProxy（每帧输入 + 仅变化时写下的变更记录），render 层的 RenderScene 每帧消费：按 object id find-or-create、只处理增量。两层因此没有类型依赖，可以独立演化；多物体的增删改也收敛为一条数据通道。完整时序见 [data-flow.md](data-flow.md)。
 
-六类场景处置（详表见 [07_polish.md](dev-history/implementation/07_polish.md) 末尾）：外部输入失败 → 抛异常（消息含路径+原因），UI 回调边界 try/catch → Log::Error 后继续；解析警告/可降级 → Log::Warning + 跳过继续；枚举/传参非法（代码错误）→ 抛异常初始化期暴露；GPU 创建/提交失败（致命）→ 抛异常（含资源名 + VkResult）传播到 main 兜底；内部不变量 → assert 中断；操作取消 → `return nullopt`。
+### 2. 资源按 L0 / L1 / render-state 三段划分
 
-## 日志分级（resource 层）
+- **L0**：Vk 句柄的薄封装（Buffer / Image / ImageView / Sampler / DescriptorSet），统一走句柄 + 延迟销毁；
+- **L1**：渲染资源的组合（MeshResource / UboResource / TextureResource）；
+- **render-state**：与 shader descriptor set 对应的宿主容器（FrameState / MaterialState / ObjectState / TargetTextures…），归 render 层。
 
-底层资源创建/销毁 → Debug；高层资源创建/销毁 → Info；复用命中 → Debug（其余层保持同一习惯）。
+动机：resource 层保持"通用资源管理"的纯粹性；"这组贴图加这个 set 组成材质"是渲染语义，不该下沉到资源层。哪些容器归哪层、怎么命名，规则见 [dev-history/architecture.md](dev-history/architecture.md)。
+
+### 3. 共享资源用 RAII 句柄，销毁走 Graveyard
+
+`Handle<T>` = 条目索引 + 引用计数，拷贝 +1 / 析构 -1；归零后拆解成裸 Vk 句柄进 Graveyard，K 帧后销毁；descriptor set 归零后回收到池复用。动机：GPU 异步执行中，"CPU 认为没用了"不等于"GPU 用完了"——句柄系统把"谁还在用"变成可计数的确定状态，销毁时机由 fence 推算。详见 [data-flow.md](data-flow.md) 的销毁链路，实现剖析见 [layers/resource.md](layers/resource.md)（撰写中）。
+
+### 4. descriptor layout 是唯一真源
+
+全部 descriptor layout 由 DescriptorManager 集中管理：按内容去重、pool 按 layout 分组持有、池满自动扩容、Set 归零后 reuse-only 回收。pass 创建管线时只查询 layout，不自行描述。动机：layout 不匹配是 Vulkan 最常见的事故源之一，收敛到唯一出处后可以整体保证一致。
+
+### 5. GPU 材质按内容寻址共享
+
+MaterialState = 贴图组合 + 描述集（不含标量参数），以 `MaterialDesc`（5 个贴图 slot 的 id）哈希去重；albedo 因子、metallic/roughness 等标量放在 per-object 的 UBO 里。动机：引用同一组贴图的物体共享同一份 GPU 材质，描述集数量与物体数量解耦。
+
+### 6. Vulkan 1.3 dynamic rendering
+
+不创建经典 RenderPass / Framebuffer，pass 用 RenderingScope RAII 描述加载/存储行为。代价是 scope 之间没有隐式依赖、同步全部显式化——本项目用每帧固定序列的 6 组 layout transition（shadow map、离屏目标三张图、交换链图像）加 2 处 scope 间 barrier（lit→skybox、post→ui）保证读写序。动机：少样板、pass 组合灵活；代价被转化为一张明确列出的屏障清单，见 [data-flow.md](data-flow.md) 的 pass 表。
+
+## 错误处理与日志
+
+六类场景的处置表（外部输入失败 / 可降级警告 / 代码错误 / 致命 GPU 错误 / 不变量 / 取消）与资源层日志分级，约定见 [dev-history/architecture.md](dev-history/architecture.md)。
+
+## 文档地图
+
+| 想了解 | 看哪里 |
+| --- | --- |
+| 项目是什么、怎么构建运行 | [README](../README.md) |
+| 结构与设计动机（本文） | docs/architecture.md |
+| 一帧、一份资产、一次销毁的完整流动 | [data-flow.md](data-flow.md) |
+| 某一层内部有什么 | [layers/](layers/)（撰写中） |
+| 开发规范与历史决策记录 | [dev-history/](dev-history/) |

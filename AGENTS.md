@@ -4,7 +4,7 @@
 
 ## 修改架构前
 
-- 先阅读 `docs/architecture.md`。它是跨会话的架构唯一真源，包含分层与依赖规则。
+- 先阅读 `docs/dev-history/architecture.md`。它是跨会话的架构唯一真源，包含分层与依赖规则。
 - 阅读相关 `docs/dev-history/implementation/*.md`（已归档的开发记录），了解阶段目标与已记录决策。
 
 ## 编码规范
@@ -29,5 +29,5 @@
 ### 代码组织
 
 - 遵循现有 `Kita::Pbrv` 命名空间与目录结构。
-- 遵守 `docs/architecture.md` 中的分层与依赖规则。
+- 遵守 `docs/dev-history/architecture.md` 中的分层与依赖规则。
 - 公共 API 尽量不暴露内部实现细节。
