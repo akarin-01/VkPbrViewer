@@ -37,5 +37,16 @@ namespace Kita::Pbrv
             VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
             VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask,
             const VkImageSubresourceRange& range);
+
+        /// Synchronization-only image barrier: no layout change, keeps `layout`.
+        /// Makes prior writes in srcStageMask/srcAccessMask visible to
+        /// dstStageMask/dstAccessMask (e.g. between dynamic rendering scopes).
+        void ImageMemoryBarrier(
+            VkCommandBuffer commandBuffer,
+            VkImage image,
+            VkImageLayout layout,
+            VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
+            VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask,
+            const VkImageSubresourceRange& range);
     }
 }

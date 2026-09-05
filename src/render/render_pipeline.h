@@ -49,6 +49,9 @@ namespace Kita::Pbrv
             void TransitionSwapchainToWriteLayout(VkCommandBuffer commandBuffer, uint32_t imageIndex) const;
             void TransitionSwapchainToPresentLayout(VkCommandBuffer commandBuffer, uint32_t imageIndex) const;
 
+            void BarrierTargetLitToSkybox(VkCommandBuffer commandBuffer) const;
+            void BarrierSwapchainPostToUI(VkCommandBuffer commandBuffer, uint32_t imageIndex) const;
+
         private:
             const Rhi::SwapChain& m_swapChain;
 

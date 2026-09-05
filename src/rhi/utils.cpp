@@ -6,6 +6,35 @@ namespace Kita::Pbrv
 {
     namespace Rhi
     {
+        namespace
+        {
+            /// Shared core of TransitionImageLayout / ImageMemoryBarrier
+            void BuildImageBarrier(VkCommandBuffer commandBuffer, VkImage image,
+                VkImageLayout oldLayout, VkImageLayout newLayout,
+                VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
+                VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask,
+                const VkImageSubresourceRange& range)
+            {
+                VkImageMemoryBarrier2 barrier{};
+                barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+                barrier.srcStageMask = srcStageMask;
+                barrier.srcAccessMask = srcAccessMask;
+                barrier.dstStageMask = dstStageMask;
+                barrier.dstAccessMask = dstAccessMask;
+                barrier.oldLayout = oldLayout;
+                barrier.newLayout = newLayout;
+                barrier.image = image;
+                barrier.subresourceRange = range;
+
+                VkDependencyInfo dependencyInfo{};
+                dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+                dependencyInfo.imageMemoryBarrierCount = 1;
+                dependencyInfo.pImageMemoryBarriers = &barrier;
+
+                vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
+            }
+        }
+
         QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface)
         {
             QueueFamilyIndices indices;
@@ -73,24 +102,18 @@ namespace Kita::Pbrv
             VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask,
             const VkImageSubresourceRange& range)
         {
-            VkImageMemoryBarrier2 barrier{};
-            barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-            barrier.srcStageMask = srcStageMask;
-            barrier.srcAccessMask = srcAccessMask;
-            barrier.dstStageMask = dstStageMask;
-            barrier.dstAccessMask = dstAccessMask;
-            barrier.oldLayout = oldLayout;
-            barrier.newLayout = newLayout;
-            barrier.image = image;
-            barrier.subresourceRange = range;
+            BuildImageBarrier(commandBuffer, image, oldLayout, newLayout,
+                srcStageMask, srcAccessMask, dstStageMask, dstAccessMask, range);
+        }
 
-            VkDependencyInfo dependencyInfo{};
-            dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-            dependencyInfo.dependencyFlags = 0;
-            dependencyInfo.imageMemoryBarrierCount = 1;
-            dependencyInfo.pImageMemoryBarriers = &barrier;
-
-            vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
+        void ImageMemoryBarrier(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout layout,
+            VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
+            VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask,
+            const VkImageSubresourceRange& range)
+        {
+            // Same-layout barrier: pure synchronization, no layout transition
+            BuildImageBarrier(commandBuffer, image, layout, layout,
+                srcStageMask, srcAccessMask, dstStageMask, dstAccessMask, range);
         }
     }
 }
