@@ -36,13 +36,14 @@
 
 ## 数据流
 
-- scene 实体（Camera/Light/Object/Skybox/PostProcess）各自 `Update()` 自写数据到 SceneProxy（局部 static 单例）；变更走脏标记：`WriteMesh` / `WriteMaterialTextures`（空 id = 删除）；删除走 Scene 的 DestroyObject → 标记 → Update 清扫。
+- scene 实体（Camera/Light/Object/Skybox/PostProcess）各自 `Update()` 自写数据到 SceneProxy（局部 static 单例）；变更走脏标记：`UpdateMesh` / `UpdateMaterial`（无效 id = 删除）；删除走 Scene 的 DestroyObject → 标记 → Update 清扫。
 - 模型导入统一走 `Scene::Utils::SpawnModel(scene, assets, path)`（加载 + 逐 part 装配 Object），app 初始化与 UI 导入共用；UI 加载失败（异常或 invalid handle）→ Log::Error 并保持原资源不变。
 - RenderScene.Update() ← BuildSceneProxy(aspect)（转换后清 scene 输入区）；消费顺序：删除 → mesh/material 记录（find-or-create）→ UBO 写入；`Reset()` 清输出区。
 - 对账：RenderScene 内部用 `unordered_map<ResourceId, size_t>` 定位，对外只暴露 `vector<RenderObject>`；`GetDeletedObjects()` 驱动 remove。
 - LitPass：每帧收集 `RenderObject` → 按材质/网格两级排序 → 换绑跳过 → 绘制。
+- 阴影投射体为世界坐标系下围绕原点的固定包围盒（SceneProxy 的 `kShadowBounds*`），光空间 ortho 视锥体每帧拟合该包围盒；盒外物体不投影——已知取舍。
 - 每个场景对象 = `RenderObject`：`id + MeshResource::Handle + MaterialState::Handle + ObjectState`；`ObjectState` = kMaxFramesInFlight 个 UBO + K 个描述集（`mat4 model` + 材质参数）。
-- Camera 为纯视图状态（position + yaw/pitch，轴/矩阵按需派生）；orbit 逻辑在 application 层 OrbitCameraController；Object 持 id + active + deletePending + 脏标记。
+- Camera 为纯视图状态（position + yaw/pitch，轴/矩阵按需派生）；orbit 逻辑在 application 层 OrbitCameraController；Object 持 id + deletePending + 脏标记（mesh / 材质贴图）。
 
 ## 错误处理约定
 

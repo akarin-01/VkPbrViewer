@@ -27,7 +27,7 @@
 scene 层   Camera::Update ──┐   每帧写入区：相机轴/灯光/后处理/物体 transform+材质参数
           Light::Update   ──┼─▶ SceneProxy（局部 static 单例）[已实现]
           Object::Update  ──┘   
-          变更记录区：WriteMesh/WriteMaterialTextures（脏标记检测，变化才写，带 object id）
+          变更记录区：UpdateMesh/UpdateMaterial（脏标记检测，变化才写，带 object id）
           删除通道：Scene::DestroyObject → 标记 → Scene::Update 清扫时 DeleteObject(id)
 
 render 层  RenderScene.Update() ◀─ BuildSceneProxy(aspect) 将原始输入转换为 GPU 数据
@@ -46,14 +46,14 @@ resource 层 ResourceManager（整型键）──懒创建 + L0/L1 缓存 + 引�
 
 ### 四、设计决策
 
-1. **SceneProxy 纯数据 + 描述流**【已实现】：持有 shader 对应结构体（PerFrame / PostProcess / PerObject），写入方法做"场景参数 → 结构体"转换；资产引用以变更记录下发：`WriteMesh(objectId, assetId)` / `WriteMaterialTextures(objectId, 全组 id)`（空 id = 删除），未变更不调用。**多物体**：每物体一个 `ResourceId`，输入为 `vector<ObjectInput>`、输出为 `vector<ObjectData{id, PerObject}>`，记录带 object id（MeshRecord / MaterialRecord 各为 vector）。
+1. **SceneProxy 纯数据 + 描述流**【已实现】：持有 shader 对应结构体（PerFrame / PostProcess / PerObject），写入方法做"场景参数 → 结构体"转换；资产引用以变更记录下发：`UpdateMesh(objectId, meshId)` / `UpdateMaterial(objectId, 全组贴图 id)`（无效 id = 删除），未变更不调用。**多物体**：每物体一个 `ResourceId`，输入为 `vector<ObjectInput>`、输出为 `vector<ObjectData{id, PerObject}>`，记录带 object id（MeshRecord / MaterialRecord 各为 vector）。
 2. **RenderScene 无 GlobalState**【已实现】：RenderScene 直接持有具体状态/纹理集合/对象，例如 `FrameState`、`TargetTextures`、`ShadowTextures`、`LitState`、`PostProcessState`、`MaterialState`、`ObjectState`。pass 按需获取对应的 state / textures。
 3. **RenderScene 对账**【已实现】：外部只暴露 `std::vector<RenderObject>`；内部用 `std::unordered_map<ResourceId, size_t>` 定位。`RenderObject` = `id + MeshResource::Handle + MaterialState::Handle + ObjectState`。mesh/material 记录到达时 find-or-add 再应用；`GetDeletedObjects()` 通道驱动 remove。
 4. **per-object 数据**【已实现】：每个场景对象的动态 set 为 `ObjectState` = `kMaxFramesInFlight` 个 UBO + K 个描述集，内容为 `mat4 model` + 材质参数（albedo / metallic-roughness-ao / emissive + emissive intensity）。
 5. **材质内容寻址**【已实现】：GPU 材质 = 纯贴图集 + descriptor set（不含参数），以 `MaterialDesc`（全组贴图 id）哈希去重；`MaterialState` 在 RenderScene 的 `CacheTable` 中共享。
 6. **DescriptorManager**【已实现】：集中管理全部 descriptor layout 与 pool；layout 按内容去重、pool 按 layout 分组持有、池满自动扩容；layout 为**唯一真源**（Set 内不再存 m_layout），经 `ResourceManager::GetDescriptorSetLayout(Type)` 查询，pass 的 CreatePipeline 收 `std::vector<VkDescriptorSetLayout>`；**回收**：DescriptorSetRhi → graveyard 延迟 K 帧 → `DescriptorManager::Recycle` → 池内 free list（reuse-only，不调用 vkFreeDescriptorSets）。
 7. **RenderGraph**【未做】：现有 RenderPipeline（pass 编排器）可改名，职责不变。
-8. **scene 不用组件**【已实现】：Camera/Light/Object/Skybox/PostProcess 各自 `Update()` 自写数据到 SceneProxy；Camera 为纯视图状态（position + yaw/pitch，轴/矩阵按需派生），orbit 逻辑在 application 层 OrbitCameraController；Object 持 id + active（停用保留容器）+ deletePending（标记清扫）+ 脏标记。
+8. **scene 不用组件**【已实现】：Camera/Light/Object/Skybox/PostProcess 各自 `Update()` 自写数据到 SceneProxy；Camera 为纯视图状态（position + yaw/pitch，轴/矩阵按需派生），orbit 逻辑在 application 层 OrbitCameraController；Object 持 id + deletePending（标记清扫）+ 脏标记（mesh 变更 + 材质贴图变更）。
 9. **SceneProxy 为局部 static 单例**【已实现】：`SceneProxy::Get()`；消费顺序 scene 写入 → RenderScene（Build + 消费 + Reset）；未来多场景/多线程再改显式参数/依赖注入。
 
 ### 五、资源与状态划分
