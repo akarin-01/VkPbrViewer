@@ -65,12 +65,12 @@ build/Release/VkPbrViewer.exe
 | 文档                                         | 内容                                                     |
 | -------------------------------------------- | -------------------------------------------------------- |
 | [docs/architecture.md](docs/architecture.md) | 架构约定：分层、依赖规则、资源模型（开发规范，唯一真源） |
+| [docs/data-flow.md](docs/data-flow.md)       | 数据流：一帧的生命周期、资产从文件到像素的链路、IBL 烘焙与销毁路径 |
 | [docs/dev-history/](docs/dev-history/)       | 开发期文档归档：需求、项目构思、分阶段实现记录           |
 
 计划中的文档（随开发逐步补全）：
 
 - 架构总览（面向读者的架构介绍与设计取舍）
-- 数据流（一帧的生命周期、资产从文件到像素的完整链路）
 - 逐层文档（`docs/layers/`：core / rhi / resource / render / scene / application）
 
 ## 已知限制
