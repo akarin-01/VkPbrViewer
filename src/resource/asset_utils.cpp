@@ -16,6 +16,7 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <cstring>
 #include <filesystem>
 #include <optional>
 #include <stdexcept>
@@ -52,6 +53,24 @@ namespace Kita::Pbrv
                 }
             }
 
+            /// memcpy read: accessor data can sit at an unaligned offset in
+            /// the buffer, so direct reinterpret_cast would be UB
+            template <typename T>
+            T ReadComponent(const uint8_t* src, int component)
+            {
+                T value{};
+                std::memcpy(&value, src + sizeof(T) * component, sizeof(T));
+                return value;
+            }
+
+            /// glTF normalized encoding: unsigned maps to [0, 1], signed to
+            /// [-1, 1] with the lower end clamped (byte -128 -> -1.0).
+            /// Non-normalized integers pass through as raw values.
+            float ToNormalizedFloat(float value, float max, bool normalized)
+            {
+                return normalized ? glm::max(value / max, -1.0f) : value;
+            }
+
             glm::vec4 ReadAccessorElement(const tinygltf::Model& model, const tinygltf::Accessor& accessor, size_t index)
             {
                 const tinygltf::BufferView& bufferView = model.bufferViews[accessor.bufferView];
@@ -72,19 +91,19 @@ namespace Kita::Pbrv
                     switch (accessor.componentType)
                     {
                     case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
-                        result[i] = static_cast<float>(src[i]) / 255.0f;
+                        result[i] = ToNormalizedFloat(ReadComponent<uint8_t>(src, i), 255.0f, accessor.normalized);
                         break;
                     case TINYGLTF_COMPONENT_TYPE_BYTE:
-                        result[i] = static_cast<float>(reinterpret_cast<const int8_t*>(src)[i]) / 127.0f;
+                        result[i] = ToNormalizedFloat(ReadComponent<int8_t>(src, i), 127.0f, accessor.normalized);
                         break;
                     case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
-                        result[i] = static_cast<float>(reinterpret_cast<const uint16_t*>(src)[i]) / 65535.0f;
+                        result[i] = ToNormalizedFloat(ReadComponent<uint16_t>(src, i), 65535.0f, accessor.normalized);
                         break;
                     case TINYGLTF_COMPONENT_TYPE_SHORT:
-                        result[i] = static_cast<float>(reinterpret_cast<const int16_t*>(src)[i]) / 32767.0f;
+                        result[i] = ToNormalizedFloat(ReadComponent<int16_t>(src, i), 32767.0f, accessor.normalized);
                         break;
                     case TINYGLTF_COMPONENT_TYPE_FLOAT:
-                        result[i] = reinterpret_cast<const float*>(src)[i];
+                        result[i] = ReadComponent<float>(src, i);
                         break;
                     default:
                         throw std::runtime_error("Unsupported accessor component type!");
@@ -105,11 +124,11 @@ namespace Kita::Pbrv
                 switch (accessor.componentType)
                 {
                 case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
-                    return src[0];
+                    return ReadComponent<uint8_t>(src, 0);
                 case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
-                    return reinterpret_cast<const uint16_t*>(src)[0];
+                    return ReadComponent<uint16_t>(src, 0);
                 case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
-                    return reinterpret_cast<const uint32_t*>(src)[0];
+                    return ReadComponent<uint32_t>(src, 0);
                 default:
                     throw std::runtime_error("Unsupported index component type!");
                 }
