@@ -41,11 +41,7 @@ Vk Pbr Viewer 是一个使用 **C++** 开发，以 **Vulkan** 作为图形 API �
   启用 Vulkan 1.3 版本，并启用 `VK_KHR_dynamic_rendering` 扩展。该扩展允许在不创建传统 RenderPass 和 Framebuffer 对象的情况下直接开始渲染，显著减少样板代码，使多 Pass 管理更加灵活。
 
 - **CMake**  
-  作为核心构建工具。为了在保证工程复现性的同时最大化 AI 辅助编程工具的上下文理解能力，采用 **“核心底层库 Submodule + 高频工具库 FetchContent”** 的混合依赖管理模式：
-  - **Git Submodule（存放于 `third_party/`）**：将 **GLFW** 及 **VulkanMemoryAllocator (VMA)** 作为 Git 子模块引入。这些库直接与操作系统和 Vulkan 驱动交互，接口稳定性要求极高。通过 Submodule 将源码锁定在特定 Commit，避免上游更新导致的构建断裂；同时这些源码物理存在于项目目录中，AI Agent 可直接索引其头文件与宏定义，在生成 Vulkan 对象创建或内存分配代码时能准确把握参数结构，显著降低 AI 幻觉。
-  - **FetchContent（CMake 配置时自动拉取）**：将 **glm**、**stb_image**、**tinyobjloader** 以及 **Dear ImGui** 通过 `FetchContent` 在构建配置阶段自动下载。这些库接口高度标准化且极少变动，采用自动下载可大幅减轻仓库体积，并简化团队协作时的环境配置成本。
-  
-  工程根目录的 `CMakeLists.txt` 中将包含子模块存在性检查逻辑，若开发者未执行 `git submodule update --init`，构建时会直接输出友好错误提示，该提示可直接反馈给 AI Agent，辅助其自动修复环境问题。
+  作为核心构建工具。依赖管理统一使用 **FetchContent**：glm、stb_image、tinygltf、Dear ImGui、GLFW、Vulkan-Headers 均在配置阶段自动拉取，版本以 GIT_TAG（tag 或 commit）锁定。统一机制让"clone → configure → build"零手工步骤，也让有/无 CMakeLists 的库走同构的接入模式（后者按 tinygltf/stb 的方式手搓 INTERFACE target），避免混合模式的双重初始化负担。
 
 - **UI 库（Dear ImGui）**  
   采用即时模式 GUI 库 Dear ImGui，并集成其官方 Vulkan 后端与 GLFW 后端。用于构建调试面板及参数控制界面，支持滑块、颜色选择器、文件对话框等交互组件。
@@ -60,7 +56,7 @@ Vk Pbr Viewer 是一个使用 **C++** 开发，以 **Vulkan** 作为图形 API �
   提供向量（vec）、矩阵（mat）及常用几何变换运算。需配置为使用 Vulkan 的 NDC 坐标系（`GLM_FORCE_DEPTH_ZERO_TO_ONE` 和 `GLM_FORCE_LEFT_HANDED` 视具体设置而定，通常配合 Y 轴翻转处理）。
 
 - **内存管理（VulkanMemoryAllocator / VMA）**  
-  用于高效管理 Vulkan 设备内存（Device Memory）和绑定（Binding），自动处理内存类型选择、分配与释放，避免手动管理带来的碎片化和繁琐的 API 调用。该库采用单头文件形式，通过 Submodule 引入。
+  用于高效管理 Vulkan 设备内存（Device Memory）和绑定（Binding），自动处理内存类型选择、分配与释放，避免手动管理带来的碎片化和繁琐的 API 调用。该库采用单头文件形式；当前项目尚未引入，后续需要时经 FetchContent 接入。
 
 - **着色器编译（glslangValidator）**  
   使用 Vulkan SDK 自带的 `glslangValidator` 工具，在 CMake 构建时将 GLSL 源码编译为 SPIR-V 二进制文件，运行时直接加载。

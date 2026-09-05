@@ -24,7 +24,7 @@
 
 - C++17 + Vulkan 1.3，启用 `VK_KHR_dynamic_rendering` 减少样板代码
 - GLFW 创建窗口，Dear ImGui 做 UI
-- CMake 构建，依赖管理混合使用 Submodule + FetchContent
+- CMake 构建，依赖管理统一使用 FetchContent（版本以 GIT_TAG 锁定）
 - 着色器编译使用 glslangValidator（构建时 GLSL → SPIR-V）
 - **程序必须在项目根目录启动**，因为资源路径用的是相对于根目录的路径
 - 启动时如果没有 `assets/` 文件夹就直接报错退出

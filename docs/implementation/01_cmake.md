@@ -10,3 +10,5 @@
 - [x] 创建 `src/`、`assets/`、`third_party/` 目录结构
 - [x] 在 `main()` 入口处检查 `assets/` 目录是否存在，不存在则输出错误提示并 `std::exit(EXIT_FAILURE)`
 - [x] 写一个 Hello World 的 `main.cpp`，验证构建链路能跑通
+
+> **更新**：依赖管理已统一迁移到 FetchContent——GLFW、Vulkan-Headers 一并迁入（GIT_TAG 锁定版本），未使用的 VMA submodule 已移除，`third_party/` 目录与 submodule 存在性检查已删除。上方 submodule 步骤为历史记录。

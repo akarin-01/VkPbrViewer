@@ -5,10 +5,16 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# ===== FetchContent =====
+# ======================================================================
+# 依赖管理：统一 FetchContent，版本以 GIT_TAG（tag 或 commit）锁定
+#
+# 两种接入模式，按"上游是否提供 CMake 目标"划分：
+#   A. 提供 CMake 目标     → FetchContent_MakeAvailable 直接引入
+#   B. 无/不用上游 CMake   → FetchContent_Populate + 手动定义 target
+# ======================================================================
 include(FetchContent)
 
-# glm — 数学库，header-only，零依赖
+# ----- A1. glm — 数学库，header-only，零依赖 -----
 FetchContent_Declare(
     glm
     GIT_REPOSITORY https://github.com/g-truc/glm.git
@@ -16,8 +22,30 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glm)
 
-# tinygltf — glTF 2.0 解析库（自带 json.hpp，single-header 模式，与 stb 同款接入）
-# 锁定 2.x 系列（v2.9.7）；v3 重写分支（tiny_gltf_v3.h）API 不兼容，勿升级
+# ----- A2. glfw — 窗口与输入 -----
+set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+    glfw
+    GIT_REPOSITORY https://github.com/glfw/glfw.git
+    GIT_TAG        3.5.1
+)
+FetchContent_MakeAvailable(glfw)
+
+# ----- A3. Vulkan-Headers — 编译期头文件，提供 Vulkan::Headers target -----
+FetchContent_Declare(
+    vulkan-headers
+    GIT_REPOSITORY https://github.com/KhronosGroup/Vulkan-Headers.git
+    GIT_TAG        v1.4.362
+)
+FetchContent_MakeAvailable(vulkan-headers)
+
+# ----- Vulkan Loader — 来自系统 Vulkan SDK，提供链接库（Vulkan::Vulkan）-----
+find_package(Vulkan REQUIRED)
+
+# ----- B1. tinygltf — glTF 2.0 解析库（自带 json.hpp，single-header 模式）-----
+# 锁定 2.x 系列：v3 重写分支改名 tiny_gltf_v3.h 且 API 不兼容，勿升级
 FetchContent_Declare(
     tinygltf
     GIT_REPOSITORY https://github.com/syoyo/tinygltf.git
@@ -30,7 +58,8 @@ endif()
 add_library(tinygltf INTERFACE)
 target_include_directories(tinygltf INTERFACE ${tinygltf_SOURCE_DIR})
 
-# stb — 单头文件图像库，无版本号，用 commit hash 锁定
+# ----- B2. stb — 单头文件图像库（stb_image 供纹理 / HDR 解码）-----
+# 上游无版本 tag，用 commit hash 锁定
 FetchContent_Declare(
     stb
     GIT_REPOSITORY https://github.com/nothings/stb.git
@@ -43,40 +72,9 @@ endif()
 add_library(stb INTERFACE)
 target_include_directories(stb INTERFACE ${stb_SOURCE_DIR})
 
-# ===== Submodule 存在性检查 =====
-# 这些库将在后续阶段通过 add_subdirectory 或 target_link_libraries 集成，
-# 此处先检查目录是否存在，未初始化时给出明确提示。
-set(SUBMODULE_DIRS
-    third_party/glfw
-    third_party/VMA
-    third_party/Vulkan-Headers
-)
-foreach(dir ${SUBMODULE_DIRS})
-    if(NOT EXISTS "${CMAKE_SOURCE_DIR}/${dir}/.git" AND
-       NOT EXISTS "${CMAKE_SOURCE_DIR}/${dir}/CMakeLists.txt" AND
-       NOT EXISTS "${CMAKE_SOURCE_DIR}/${dir}/include")
-        message(FATAL_ERROR
-            "[CMake] Missing dependency: ${dir}\n"
-            "  Run: git submodule update --init --recursive\n"
-            "  If the submodule hasn't been added yet, see docs/implementation/01_cmake.md")
-    endif()
-endforeach()
-
-# ===== GLFW =====
-set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-add_subdirectory(third_party/glfw)
-
-# ===== Vulkan-Headers（来自 submodule，提供编译期头文件）=====
-add_subdirectory(third_party/Vulkan-Headers EXCLUDE_FROM_ALL)
-
-# ===== Vulkan Loader（来自系统 Vulkan SDK，提供链接库）=====
-find_package(Vulkan REQUIRED)
-
-# ===== Dear ImGui（即时模式 GUI，Vulkan + GLFW 后端）=====
-# 锁定 v1.92.9b（动态渲染支持自 v1.91.0 起提供，本项目无经典 RenderPass，必须走该路径）
-# imgui 上游不提供 CMake 目标，按 tinygltf/stb 同款方式手动接入
+# ----- B3. Dear ImGui — 即时模式 GUI（Vulkan + GLFW 后端，静态编译）-----
+# 锁定 v1.92.9b：动态渲染支持自 v1.91.0 起提供，本项目无经典 RenderPass，必须走该路径
+# 其 target 依赖 A 组的 glfw / Vulkan::Headers / Vulkan::Vulkan，故置于 A 组之后
 FetchContent_Declare(
     imgui
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
@@ -97,7 +95,7 @@ add_library(imgui STATIC
 target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends)
 target_link_libraries(imgui PUBLIC glfw Vulkan::Headers Vulkan::Vulkan)
 
-# ===== Shader Compiler (glslc) =====
+# ===== 着色器编译器（glslc）=====
 find_program(GLSLC_EXECUTABLE glslc REQUIRED)
 message(STATUS "Shader compiler: glslc (${GLSLC_EXECUTABLE})")
 
@@ -196,7 +194,7 @@ else()
     message(WARNING "[CMake] OpenFileDialog currently only supports Windows; it will be a no-op on this platform.")
 endif()
 
-# ===== Shader 编译（GLSL → SPIR-V）=====
+# ===== 着色器编译（GLSL → SPIR-V）=====
 # *.spv 文件已在 .gitignore 中排除，编译产物直接输出到源码目录 assets/shaders/
 # renderer.cpp 从工作目录下的 assets/shaders/ 加载这些文件
 set(SHADER_SOURCES
@@ -213,6 +211,7 @@ set(SHADER_SOURCES
     assets/shaders/shadow.vert
     assets/shaders/shadow.frag
 )
+
 set(SHADER_OUTPUTS
     assets/shaders/lit_vert.spv
     assets/shaders/lit_frag.spv
