@@ -279,9 +279,12 @@ namespace Kita::Pbrv
 
         void Context::CreateInstance()
         {
-            if (enableValidationLayers && !CheckValidationLayerSupport())
+            if (enableValidationLayers)
             {
-                throw std::runtime_error("Validation layers requested, but not available!");
+                if (!CheckValidationLayerSupport())
+                {
+                    throw std::runtime_error("Validation layers requested, but not available!");
+                }
             }
 
             VkApplicationInfo appInfo{};
