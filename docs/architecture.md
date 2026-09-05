@@ -1,6 +1,6 @@
 # 架构约定（跨会话唯一真源，改架构前先读）
 
-> 设计过程与细节见 [implementation/08_restructuring.md](implementation/08_restructuring.md)；本节只保留**必须遵守的规则**。
+> 设计过程与细节见 [dev-history/implementation/08_restructuring.md](dev-history/implementation/08_restructuring.md)；本节只保留**必须遵守的规则**。
 
 ## 分层与依赖
 
@@ -47,7 +47,7 @@
 
 ## 错误处理约定
 
-六类场景处置（详表见 [07_polish.md](implementation/07_polish.md) 末尾）：外部输入失败 → 抛异常（消息含路径+原因），UI 回调边界 try/catch → Log::Error 后继续；解析警告/可降级 → Log::Warning + 跳过继续；枚举/传参非法（代码错误）→ 抛异常初始化期暴露；GPU 创建/提交失败（致命）→ 抛异常（含资源名 + VkResult）传播到 main 兜底；内部不变量 → assert 中断；操作取消 → `return nullopt`。
+六类场景处置（详表见 [07_polish.md](dev-history/implementation/07_polish.md) 末尾）：外部输入失败 → 抛异常（消息含路径+原因），UI 回调边界 try/catch → Log::Error 后继续；解析警告/可降级 → Log::Warning + 跳过继续；枚举/传参非法（代码错误）→ 抛异常初始化期暴露；GPU 创建/提交失败（致命）→ 抛异常（含资源名 + VkResult）传播到 main 兜底；内部不变量 → assert 中断；操作取消 → `return nullopt`。
 
 ## 日志分级（resource 层）
 

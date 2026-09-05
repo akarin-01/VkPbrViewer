@@ -20,12 +20,8 @@ lib/
 # ===== Vulkan 着色器编译产物（可选，一般运行时生成） =====
 *.spv
 
-# ===== 运行时资产（大体积二进制，本地管理） =====
-/assets/hdr/
-/assets/models/
-
-# ===== Dear ImGui 运行时设置文件（窗口布局记忆）=====
-/imgui.ini
+# ===== Dear ImGui 运行时设置文件（窗口布局记忆，任意深度）=====
+imgui.ini
 
 # ===== IDE 配置文件 =====
 # Visual Studio / VS Code / CLion
