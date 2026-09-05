@@ -1,6 +1,6 @@
 # 数据流
 
-本文回答"数据怎么流动"。必须遵守的规则与不变量（分层、依赖、命名、句柄）以 [dev-history/architecture.md](dev-history/architecture.md) 为准，本文只做讲解；各层内部结构见 [layers/](layers/)（撰写中）。文件路径均相对 `src/`。
+本文回答"数据怎么流动"。必须遵守的规则与不变量（分层、依赖、命名、句柄）以 [dev-history/architecture.md](dev-history/architecture.md) 为准，本文只做讲解；各层内部结构见 [layers/](layers/)。文件路径均相对 `src/`。
 
 ## 总览
 

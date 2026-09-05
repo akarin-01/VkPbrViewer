@@ -1,6 +1,6 @@
 # 架构
 
-> 面向读者的架构说明：系统怎么组织、为什么这么设计。数据怎么流动见 [data-flow.md](data-flow.md)；每一层内部的文件与机制见 [layers/](layers/)（撰写中）；开发时必须遵守的规范条目（命名、不变量、错误处理约定）见 [dev-history/architecture.md](dev-history/architecture.md)。
+> 面向读者的架构说明：系统怎么组织、为什么这么设计。数据怎么流动见 [data-flow.md](data-flow.md)；每一层内部的文件与机制见 [layers/](layers/)；开发时必须遵守的规范条目（命名、不变量、错误处理约定）见 [dev-history/architecture.md](dev-history/architecture.md)。
 
 ## 设计出发点
 
@@ -59,7 +59,7 @@ scene 实体把数据写进 SceneProxy（每帧输入 + 仅变化时写下的变
 
 ### 3. 共享资源用 RAII 句柄，销毁走 Graveyard
 
-`Handle<T>` = 条目索引 + 引用计数，拷贝 +1 / 析构 -1；归零后拆解成裸 Vk 句柄进 Graveyard，K 帧后销毁；descriptor set 归零后回收到池复用。动机：GPU 异步执行中，"CPU 认为没用了"不等于"GPU 用完了"——句柄系统把"谁还在用"变成可计数的确定状态，销毁时机由 fence 推算。详见 [data-flow.md](data-flow.md) 的销毁链路，实现剖析见 [layers/resource.md](layers/resource.md)（撰写中）。
+`Handle<T>` = 条目索引 + 引用计数，拷贝 +1 / 析构 -1；归零后拆解成裸 Vk 句柄进 Graveyard，K 帧后销毁；descriptor set 归零后回收到池复用。动机：GPU 异步执行中，"CPU 认为没用了"不等于"GPU 用完了"——句柄系统把"谁还在用"变成可计数的确定状态，销毁时机由 fence 推算。详见 [data-flow.md](data-flow.md) 的销毁链路，实现剖析见 [layers/resource.md](layers/resource.md)。
 
 ### 4. descriptor layout 是唯一真源
 
@@ -84,5 +84,5 @@ MaterialState = 贴图组合 + 描述集（不含标量参数），以 `Material
 | 项目是什么、怎么构建运行 | [README](../README.md) |
 | 结构与设计动机（本文） | docs/architecture.md |
 | 一帧、一份资产、一次销毁的完整流动 | [data-flow.md](data-flow.md) |
-| 某一层内部有什么 | [layers/](layers/)（撰写中） |
+| 某一层内部有什么 | [layers/](layers/) |
 | 开发规范与历史决策记录 | [dev-history/](dev-history/) |

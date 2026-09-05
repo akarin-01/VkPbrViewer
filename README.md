@@ -62,15 +62,12 @@ build/Release/VkPbrViewer.exe
 
 ## 文档
 
-| 文档                                         | 内容                                                     |
-| -------------------------------------------- | -------------------------------------------------------- |
-| [docs/architecture.md](docs/architecture.md) | 架构：六层分层、依赖规则与关键设计决策                   |
-| [docs/data-flow.md](docs/data-flow.md)       | 数据流：一帧的生命周期、资产从文件到像素的链路、IBL 烘焙与销毁路径 |
-| [docs/dev-history/](docs/dev-history/)       | 开发与协作文档：架构约定（agent 唯一真源）、需求、项目构思、分阶段实现记录 |
-
-计划中的文档（随开发逐步补全）：
-
-- 逐层文档（`docs/layers/`：core / rhi / resource / render / scene / application）
+| 文档                                             | 内容                                                     |
+| ------------------------------------------------ | -------------------------------------------------------- |
+| [docs/architecture.md](docs/architecture.md)     | 架构：六层分层、依赖规则与关键设计决策                   |
+| [docs/data-flow.md](docs/data-flow.md)           | 数据流：一帧的生命周期、资产从文件到像素的链路、IBL 烘焙与销毁路径 |
+| [docs/layers/](docs/layers/)                     | 逐层文档：core / rhi / resource / render / scene / application |
+| [docs/dev-history/](docs/dev-history/)           | 开发与协作文档：架构约定（agent 唯一真源）、需求、项目构思、分阶段实现记录 |
 
 ## 已知限制
 
