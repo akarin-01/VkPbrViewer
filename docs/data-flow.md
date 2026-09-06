@@ -115,7 +115,7 @@ flowchart LR
 3. **场景装配**：每个 part 一个 `Scene::Object`：`SetMesh`（RAII Handle，拷贝 +1 / 析构 -1）+ 材质贴图设置 → 脏标记。
 4. **变更下发**：下一帧 `Object::Update()` 产出 `UpdateMesh(id, meshId)` / `UpdateMaterial(id, 5 个贴图 id)` 变更记录。
 5. **懒创建 GPU 资源**（`resource/resource_manager.cpp`）：`GetOrCreateMesh`（meshCache 按 ResourceId 去重，顶点/索引经 staging 一次性上传）；`CreateTexture` → `GetOrCreateImage`（**同一张贴图全工程只上传一次**）+ `GetOrCreateSampler`（SamplerDesc 哈希去重）。
-6. **状态装配**：`MaterialDesc`（5 个 slot 的贴图 id）→ `CacheTable<MaterialState>` 内容寻址去重；空 slot 用 1×1 fallback 纹理填充，缺贴图不崩。
+6. **状态装配**：`MaterialDesc`（5 个 slot 的贴图 id）→ `CacheTable<MaterialState>` 内容寻址去重——材质标量参数**不在其中**（它们随每帧数据进 ObjectState 的 per-object UBO），因此贴图组相同就必然命中同一份 GPU 材质；空 slot 用 1×1 fallback 纹理填充，缺贴图不崩。
 7. 首帧绘制。
 
 **要点**：

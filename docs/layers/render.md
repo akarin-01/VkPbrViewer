@@ -48,6 +48,8 @@
 
 K = `kMaxFramesInFlight`（2）：所有"每帧写"的 UBO 与 set 都双份，按 frameIndex 选取。`RenderObject` = id + MeshResource::Handle + MaterialState::Handle + ObjectState，暴露语义 getter（`GetMaterialSet()` / `GetObjectSet(frameIndex)` / `GetVertexBuffer()`）——pass 只用 getter，不穿透到句柄链。
 
+MaterialState 与 ObjectState 的分工是刻意设计：**标量参数全部放在 ObjectState 的 per-object UBO，MaterialState 只含贴图组与描述集**——于是两个物体只要贴图组相同（标量参数可以完全不同），就共享同一份 GPU 材质，描述集数量与物体数量解耦。
+
 ## RenderPipeline 与五个 pass（render_pipeline / passes/）
 
 `RenderPassBase` 只约定两件事：`Draw(frameInfo)` 与 `RecreateResources()`，外加 context/swapchain 引用。`RenderPipeline::Draw` 录制固定的命令序列（shadow → lit → barrier → skybox → post → barrier → ui，外加各组 layout transition），屏障原语来自 rhi 的 `TransitionImageLayout` / `ImageMemoryBarrier`——完整序列与依赖分析见 [../data-flow.md](../data-flow.md)。
